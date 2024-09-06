@@ -11,6 +11,7 @@ RECEIPT_HOME="${HOME}/.dotfiles_test"
 BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
 DOTFILES_REMOTE=""
 PRINT_VERBOSE=${INSTALLER_PRINT_VERBOSE:-0}
+PRINT_QUIET=${INSTALLER_PRINT_QUIET:-0}
 
 set -u
 
