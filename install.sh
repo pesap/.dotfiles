@@ -183,6 +183,16 @@ say_verbose() {
         echo "$1"
     fi
 }
+err() {
+    if [ "0" = "$PRINT_QUIET" ]; then
+        local red
+        local reset
+        red=$(tput setaf 1 2>/dev/null || echo '')
+        reset=$(tput sgr0 2>/dev/null || echo '')
+        say "${red}ERROR${reset}: $1" >&2
+    fi
+    exit 1
+}
 
 set_dotfiles_remote
 
