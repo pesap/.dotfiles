@@ -1,0 +1,23 @@
+[package]
+disabled = true
+
+[conda]
+symbol = "🐍 "
+style = "dimmed green"
+
+[python]
+pyenv_version_name = false
+
+[username]
+show_always = false
+style_user = "bold #EFA700"
+
+[hostname]
+ssh_only = true
+style = "bold purple"
+
+[git_branch]
+style = "bold yellow"
+
+[cmd_duration]
+style = "green"
