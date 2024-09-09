@@ -117,30 +117,22 @@ download_link_dotfiles(){
 
     folders=("${folders[@]%/}")
 
-    if check_cmd stow; then
-        for folder in ${folders[@]}; do
-            echo "stow $folder"
-            stow -R $folder
-        done
-        popd
-    else
-        say_verbose "Stow not found. Using ln instead"
-        link_files_manually
-    fi
+    link_files $folders
 
     rm -rf "$_temp_dir"
 }
 
-link_files_manually() {
-    for dir in $(find . -mindepth 1 -maxdepth 1 -type d); do
-        if [ -d "$dir/.config" ]; then
-            local config_dir="$HOME/.config/$(basename "$dir")"
-            mkdir -p "$config_dir"
-            find "$dir/.config" -mindepth 1 -maxdepth 1 -exec ln -s {} "$config_dir/" \;
-        else
-            find "$dir" -mindepth 1 -maxdepth 1 -exec ln -s {} "$HOME/" \;
-        fi
-    done
+link_files(){
+    if check_cmd stow; then
+        for folder in ${1}; do
+            echo "stow $folder"
+            stow -D $folder
+            stow $folder
+        done
+        popd
+    else
+        err "Stow not found. Install it"
+    fi
 }
 
 ensure() {
