@@ -7,11 +7,13 @@
 # except according to those terms.
 #
 VERSION="0.0.1"
-RECEIPT_HOME="${HOME}/.dotfiles_test"
+RECEIPT_HOME="${HOME}/.dotfiles"
 BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
 DOTFILES_REMOTE=""
+LOCAL_INSTALL=${INSTALLER_LOCAL_INSTALL:-0}
 PRINT_VERBOSE=${INSTALLER_PRINT_VERBOSE:-0}
 PRINT_QUIET=${INSTALLER_PRINT_QUIET:-0}
+STOW_CMD=""
 
 set -u
 
@@ -38,6 +40,8 @@ USAGE:
     dotfiles.sh [OPTIONS]
 
 OPTIONS:
+    -l, --local
+            Using github installation
     -v, --verbose
             Enable verbose output
     -h, --help
@@ -51,13 +55,24 @@ download_link_dotfiles(){
     need_cmd mkdir
     need_cmd rm
     need_cmd rsync
-    need_cmd stow || need_cmd ln  # Use stow if available, fallback to ln
+
+    # Check if stow is available
+    if check_cmd stow; then
+        say_verbose "stow command found."
+        STOW_CMD="stow"
+    else
+        install_stow
+    fi
 
     for arg in "$@"; do
         case "$arg" in
+                
             --help)
                 usage
                 exit 0
+                ;;
+            --local)
+                LOCAL_INSTALL=1
                 ;;
             --verbose)
                 PRINT_VERBOSE=1
@@ -71,6 +86,13 @@ download_link_dotfiles(){
 
     local _file="$_temp_dir/dotfiles$_ext"
     say_verbose "Temporary dict created at: $_temp_dir"
+
+    if [ "1" = "$LOCAL_INSTALL" ]; then
+        folders=(*/)
+        folders=("${folders[@]%/}")
+        link_files "${folders[@]}"
+        exit 0
+    fi
 
     if ! downloader "$DOTFILES_REMOTE" "$_file"; then
         say "failed to download $DOTFILES_REMOTE"
@@ -111,28 +133,37 @@ download_link_dotfiles(){
 
     cd "$RECEIPT_HOME" || return 1
 
-    pushd $RECEIPT_HOME
-
-    folders=($(echo */))
-
-    folders=("${folders[@]%/}")
-
-    link_files $folders
-
+    folders=(*/)
+    folders=("${folders[@]%/}")  # Remove trailing slashes
+	link_files "$folders"
     rm -rf "$_temp_dir"
 }
 
+install_stow(){
+    say "Stow not found. Installing it from source."
+    local _temp_dir
+    _temp_dir=$(mktemp -d)
+    cd $_temp_dir
+    curl -O http://ftp.gnu.org/gnu/stow/stow-latest.tar.gz
+    tar xf stow-latest.tar.gz
+    release=$(ls -Avr | grep -m1 -axEe 'stow-[0-9.]+')
+    cd $release
+    mkdir -p ~/.locals
+    ./configure --prefix ~/.locals
+    make
+    make install
+    STOW_CMD=~/.locals/bin/stow
+    rm -rf $_temp_dir 
+}
+
 link_files(){
-    if check_cmd stow; then
-        for folder in ${1}; do
-            echo "stow $folder"
-            stow -D $folder
-            stow $folder
-        done
-        popd
-    else
-        err "Stow not found. Install it"
-    fi
+    pushd $RECEIPT_HOME
+    for folder in ${@}; do
+        say_verbose "$STOW_CMD $folder"
+        $STOW_CMD -D $folder 
+        $STOW_CMD $folder
+    done
+    popd
 }
 
 ensure() {
