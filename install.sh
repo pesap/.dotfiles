@@ -113,7 +113,7 @@ download_link_dotfiles(){
 
     pushd $RECEIPT_HOME
 
-    folders=($(ls -d */))
+    folders=($(echo */))
 
     folders=("${folders[@]%/}")
 
