@@ -100,7 +100,7 @@ download_link_dotfiles(){
         need_cmd unzip
         ensure unzip -q "$_file" -d "$_extract_dir"
     elif [[ "$_ext" == ".tar.gz" ]]; then
-        ensure tar -xzf --strip-components=1  "$_file" -C "$_extract_dir"
+        ensure tar -xzf "$_file" --strip-components=1 -C "$_extract_dir"
     fi
 
     parent_dir=$(find "$_extract_dir" -mindepth 1 -maxdepth 1 -type d)
