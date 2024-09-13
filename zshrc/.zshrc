@@ -91,8 +91,6 @@ which starship &> /dev/null && eval "$(starship init zsh)"
 # Zoxide
 which zoxide &> /dev/null && eval "$(zoxide init zsh)"
 
-# !! Contents within this block are managed by juliaup !!
-
 path=('/Users/psanchez/.juliaup/bin' $path)
 export PATH
 

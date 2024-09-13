@@ -122,6 +122,7 @@ download_link_dotfiles(){
         need_cmd unzip
         ensure unzip -q "$_file" -d "$_extract_dir"
     elif [[ "$_ext" == ".tar.gz" ]]; then
+        say_verbose "Using tar to decompress $_file"
         ensure tar -xzf "$_file" --strip-components=1 -C "$_extract_dir"
     fi
 
