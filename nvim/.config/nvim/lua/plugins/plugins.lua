@@ -39,6 +39,9 @@ return {
 	-- GitWorktree for bare repositories
 	"theprimeagen/git-worktree.nvim",
 
+	-- Maximize pane
+	"szw/vim-maximizer",
+
 	-- Scratchpad
 	{
 		"LintaoAmons/scratch.nvim",
@@ -118,7 +121,7 @@ return {
 			{ "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
 			"nvim-telescope/telescope-smart-history.nvim",
 			"nvim-telescope/telescope-ui-select.nvim",
-			-- "kkharji/sqlite.lua",
+			"kkharji/sqlite.lua",
 		},
 	},
 

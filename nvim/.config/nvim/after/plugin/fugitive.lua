@@ -1,3 +1,5 @@
 vim.keymap.set("n", "<leader>gs", vim.cmd.Git, { desc = "[G]it [S]tatus" })
 vim.keymap.set("n", "<leader>gl", vim.cmd.Gclog, { desc = "[G]it [L]og" })
 vim.keymap.set("n", "<leader>gb", vim.cmd.GBrowse, { desc = "[G]it [B]rowse" })
+vim.keymap.set("n", "<leader>gw", vim.cmd.Gblame, { desc = "[G]it [B]lame" })
+vim.keymap.set("n", "<leader>gd", vim.cmd.Gdiff, { desc = "[G]it [D]iff" })

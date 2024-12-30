@@ -56,10 +56,11 @@ end
 --  the `settings` field of the server config. You must look up that documentation yourself.
 --
 local servers = {
-	julials = {},
+	julials = { virtual_text = false },
 	rust_analyzer = {},
 	ruff = {},
-	-- pyright = {},
+	marksman = {},
+	pyright = {},
 	eslint = {},
 	lua_ls = {
 		Lua = {

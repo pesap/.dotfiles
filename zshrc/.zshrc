@@ -116,3 +116,8 @@ fi
 # <<< conda initialize <<<
 export PATH=/Users/psanchez/.pixi/bin:$PATH
 eval "$(pixi completion --shell zsh)"
+
+# Ghostty
+if [[ -n $GHOSTTY_RESOURCES_DIR ]]; then
+  source "$GHOSTTY_RESOURCES_DIR"/shell-integration/zsh/ghostty-integration
+fi
