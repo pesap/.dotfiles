@@ -64,6 +64,7 @@ export PYTHONDONTWRITEBYTECODE=1                                                
 export TERM='xterm-256color'                                                                    # Use fuil color terminal
 export EDITOR='nvim'                                                                            # Use fuil color terminal
 export PATH="$HOME/.locals/scripts/:$HOME/.locals/bin:$PATH"                                    # My custom scripts
+export PATH="$HOME/.local/bin:$PATH"                                                               # My custom scripts
 export PATH="$HOME/.cargo/bin/:$PATH"                                                           # rust
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --no-ignore-vcs --column --smart-case' # Defaults for fzf
 
@@ -114,8 +115,8 @@ if [ -f "/Users/psanchez/.locals/miniforge3/etc/profile.d/mamba.sh" ]; then
     . "/Users/psanchez/.locals/miniforge3/etc/profile.d/mamba.sh"
 fi
 # <<< conda initialize <<<
-export PATH=/Users/psanchez/.pixi/bin:$PATH
-eval "$(pixi completion --shell zsh)"
+# export PATH=/Users/psanchez/.pixi/bin:$PATH
+# eval "$(pixi completion --shell zsh)"
 
 # Ghostty
 if [[ -n $GHOSTTY_RESOURCES_DIR ]]; then

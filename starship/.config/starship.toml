@@ -21,3 +21,7 @@ style = "bold yellow"
 
 [cmd_duration]
 style = "green"
+
+[git_commit]
+commit_hash_length = 4
+tag_symbol = '🔖 '

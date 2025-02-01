@@ -58,9 +58,20 @@ end
 local servers = {
 	julials = { virtual_text = false },
 	rust_analyzer = {},
-	ruff = {},
+	ruff = { init_options = { settings = { importStrategy = "FromEnvironment" } } },
 	marksman = {},
-	pyright = {},
+	pyright = {
+		pyright = {
+			-- Using Ruff's import organizer
+			disableOrganizeImports = true,
+		},
+		python = {
+			analysis = {
+				-- Ignore all files for analysis to exclusively use Ruff for linting
+				ignore = { "*" },
+			},
+		},
+	},
 	eslint = {},
 	lua_ls = {
 		Lua = {
