@@ -7,7 +7,7 @@ vim.wo.number = true
 
 -- Relative numbers
 vim.opt.number = true -- show absolute number
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Cursor line
 vim.opt.cursorline = true
@@ -89,3 +89,17 @@ vim.keymap.set("n", "<down>", '<cmd>echo "Use j to move!!"<CR>')
 -- Configure how new splits should be opened
 vim.opt.splitright = true
 vim.opt.splitbelow = true
+
+-- Convert tabs to spaces
+vim.opt.expandtab = true
+vim.opt.shiftwidth = 4
+vim.opt.tabstop = 4
+vim.opt.softtabstop = 4
+
+-- Better indentation
+vim.opt.smarttab = true
+vim.opt.smartindent = true
+vim.opt.autoindent = true
+
+-- Disable command line until it is needed.
+vim.opt.cmdheight = 0

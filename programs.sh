@@ -6,6 +6,8 @@ curl -sS https://starship.rs/install.sh | sh
 cargo install zoxide --locked
 cargo install zellij --locked
 cargo install ripgrep
+cargo install bat --locked
+cargo install --locked yazi-fm yazi-cli
 
 
 
@@ -13,4 +15,3 @@ cargo install ripgrep
 cd ~/.locals/
 git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-

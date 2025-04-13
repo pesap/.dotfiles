@@ -28,7 +28,7 @@ export ZSH=$HOME/.oh-my-zsh
 # Plugins from ZSH
 plugins=(
     git
-    gitfast
+    # gitfast
     pip
     python
     tmux
@@ -63,15 +63,15 @@ export MPLCONFIGDIR="$HOME/.config/matplotlib"                                  
 export PYTHONDONTWRITEBYTECODE=1                                                                # Avoid duplicate python virtualenv
 export TERM='xterm-256color'                                                                    # Use fuil color terminal
 export EDITOR='nvim'                                                                            # Use fuil color terminal
-export PATH="$HOME/.locals/scripts/:$HOME/.locals/bin:$PATH"                                    # My custom scripts
-export PATH="$HOME/.local/bin:$PATH"                                                               # My custom scripts
+export PATH="$HOME/.locals/scripts/functions:$PATH"                                             # My custom scripts
+export PATH="$HOME/.local/bin:$PATH"                                                            # My custom scripts
 export PATH="$HOME/.cargo/bin/:$PATH"                                                           # rust
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --no-ignore-vcs --column --smart-case' # Defaults for fzf
 
 
 
 # Select default editor
-[ -z "$EDITOR" ] &&  export EDITOR="vim"
+[ -z "$EDITOR" ] &&  export EDITOR="nvim"
 
 #================================================================================
 # Custom programs
@@ -95,8 +95,6 @@ which zoxide &> /dev/null && eval "$(zoxide init zsh)"
 path=('/Users/psanchez/.juliaup/bin' $path)
 export PATH
 
-# <<< juliaup initialize <<<
-
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/Users/psanchez/.locals/miniforge3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
@@ -117,8 +115,3 @@ fi
 # <<< conda initialize <<<
 # export PATH=/Users/psanchez/.pixi/bin:$PATH
 # eval "$(pixi completion --shell zsh)"
-
-# Ghostty
-if [[ -n $GHOSTTY_RESOURCES_DIR ]]; then
-  source "$GHOSTTY_RESOURCES_DIR"/shell-integration/zsh/ghostty-integration
-fi

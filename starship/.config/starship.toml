@@ -1,12 +1,12 @@
 [package]
 disabled = true
 
-[conda]
-symbol = "🐍 "
-style = "dimmed green"
-
 [python]
 pyenv_version_name = false
+disabled = true
+
+[nodejs]
+disabled = true
 
 [username]
 show_always = false
@@ -18,10 +18,16 @@ style = "bold purple"
 
 [git_branch]
 style = "bold yellow"
+symbol = '🌱 '
+truncation_length = 15
+truncation_symbol = ''
+ignore_branches = ['master', 'main']
 
 [cmd_duration]
 style = "green"
 
 [git_commit]
-commit_hash_length = 4
+commit_hash_length = 7
 tag_symbol = '🔖 '
+only_detached = false
+tag_disabled = false

@@ -12,3 +12,14 @@ function zpipe () {
     zellij pipe -p $1;
   fi
 }
+
+function fp (){
+  local selected
+  selected=$(zoxide query --list |
+    fzf  \
+    --ansi \
+    --preview 'exa --color=always --long --no-filesize --no-time --no-user --no-permissions {}')
+  if [[ -n "$selected" ]]; then
+    cd $selected && nvim .
+  fi
+}
