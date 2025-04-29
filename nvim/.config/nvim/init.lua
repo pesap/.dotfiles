@@ -20,7 +20,7 @@ vim.g.maplocalleader = " "
 require("opts")
 require("prefs")
 require("keymaps")
--- Setup lazy.nvim
+require("venv").setup()
 require("lazy").setup({
 	spec = {
 		{ import = "plugins" },

@@ -44,15 +44,6 @@ ZSH_THEME=""
 # Load Oh-My-Zsh
 source $ZSH/oh-my-zsh.sh
 
-# Load personal customization alias and functions
-source ~/.aliases_unix
-source ~/.aliases_macOS
-source ~/.locals/scripts/functions
-source ~/.private
-
-
-VIM="nvim"
-
 #================================================================================
 # ENVS
 #
@@ -115,3 +106,13 @@ fi
 # <<< conda initialize <<<
 # export PATH=/Users/psanchez/.pixi/bin:$PATH
 # eval "$(pixi completion --shell zsh)"
+
+# Load personal customization alias and functions
+source ~/.aliases_unix
+source ~/.aliases_macOS
+source ~/.locals/scripts/functions
+source ~/.private
+
+
+VIM="nvim"
+

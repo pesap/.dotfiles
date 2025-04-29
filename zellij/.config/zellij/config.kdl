@@ -147,7 +147,8 @@ keybinds {
         bind "Ctrl s" { SwitchToMode "Session"; }
     }
     shared_except "locked" {
-        bind "Ctrl g" { SwitchToMode "Locked"; }
+        unbind "Ctrl g" { SwitchToMode "Locked"; }
+        bind "Ctrl l" { SwitchToMode "Locked"; }
         bind "Ctrl q" { Quit; }
         unbind "Ctrl q" { Quit;}
         bind "Alt n" { NewPane; }
