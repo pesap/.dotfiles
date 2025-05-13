@@ -5,5 +5,6 @@ return {
 	"tpope/vim-rhubarb",
 	"tpope/vim-surround",
 	"tpope/vim-repeat",
+	"tpope/vim-commentary",
 	"lewis6991/gitsigns.nvim",
 }

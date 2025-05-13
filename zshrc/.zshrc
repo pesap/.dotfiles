@@ -28,7 +28,7 @@ export ZSH=$HOME/.oh-my-zsh
 # Plugins from ZSH
 plugins=(
     git
-    # gitfast
+    gitfast
     pip
     python
     tmux
