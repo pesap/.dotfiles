@@ -1,12 +1,12 @@
 -- Current colorscheme of choice
 return {
-	"srt0/everblush.nvim",
+	"eldritch-theme/eldritch.nvim",
 	lazy = false,
 	priority = 1000,
 	config = function()
-		require("everblush").setup({
-			transparent = false, -- Set to true for transparency
+		require("eldritch").setup({
+			transparent = true, -- Set to true for transparency
 		})
-		vim.cmd.colorscheme("everblush")
+		vim.cmd.colorscheme("eldritch")
 	end,
 }

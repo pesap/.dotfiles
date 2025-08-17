@@ -25,6 +25,7 @@ return {
 			["<Tab>"] = { "select_next", "fallback" },
 			["<S-Tab>"] = { "select_prev", "fallback" },
 			["<C-k>"] = { "show_signature", "fallback" },
+			["<C-y>"] = { "show", "show_documentation", "hide_documentation" },
 			["<CR>"] = { "accept", "fallback" },
 			["C-n"] = { "snippet_backward", "fallback" },
 			["C-p"] = { "snippet_backward", "fallback" },

@@ -1,6 +1,9 @@
 vim.keymap.set({ "n", "v" }, "<Space>", "<Nop>", { silent = true })
 vim.keymap.set({ "n", "v" }, "s", "<Nop>", { silent = true })
 
+-- Resource file
+vim.keymap.set("n", "<leader>o", ":update<CR> :source<CR>", { desc = "Source file" })
+
 -- Open file tree
 vim.keymap.set("n", "<leader>pv", vim.cmd.Ex)
 
@@ -46,3 +49,7 @@ vim.keymap.set("n", "<left>", '<cmd>echo "Use h to move!!"<CR>')
 vim.keymap.set("n", "<right>", '<cmd>echo "Use l to move!!"<CR>')
 vim.keymap.set("n", "<up>", '<cmd>echo "Use k to move!!"<CR>')
 vim.keymap.set("n", "<down>", '<cmd>echo "Use j to move!!"<CR>')
+
+-- Split windows
+vim.keymap.set("n", "<leader>-", "<cmd>split<CR>")
+vim.keymap.set("n", "<leader>_", "<cmd>vsplit<CR>")

@@ -12,14 +12,43 @@ function zpipe () {
     zellij pipe -p $1;
   fi
 }
-
-function fp (){
+function fp() {
   local selected
   selected=$(zoxide query --list |
-    fzf  \
-    --ansi \
-    --preview 'exa --color=always --long --no-filesize --no-time --no-user --no-permissions {}')
-  if [[ -n "$selected" ]]; then
-    cd $selected && nvim .
+    fzf \
+      --ansi \
+      --preview 'exa --color=always --long --no-filesize --no-time --no-user --no-permissions {}')
+  if [[ -z "$selected" ]]; then
+    return 1
   fi
+
+  cd "$selected" || return 1
+
+  if git rev-parse --is-inside-work-tree &>/dev/null; then
+    if [[ $(git worktree list | wc -l) -gt 1 ]]; then
+      selected=$(git worktree list | fzf | awk '{print $1}') || return 1
+      cd "$selected" || return 1
+    fi
+  fi
+
+  if [[ -f ".venv/bin/activate" ]]; then
+    source ".venv/bin/activate"
+  fi
+
+  nvim .
+}
+bindkey '^F' fp
+zle -N fp
+swt() {
+  local dir
+  dir=$(git worktree list | fzf | awk '{print $1}') || return 1
+  cd "$dir" || return 1
+  zle reset-prompt
+}
+bindkey '^W' swt
+zle -N swt
+dwt() {
+  local worktree_to_delete
+  worktree_to_delete=$(git worktree list | fzf| sed 's/^[ *]*//')
+  echo $worktree_to_delete
 }

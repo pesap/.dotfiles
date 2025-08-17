@@ -9,5 +9,5 @@
 -- 	end,
 -- })
 
-vim.lsp.enable({ "lua", "ruff", "pyright" })
+vim.lsp.enable({ "lua", "ruff", "pyright", "julia", "bash" })
 vim.diagnostic.config({ virtual_text = true })

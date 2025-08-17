@@ -21,3 +21,10 @@ end, { desc = "[F]ind [N]eovim" })
 vim.keymap.set("n", "<leader>fd", function()
 	builtin.files({ cwd = "~/dev/" })
 end, { desc = "[F]ind [D]ev Project" })
+
+vim.keymap.set("n", "<leader>ft", function()
+	require("fzf-lua").files({
+		prompt = "Test Files❯ ",
+		cmd = "fd --type f --glob '**/*_test.lua' --glob '**/test_*.py' --glob '**/spec/*_spec.rb'",
+	})
+end, { desc = "Fuzzy find test files" })
