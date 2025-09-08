@@ -63,7 +63,6 @@ export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --no-ignore-vcs --colum
 
 # Select default editor
 [ -z "$EDITOR" ] &&  export EDITOR="nvim"
-
 #================================================================================
 # Custom programs
 #

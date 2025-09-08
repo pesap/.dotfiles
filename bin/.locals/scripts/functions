@@ -16,8 +16,10 @@ function fp() {
   local selected
   selected=$(zoxide query --list |
     fzf \
+      --height=40% \
+      --layout=reverse \
       --ansi \
-      --preview 'exa --color=always --long --no-filesize --no-time --no-user --no-permissions {}')
+      --preview 'exa --color=always --long --no-filesize --no-time --no-user --no-permissions {}') 
   if [[ -z "$selected" ]]; then
     return 1
   fi

@@ -53,3 +53,6 @@ vim.keymap.set("n", "<down>", '<cmd>echo "Use j to move!!"<CR>')
 -- Split windows
 vim.keymap.set("n", "<leader>-", "<cmd>split<CR>")
 vim.keymap.set("n", "<leader>_", "<cmd>vsplit<CR>")
+vim.keymap.set("n", "zz", function()
+	return "zt" .. math.floor(vim.fn.winheight(0) / 4) .. "<C-y>"
+end, { expr = true, desc = "Scroll current line to top + offset" })
