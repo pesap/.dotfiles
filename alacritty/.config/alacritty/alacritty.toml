@@ -1,3 +1,4 @@
+[general]
 import = [
     "~/.config/alacritty/themes/themes/tokyo-night.toml"
 ]
@@ -6,7 +7,7 @@ import = [
 size = 16
 
 [font.normal]
-family = "Cascadia Code NF"
+family = "0xProto"
 
 [window]
 decorations = "none"
@@ -14,8 +15,8 @@ startup_mode = "Maximized"
 option_as_alt = "Both"
 
 [window.padding]
-x = 25
-y = 25
+x = 10
+y = 10
 
 [scrolling]
 history = 100000

@@ -98,3 +98,6 @@ vim.opt.autoindent = true
 
 -- Disable command line until it is needed.
 vim.opt.cmdheight = 0
+
+-- rg instead ofgrep
+vim.opt.grepprg = "rg --vimgrep --smart-case"

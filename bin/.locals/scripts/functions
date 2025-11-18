@@ -16,8 +16,12 @@ function fp() {
   local selected
   selected=$(zoxide query --list |
     fzf \
-      --height=40% \
       --layout=reverse \
+      --border \
+      --header="Select a Repo" \
+      --header-first \
+      --margin=10,30 \
+      --padding=1 \
       --ansi \
       --preview 'exa --color=always --long --no-filesize --no-time --no-user --no-permissions {}') 
   if [[ -z "$selected" ]]; then
@@ -28,16 +32,11 @@ function fp() {
 
   if git rev-parse --is-inside-work-tree &>/dev/null; then
     if [[ $(git worktree list | wc -l) -gt 1 ]]; then
-      selected=$(git worktree list | fzf | awk '{print $1}') || return 1
+      selected=$(git worktree list | awk '!/bare/' | fzf --border --header="Git Workree" --header-first --border-label-pos=-1 --layout=reverse --border --margin=8,20 --padding=1 --ansi | awk '{print $1}') || return 1
       cd "$selected" || return 1
     fi
+    echo -ne '\n'
   fi
-
-  if [[ -f ".venv/bin/activate" ]]; then
-    source ".venv/bin/activate"
-  fi
-
-  nvim .
 }
 bindkey '^F' fp
 zle -N fp

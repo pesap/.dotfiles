@@ -17,14 +17,19 @@ vim.keymap.set("n", "<leader>sb", builtin.git_branches, { desc = "[S]witch [B]ra
 vim.keymap.set("n", "<leader>fn", function()
 	builtin.files({ cwd = "~/.config/nvim" })
 end, { desc = "[F]ind [N]eovim" })
+vim.keymap.set("n", "<leader>fs", builtin.lsp_document_symbols, { desc = "[F]ind [S]ymbol" })
 
 vim.keymap.set("n", "<leader>fd", function()
 	builtin.files({ cwd = "~/dev/" })
 end, { desc = "[F]ind [D]ev Project" })
 
+vim.keymap.set("n", "<leader>fp", function()
+	builtin.files({ prompt = "Packages ", cmd = "fd --type f . -E .git", cwd = "./packages/" })
+end, { desc = "[F]ind [P]ackage" })
+
 vim.keymap.set("n", "<leader>ft", function()
-	require("fzf-lua").files({
+	builtin.files({
 		prompt = "Test Files❯ ",
-		cmd = "fd --type f --glob '**/*_test.lua' --glob '**/test_*.py' --glob '**/spec/*_spec.rb'",
+		cmd = "fd --type f . tests -E .git", -- search only inside tests/
 	})
 end, { desc = "Fuzzy find test files" })

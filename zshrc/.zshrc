@@ -31,8 +31,6 @@ plugins=(
     gitfast
     pip
     python
-    tmux
-    vi-mode
     fzf
     zsh-autosuggestions
     zsh-syntax-highlighting
@@ -50,7 +48,6 @@ source $ZSH/oh-my-zsh.sh
 # This section is for environment variables. Add or delete as needed.
 #
 #================================================================================
-export MPLCONFIGDIR="$HOME/.config/matplotlib"                                                  # Matplotlib configuration file
 export PYTHONDONTWRITEBYTECODE=1                                                                # Avoid duplicate python virtualenv
 export TERM='xterm-256color'                                                                    # Use fuil color terminal
 export EDITOR='nvim'                                                                            # Use fuil color terminal
@@ -84,27 +81,6 @@ which zoxide &> /dev/null && eval "$(zoxide init zsh)"
 
 path=('/Users/psanchez/.juliaup/bin' $path)
 export PATH
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/psanchez/.locals/miniforge3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/Users/psanchez/.locals/miniforge3/etc/profile.d/conda.sh" ]; then
-        . "/Users/psanchez/.locals/miniforge3/etc/profile.d/conda.sh"
-    else
-        export PATH="/Users/psanchez/.locals/miniforge3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-
-if [ -f "/Users/psanchez/.locals/miniforge3/etc/profile.d/mamba.sh" ]; then
-    . "/Users/psanchez/.locals/miniforge3/etc/profile.d/mamba.sh"
-fi
-# <<< conda initialize <<<
-# export PATH=/Users/psanchez/.pixi/bin:$PATH
-# eval "$(pixi completion --shell zsh)"
 
 # Load personal customization alias and functions
 source ~/.aliases_unix

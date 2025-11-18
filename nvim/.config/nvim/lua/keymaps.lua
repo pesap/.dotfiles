@@ -35,8 +35,23 @@ vim.keymap.set(
 	"n",
 	"<leader>sr",
 	[[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]],
-	{ desc = "[S]earch[R]eplace word undercursors" }
+	{ desc = "[S]earch[R]eplace word undercursors (curent file)" }
 )
+
+vim.keymap.set(
+	"n",
+	"<leader>sp",
+	[[:silent! grep! "\<<C-r><C-w>\>" . | copen<CR>]],
+	{ desc = "[S]earch [P]roject-wide word under cursor" }
+)
+vim.keymap.set(
+	"n",
+	"<leader>srp",
+	[[:cfdo %s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]],
+	{ desc = "[S]earch [R]eplace [P]roject-wide word under cursor" }
+)
+
+vim.keymap.set("n", "<leader>qf", ":copen<CR>", { desc = "[Q]uick [f]ix open." })
 
 vim.keymap.set("t", "<", "<C-\\><C-n><C-w>h", { silent = true })
 
@@ -56,3 +71,5 @@ vim.keymap.set("n", "<leader>_", "<cmd>vsplit<CR>")
 vim.keymap.set("n", "zz", function()
 	return "zt" .. math.floor(vim.fn.winheight(0) / 4) .. "<C-y>"
 end, { expr = true, desc = "Scroll current line to top + offset" })
+
+vim.keymap.set("n", "<leader>ww", "<C-w><C-w>", { silent = true })

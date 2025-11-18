@@ -9,4 +9,8 @@ return {
 		},
 	},
 	telemetry = { enabled = true },
+	init_options = {
+		configurationPreference = "project",
+		format = { preview = true },
+	},
 }

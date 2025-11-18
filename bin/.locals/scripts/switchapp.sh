@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+APP="$1"
+
+if [[ -z "$APP" ]]; then
+  echo "Usage: $0 <AppName>"
+  exit 1
+fi
+
+# Try to locate .app bundle in custom path or default path
+APP_PATH="$(
+  find "/Users/psanchez/User Apps/" -maxdepth 1 -type d -name "$APP.app" 2>/dev/null | head -n 1
+)"
+
+if [[ -z "$APP_PATH" ]]; then
+  APP_PATH="$(
+    find "/Applications" -maxdepth 1 -type d -name "$APP.app" 2>/dev/null | head -n 1
+  )"
+fi
+
+# If still no path, fallback to open -a (LaunchServices will locate it)
+if [[ -z "$APP_PATH" ]]; then
+  LAUNCH_CMD=(open -a "$APP")
+else
+  LAUNCH_CMD=(open "$APP_PATH")
+fi
+
+# Query yabai for existing window
+ID="$(yabai -m query --windows | jq -r --arg app "$APP" '[.[] | select(.app==$app)][0].id')"
+
+if [[ -n "$ID" && "$ID" != null ]]; then
+  # Window already exists → focus
+  yabai -m window --focus "$ID"
+else
+  # Launch app
+  "${LAUNCH_CMD[@]}" >/dev/null 2>&1 || true
+
+  # Wait for window to appear
+  for _ in {1..40}; do
+    ID="$(yabai -m query --windows | jq -r --arg app "$APP" '[.[] | select(.app==$app)][0].id')"
+    if [[ -n "$ID" && "$ID" != null ]]; then
+      yabai -m window --focus "$ID"
+      break
+    fi
+    sleep 0.2
+  done
+fi
+

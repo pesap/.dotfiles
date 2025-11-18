@@ -12,7 +12,10 @@ return {
 			glob_glab = "--iglob", -- case insensitive globs
 		},
 		files = {
-			rg_opts = { "--glob", "!*.{xml,.git}" },
+			rg_opts = { "--glob", "!*.{xml,.git,venv}" },
+		},
+		fzf = {
+			["ctrl-q"] = "select-all+accept",
 		},
 	},
 }

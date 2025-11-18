@@ -1,4 +1,4 @@
-vim.keymap.set("n", "<leader>n", function()
+vim.keymap.set("n", "<leader>d", function()
 	local file = vim.api.nvim_buf_get_name(0)
 	if file ~= "" then
 		vim.cmd("Documented! " .. vim.fn.fnameescape(file))
