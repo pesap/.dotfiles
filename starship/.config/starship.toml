@@ -1,12 +1,10 @@
 [package]
 disabled = true
 
-[conda]
-symbol = "🐍 "
-style = "dimmed green"
-
 [python]
-pyenv_version_name = false
+format = 'via [(${version} )(\($virtualenv\) )]($style)'
+symbol = ""
+style = "bold #f3e10b"
 
 [username]
 show_always = false
@@ -21,3 +19,9 @@ style = "bold yellow"
 
 [cmd_duration]
 style = "green"
+
+[memory_usage]
+disabled = false
+threshold = -1
+symbol = ''
+style = 'dimmed'

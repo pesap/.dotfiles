@@ -8,11 +8,6 @@
 # This is my personal zshrc configuration. Use at your own risk!
 #
 #================================================================================
-if [ -f /etc/profile ]; then
-    PATH=""
-    source /etc/profile
-fi
-
 #================================================================================
 # PATH
 #
@@ -27,10 +22,7 @@ export ZSH=$HOME/.oh-my-zsh
 
 # Plugins from ZSH
 plugins=(
-    git
     gitfast
-    pip
-    python
     fzf
     zsh-autosuggestions
     zsh-syntax-highlighting
@@ -70,24 +62,32 @@ export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --no-ignore-vcs --colum
 
 
 
-eval "$(/opt/homebrew/bin/brew shellenv)"
-
 # Prompt configuration
-which starship &> /dev/null && eval "$(starship init zsh)"
-. "$HOME/.cargo/env"
+if command -v starship >/dev/null; then
+    eval "$(starship init zsh)"
+fi
+
+if [[ -f "$HOME/.cargo/env" ]]; then
+    . "$HOME/.cargo/env"
+fi
+
+if command -v direnv >/dev/null; then
+    eval "$(direnv hook zsh)"
+fi
 
 # Zoxide
-which zoxide &> /dev/null && eval "$(zoxide init zsh)"
+if command -v zoxide >/dev/null; then
+    eval "$(zoxide init zsh)"
+fi
 
 path=('/Users/psanchez/.juliaup/bin' $path)
 export PATH
 
 # Load personal customization alias and functions
-source ~/.aliases_unix
-source ~/.aliases_macOS
-source ~/.locals/scripts/functions
-source ~/.private
+[[ -f ~/.aliases_unix ]] && source ~/.aliases_unix
+[[ -f ~/.aliases_macOS ]] && source ~/.aliases_macOS
+[[ -f ~/.locals/scripts/functions ]] && source ~/.locals/scripts/functions
+[[ -f ~/.private ]] && source ~/.private
 
 
 VIM="nvim"
-
