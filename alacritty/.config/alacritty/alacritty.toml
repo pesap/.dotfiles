@@ -4,7 +4,7 @@ import = [
 ]
 
 [font]
-size = 16
+size = 14
 
 [font.normal]
 family = "0xProto Nerd Font"

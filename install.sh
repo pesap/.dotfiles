@@ -10,23 +10,33 @@ VERSION="0.0.1"
 RECEIPT_HOME="${HOME}/.dotfiles"
 BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
 DOTFILES_REMOTE=""
+DOTFILES_EXT=""
 LOCAL_INSTALL=${INSTALLER_LOCAL_INSTALL:-0}
 PRINT_VERBOSE=${INSTALLER_PRINT_VERBOSE:-0}
 PRINT_QUIET=${INSTALLER_PRINT_QUIET:-0}
 STOW_CMD=""
+FORCE_INSTALL=${INSTALLER_FORCE_INSTALL:-0}
+DRY_RUN=${INSTALLER_DRY_RUN:-0}
+BACKUP=${INSTALLER_BACKUP:-1}
+BACKUP_DIR=""
 
 set -u
 
 set_dotfiles_remote() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        _ext=".zip"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        _ext=".tar.gz"
-    else
-        err "Unsupported OS: $OSTYPE"
-    fi
+    os="$(uname -s 2>/dev/null || echo unknown)"
+    case "$os" in
+        Darwin)
+            DOTFILES_EXT=".zip"
+            ;;
+        Linux)
+            DOTFILES_EXT=".tar.gz"
+            ;;
+        *)
+            err "Unsupported OS: $os"
+            ;;
+    esac
 
-    DOTFILES_REMOTE="${BASE_URL}/${VERSION}${_ext}"
+    DOTFILES_REMOTE="${BASE_URL}/${VERSION}${DOTFILES_EXT}"
 }
 
 # NOTE: I can re-enable this if at some point I need more functionality
@@ -41,15 +51,46 @@ USAGE:
 
 OPTIONS:
     -l, --local
-            Using github installation
+            Use local checkout (no download)
     -v, --verbose
             Enable verbose output
+    -y, --yes, --force
+            Continue without prompting
+    -n, --dry-run
+            Show actions without making changes
+    --no-backup
+            Do not move existing files aside
     -h, --help
             Print help information
 EOF
 }
 
 download_link_dotfiles(){
+    for arg in "$@"; do
+        case "$arg" in
+                
+            --help)
+                usage
+                exit 0
+                ;;
+            --local)
+                LOCAL_INSTALL=1
+                ;;
+            --verbose)
+                PRINT_VERBOSE=1
+                ;;
+            --yes|--force|-y)
+                FORCE_INSTALL=1
+                ;;
+            --dry-run|-n)
+                DRY_RUN=1
+                ;;
+            --no-backup)
+                BACKUP=0
+                ;;
+        esac
+    done
+
     downloader --check
     need_cmd mktemp
     need_cmd mkdir
@@ -64,34 +105,37 @@ download_link_dotfiles(){
         install_stow
     fi
 
-    for arg in "$@"; do
-        case "$arg" in
-                
-            --help)
-                usage
-                exit 0
-                ;;
-            --local)
-                LOCAL_INSTALL=1
-                ;;
-            --verbose)
-                PRINT_VERBOSE=1
-                ;;
-        esac
-    done
-
-    local _temp_dir
     _temp_dir="$(ensure mktemp -d)" || return 1
-    local _url
 
-    local _file="$_temp_dir/dotfiles$_ext"
-    say_verbose "Temporary dict created at: $_temp_dir"
+    _file="$_temp_dir/dotfiles$DOTFILES_EXT"
+    say_verbose "Temporary dir created at: $_temp_dir"
 
     if [ "1" = "$LOCAL_INSTALL" ]; then
-        folders=(*/)
-        folders=("${folders[@]%/}")
-        link_files "${folders[@]}"
+        if [ -n "${LOCAL_SOURCE:-}" ]; then
+            local_source="$LOCAL_SOURCE"
+        else
+            local_source=$(cd "$(dirname "$0")" && pwd) || err "failed to resolve local source dir"
+        fi
+        for folder in "$local_source"/*/; do
+            folder="${folder%/}"
+            [ "$folder" = ".git" ] && continue
+            folder="${folder##*/}"
+            link_files "$local_source" "$folder"
+        done
         exit 0
+    fi
+
+    if [ "$DRY_RUN" = "1" ]; then
+        if [ -d "$RECEIPT_HOME" ]; then
+            for folder in "$RECEIPT_HOME"/*; do
+                [ -d "$folder" ] || continue
+                folder="${folder##*/}"
+                [ "$folder" = ".git" ] && continue
+                link_files "$RECEIPT_HOME" "$folder"
+            done
+            exit 0
+        fi
+        err "dry-run requires --local or existing $RECEIPT_HOME"
     fi
 
     if ! downloader "$DOTFILES_REMOTE" "$_file"; then
@@ -102,69 +146,258 @@ download_link_dotfiles(){
     fi
 
     if [ -d "$RECEIPT_HOME" ]; then
-        read -p "$RECEIPT_HOME already exists. Do you want to continue? [y/N] " confirm
-        case "$confirm" in
-            [yY][eE][sS]|[yY])
-                ;;
-            *)
-                echo "Operation cancelled."
-                exit 1
-                ;;
-        esac
+        if [ "${FORCE_INSTALL:-0}" = "1" ]; then
+            say_verbose "$RECEIPT_HOME exists; continuing due to --force/--yes."
+        elif [ -t 0 ]; then
+            printf "%s already exists. Do you want to continue? [y/N] " "$RECEIPT_HOME"
+            read -r confirm
+            case "$confirm" in
+                [yY][eE][sS]|[yY])
+                    ;;
+                *)
+                    echo "Operation cancelled."
+                    exit 1
+                    ;;
+            esac
+        else
+            say "$RECEIPT_HOME exists; continuing without prompt (non-interactive)."
+        fi
     fi
 
     mkdir -p "$RECEIPT_HOME"
-    local _extract_dir="$_temp_dir"
+    _extract_dir="$_temp_dir"
 
     mkdir -p "$_extract_dir"
 
-    if [[ "$_ext" == ".zip" ]]; then
+    if [ "$DOTFILES_EXT" = ".zip" ]; then
         need_cmd unzip
         ensure unzip -q "$_file" -d "$_extract_dir"
-    elif [[ "$_ext" == ".tar.gz" ]]; then
+    elif [ "$DOTFILES_EXT" = ".tar.gz" ]; then
         say_verbose "Using tar to decompress $_file"
         ensure tar -xzf "$_file" --strip-components=1 -C "$_extract_dir"
     fi
 
-    parent_dir=$(find "$_extract_dir" -mindepth 1 -maxdepth 1 -type d)
-    say_verbose $parent_dir
-    if [ -d "$parent_dir" ]; then
-        rsync -ahq "$parent_dir/" "$RECEIPT_HOME"
+    if [ "$DOTFILES_EXT" = ".zip" ]; then
+        set -- "$_extract_dir"/*
+        if [ -d "$1" ]; then
+            rsync -ahq "$1/" "$RECEIPT_HOME"
+        else
+            rsync -ahq "$_extract_dir/" "$RECEIPT_HOME"
+        fi
+    else
+        rsync -ahq "$_extract_dir/" "$RECEIPT_HOME"
     fi
 
-    cd "$RECEIPT_HOME" || return 1
-
-    folders=(*/)
-    folders=("${folders[@]%/}")  # Remove trailing slashes
-	link_files "$folders"
+    for folder in "$RECEIPT_HOME"/*; do
+        [ -d "$folder" ] || continue
+        folder="${folder##*/}"
+        [ "$folder" = ".git" ] && continue
+        link_files "$RECEIPT_HOME" "$folder"
+    done
     rm -rf "$_temp_dir"
+
+    if [ -d "$HOME/.config/nvim" ]; then
+        mkdir -p "$HOME/.vim/undodir"
+    fi
+
+    if [ "$DRY_RUN" != "1" ]; then
+        verify_tools
+    fi
+
+    if [ -n "$BACKUP_DIR" ]; then
+        say "backup: $BACKUP_DIR"
+    fi
 }
 
 install_stow(){
     say "Stow not found. Installing it from source."
-    local _temp_dir
     _temp_dir=$(mktemp -d)
-    cd $_temp_dir
-    curl -O http://ftp.gnu.org/gnu/stow/stow-latest.tar.gz
-    tar xf stow-latest.tar.gz
-    release=$(ls -Avr | grep -m1 -axEe 'stow-[0-9.]+')
-    cd $release
-    mkdir -p ~/.locals
-    ./configure --prefix ~/.locals
-    make
-    make install
-    STOW_CMD=~/.locals/bin/stow
-    rm -rf $_temp_dir 
+    (
+        cd "$_temp_dir" || err "failed to enter temp dir"
+        curl -O https://ftp.gnu.org/gnu/stow/stow-latest.tar.gz
+        tar xf stow-latest.tar.gz
+        release=$(ls -Avr | grep -m1 -axEe 'stow-[0-9.]+')
+        cd "$release" || err "failed to enter stow release dir"
+        mkdir -p "$HOME/.local/bin"
+        ./configure --prefix "$HOME/.local"
+        make
+        make install
+    )
+    STOW_CMD="$HOME/.local/bin/stow"
+    rm -rf "$_temp_dir"
 }
 
 link_files(){
-    pushd $RECEIPT_HOME
-    for folder in ${@}; do
+    base_dir="$1"
+    shift
+    cd "$base_dir" || err "failed to enter $base_dir"
+    for folder in "$@"; do
+        [ -d "$folder" ] || continue
+        if [ "$DRY_RUN" = "1" ]; then
+            say "dry-run: $STOW_CMD -D $folder"
+            "$STOW_CMD" -n -D "$folder"
+            say "dry-run: $STOW_CMD $folder"
+            "$STOW_CMD" -n "$folder"
+            continue
+        fi
+
+        overwrite=0
+        conflict_out="$(mktemp)"
+        conflict_list="$(mktemp)"
+        if ! "$STOW_CMD" -n "$folder" >"$conflict_out" 2>&1; then
+            cat "$conflict_out"
+            extract_stow_conflicts "$conflict_out" >"$conflict_list"
+        fi
+
+        if [ -s "$conflict_list" ]; then
+            if [ "$BACKUP" != "1" ]; then
+                rm -f "$conflict_out" "$conflict_list"
+                err "conflicts detected; overwrite requires backups (re-run without --no-backup)"
+            fi
+            if [ "$FORCE_INSTALL" = "1" ]; then
+                overwrite=1
+            elif [ -t 0 ]; then
+                printf "Conflicts detected for %s. Overwrite existing targets? [y/N] " "$folder"
+                read -r confirm
+                case "$confirm" in
+                    [yY][eE][sS]|[yY])
+                        overwrite=1
+                        ;;
+                    *)
+                        rm -f "$conflict_out" "$conflict_list"
+                        err "operation cancelled"
+                        ;;
+                esac
+            else
+                rm -f "$conflict_out" "$conflict_list"
+                err "conflicts detected; run interactively or pass --force to overwrite"
+            fi
+        fi
+
+        backup_list="$(mktemp)"
+        backup_files "$base_dir/$folder" "$backup_list"
+        if [ "$overwrite" = "1" ] && [ -s "$conflict_list" ]; then
+            backup_conflicts "$conflict_list" "$backup_list"
+        fi
+
         say_verbose "$STOW_CMD $folder"
-        $STOW_CMD -D $folder 
-        $STOW_CMD $folder
+        "$STOW_CMD" -D "$folder"
+        if ! "$STOW_CMD" "$folder"; then
+            say "stow failed for $folder; reverting changes"
+            "$STOW_CMD" -D "$folder" >/dev/null 2>&1 || true
+            restore_backups "$backup_list"
+            rm -f "$conflict_out" "$conflict_list" "$backup_list"
+            err "stow failed for $folder; changes reverted"
+        fi
+
+        rm -f "$conflict_out" "$conflict_list" "$backup_list"
     done
-    popd
+}
+
+init_backup_dir() {
+    if [ -n "$BACKUP_DIR" ]; then
+        return 0
+    fi
+    need_cmd date
+    ts="$(date +%Y%m%d%H%M%S)"
+    BACKUP_DIR="${HOME}/.dotfiles-backup/${ts}"
+    if [ "$DRY_RUN" = "1" ]; then
+        say "dry-run: mkdir -p $BACKUP_DIR"
+    else
+        mkdir -p "$BACKUP_DIR"
+    fi
+}
+
+backup_target() {
+    rel="$1"
+    list_file="${2:-}"
+    target="$HOME/$rel"
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        backup_path="$BACKUP_DIR/$rel"
+        if [ "$DRY_RUN" = "1" ]; then
+            say "dry-run: mkdir -p $(dirname "$backup_path")"
+            say "dry-run: mv $target $backup_path"
+        else
+            mkdir -p "$(dirname "$backup_path")"
+            mv "$target" "$backup_path"
+        fi
+        if [ -n "$list_file" ]; then
+            echo "$rel" >> "$list_file"
+        fi
+    fi
+}
+
+backup_files() {
+    [ "$BACKUP" = "1" ] || return 0
+    pkg_dir="$1"
+    list_file="${2:-}"
+    [ -d "$pkg_dir" ] || return 0
+    init_backup_dir
+
+    find "$pkg_dir" \( -type f -o -type l \) -print | while IFS= read -r src; do
+        rel="${src#$pkg_dir/}"
+        target="$HOME/$rel"
+        if [ -e "$target" ] || [ -L "$target" ]; then
+            if [ -L "$target" ] && check_cmd readlink; then
+                link_target="$(readlink "$target" 2>/dev/null || echo '')"
+                if [ "$link_target" = "$src" ]; then
+                    continue
+                fi
+            fi
+            backup_target "$rel" "$list_file"
+        fi
+    done
+}
+
+backup_conflicts() {
+    conflict_list="$1"
+    list_file="$2"
+    while IFS= read -r rel; do
+        [ -n "$rel" ] || continue
+        backup_target "$rel" "$list_file"
+    done < "$conflict_list"
+}
+
+restore_backups() {
+    list_file="$1"
+    [ -s "$list_file" ] || return 0
+    while IFS= read -r rel; do
+        [ -n "$rel" ] || continue
+        backup_path="$BACKUP_DIR/$rel"
+        target="$HOME/$rel"
+        [ -e "$backup_path" ] || continue
+        if [ -e "$target" ] || [ -L "$target" ]; then
+            rm -rf "$target"
+        fi
+        mkdir -p "$(dirname "$target")"
+        mv "$backup_path" "$target"
+    done < "$list_file"
+}
+
+extract_stow_conflicts() {
+    awk '
+        /cannot stow/ && match($0, /existing target ([^ ]+)/, a) { seen[a[1]] = 1 }
+        /existing target is not owned by stow:/ && match($0, /stow: ([^ ]+)/, a) { seen[a[1]] = 1 }
+        END { for (k in seen) print k }
+    ' "$1"
+}
+
+verify_tools() {
+    for tool in stow git curl rsync; do
+        if check_cmd "$tool"; then
+            say_verbose "ok: $tool"
+        else
+            say "missing: $tool"
+        fi
+    done
+
+    for tool in nvim rg cargo; do
+        if check_cmd "$tool"; then
+            say_verbose "ok: $tool"
+        else
+            say "missing: $tool (optional)"
+        fi
+    done
 }
 
 ensure() {

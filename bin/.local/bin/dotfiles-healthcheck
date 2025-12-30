@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -u
+
+say() {
+    echo "$1"
+}
+
+check() {
+    if command -v "$1" >/dev/null 2>&1; then
+        say "ok: $1"
+        return 0
+    fi
+    say "missing: $1"
+    return 1
+}
+
+say "Dotfiles health check"
+check stow
+check git
+check curl
+check rsync
+check nvim
+check rg
+check cargo
