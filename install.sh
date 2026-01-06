@@ -15,6 +15,7 @@ LOCAL_INSTALL=${INSTALLER_LOCAL_INSTALL:-0}
 PRINT_VERBOSE=${INSTALLER_PRINT_VERBOSE:-0}
 PRINT_QUIET=${INSTALLER_PRINT_QUIET:-0}
 STOW_CMD=""
+STOW_IGNORE="--ignore=\\.DS_Store"
 FORCE_INSTALL=${INSTALLER_FORCE_INSTALL:-0}
 DRY_RUN=${INSTALLER_DRY_RUN:-0}
 BACKUP=${INSTALLER_BACKUP:-1}
@@ -101,6 +102,9 @@ download_link_dotfiles(){
     if check_cmd stow; then
         say_verbose "stow command found."
         STOW_CMD="stow"
+    elif [ -x "$HOME/.local/bin/stow" ]; then
+        say_verbose "stow command found in ~/.local/bin."
+        STOW_CMD="$HOME/.local/bin/stow"
     else
         install_stow
     fi
@@ -235,16 +239,16 @@ link_files(){
         [ -d "$folder" ] || continue
         if [ "$DRY_RUN" = "1" ]; then
             say "dry-run: $STOW_CMD -D $folder"
-            "$STOW_CMD" -n -D "$folder"
+            "$STOW_CMD" -n -D $STOW_IGNORE "$folder"
             say "dry-run: $STOW_CMD $folder"
-            "$STOW_CMD" -n "$folder"
+            "$STOW_CMD" -n $STOW_IGNORE "$folder"
             continue
         fi
 
         overwrite=0
         conflict_out="$(mktemp)"
         conflict_list="$(mktemp)"
-        if ! "$STOW_CMD" -n "$folder" >"$conflict_out" 2>&1; then
+        if ! "$STOW_CMD" -n $STOW_IGNORE "$folder" >"$conflict_out" 2>&1; then
             cat "$conflict_out"
             extract_stow_conflicts "$conflict_out" >"$conflict_list"
         fi
@@ -281,10 +285,10 @@ link_files(){
         fi
 
         say_verbose "$STOW_CMD $folder"
-        "$STOW_CMD" -D "$folder"
-        if ! "$STOW_CMD" "$folder"; then
+        "$STOW_CMD" -D $STOW_IGNORE "$folder"
+        if ! "$STOW_CMD" $STOW_IGNORE "$folder"; then
             say "stow failed for $folder; reverting changes"
-            "$STOW_CMD" -D "$folder" >/dev/null 2>&1 || true
+            "$STOW_CMD" -D $STOW_IGNORE "$folder" >/dev/null 2>&1 || true
             restore_backups "$backup_list"
             rm -f "$conflict_out" "$conflict_list" "$backup_list"
             err "stow failed for $folder; changes reverted"
@@ -376,8 +380,20 @@ restore_backups() {
 
 extract_stow_conflicts() {
     awk '
-        /cannot stow/ && match($0, /existing target ([^ ]+)/, a) { seen[a[1]] = 1 }
-        /existing target is not owned by stow:/ && match($0, /stow: ([^ ]+)/, a) { seen[a[1]] = 1 }
+        /cannot stow/ {
+            if (match($0, /existing target [^ ]+/)) {
+                s = substr($0, RSTART, RLENGTH)
+                sub(/^existing target /, "", s)
+                seen[s] = 1
+            }
+        }
+        /existing target is not owned by stow:/ {
+            if (match($0, /stow: [^ ]+/)) {
+                s = substr($0, RSTART, RLENGTH)
+                sub(/^stow: /, "", s)
+                seen[s] = 1
+            }
+        }
         END { for (k in seen) print k }
     ' "$1"
 }
