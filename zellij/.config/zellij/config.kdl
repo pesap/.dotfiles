@@ -145,7 +145,7 @@ keybinds clear-defaults=true {
         bind "Alt +" { Resize "Increase"; }
         bind "Alt -" { Resize "Decrease"; }
         bind "Alt =" { Resize "Increase"; }
-        bind "Alt [" { PreviousSwapLayout; }
+        bind "Alt [" { FocusPreviousPane; }
         bind "Ctrl \\" {
             LaunchOrFocusPlugin "file:/Users/psanchez/.config/zellij/plugins/room.wasm" {
                 floating true
@@ -153,7 +153,7 @@ keybinds clear-defaults=true {
                 quick_jump "true"
             }
         }
-        bind "Alt ]" { NextSwapLayout; }
+        bind "Alt ]" { FocusNextPane; }
         bind "Alt f" { ToggleFloatingPanes; }
         bind "Alt h" { MoveFocusOrTab "left"; }
         bind "Alt i" { MoveTab "left"; }
@@ -165,6 +165,11 @@ keybinds clear-defaults=true {
         bind "Alt o" { MoveTab "right"; }
         bind "Alt p" { TogglePaneInGroup; }
         bind "Alt Shift p" { ToggleGroupMarking; }
+        bind "Alt s" {
+            LaunchOrFocusPlugin "session-manager" {
+                floating true
+            }
+        }
     }
     shared_except "locked" "move" {
         bind "Ctrl h" { SwitchToMode "move"; }

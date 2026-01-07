@@ -12,6 +12,11 @@ path=(
     /sbin
     $path
 )
+
+# Add Homebrew to PATH early (macOS)
+if [[ -d /opt/homebrew/bin ]]; then
+    path=(/opt/homebrew/bin $path)
+fi
 export PATH
 
 export PYTHONDONTWRITEBYTECODE=1
@@ -62,6 +67,66 @@ fi
 
 # Local helpers
 [[ -f ~/.local/scripts/functions ]] && source ~/.local/scripts/functions
+[[ -f ~/.local/scripts/git-functions ]] && source ~/.local/scripts/git-functions
 [[ -f ~/.private ]] && source ~/.private
 
 VIM="nvim"
+alias v='nvim'
+
+# Common aliases (both macOS and Linux)
+[[ -f ~/.aliases_unix ]] && source ~/.aliases_unix
+
+# Zellij layout aliases
+alias zrust='zellij --layout rust'
+alias zpy='zellij --layout py'
+alias zrepl='zellij --layout repl'
+
+# Zellij session picker (override simple alias from .aliases_unix)
+unalias zel 2>/dev/null
+zel() {
+    local sessions layout_dir layouts selection
+    layout_dir="${XDG_CONFIG_HOME:-$HOME/.config}/zellij/layouts"
+
+    local fzf_opts=(
+        --height=50%
+        --layout=reverse
+        --border=rounded
+        --margin=1,2
+        --padding=1
+        --pointer="▶"
+        --marker="●"
+        --color="border:#7aa2f7,pointer:#f7768e,marker:#9ece6a,header:#e0af68"
+    )
+
+    # Get existing sessions
+    sessions=$(zellij list-sessions -s 2>/dev/null)
+
+    # Build selection menu: existing sessions + new session option
+    if [[ -n "$sessions" ]]; then
+        selection=$(printf "%s\n+ New Session" "$sessions" | fzf "${fzf_opts[@]}" \
+            --prompt="  Session  " \
+            --header="Select or create a Zellij session")
+    else
+        selection="+ New Session"
+    fi
+
+    [[ -z "$selection" ]] && return 0
+
+    if [[ "$selection" == "+ New Session" ]]; then
+        # Get available layouts
+        layouts=$(find "$layout_dir" -name "*.kdl" -exec basename {} .kdl \; 2>/dev/null | grep -v '\.bak$' | sort)
+        if [[ -z "$layouts" ]]; then
+            zellij
+            return
+        fi
+
+        local layout=$(echo "$layouts" | fzf "${fzf_opts[@]}" \
+            --prompt="  Layout  " \
+            --header="Choose a layout for new session")
+        [[ -z "$layout" ]] && return 0
+
+        zellij --layout "$layout"
+    else
+        zellij attach "$selection"
+    fi
+}

@@ -231,10 +231,26 @@ install_stow(){
     rm -rf "$_temp_dir"
 }
 
+ensure_parent_dirs() {
+    # Ensure common parent directories exist as real directories
+    # to prevent stow from symlinking entire trees
+    for dir in ".config" ".local" ".local/bin" ".local/scripts"; do
+        target="$HOME/$dir"
+        if [ ! -d "$target" ]; then
+            if [ "$DRY_RUN" = "1" ]; then
+                say "dry-run: mkdir -p $target"
+            else
+                mkdir -p "$target"
+            fi
+        fi
+    done
+}
+
 link_files(){
     base_dir="$1"
     shift
     cd "$base_dir" || err "failed to enter $base_dir"
+    ensure_parent_dirs
     for folder in "$@"; do
         [ -d "$folder" ] || continue
         if [ "$DRY_RUN" = "1" ]; then
@@ -304,7 +320,7 @@ init_backup_dir() {
     fi
     need_cmd date
     ts="$(date +%Y%m%d%H%M%S)"
-    BACKUP_DIR="${HOME}/.dotfiles-backup/${ts}"
+    BACKUP_DIR="${HOME}/.stow-backup/${ts}"
     if [ "$DRY_RUN" = "1" ]; then
         say "dry-run: mkdir -p $BACKUP_DIR"
     else

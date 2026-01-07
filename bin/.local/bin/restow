@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Restow dotfiles packages
+# Usage: restow [--adopt] [package1] [package2] ...
+# If no packages specified, restow all packages
+# --adopt: adopt existing files into dotfiles (overwrites dotfiles with existing)
+
+set -e
+
+cd ~/.dotfiles || { echo "Failed to cd to ~/.dotfiles"; exit 1; }
+
+STOW_OPTS="--ignore=\.DS_Store"
+
+# Check for --adopt flag
+if [[ "$1" == "--adopt" ]]; then
+    STOW_OPTS="$STOW_OPTS --adopt"
+    shift
+    echo "Adopting existing files..."
+fi
+
+if [[ $# -eq 0 ]]; then
+    echo "Restowing all packages..."
+    for dir in */; do
+        [[ "$dir" == ".git/" ]] && continue
+        [[ -d "$dir" ]] || continue
+        pkg="${dir%/}"
+        echo "  → $pkg"
+        stow -R $STOW_OPTS "$pkg"
+    done
+else
+    for pkg in "$@"; do
+        if [[ -d "$pkg" ]]; then
+            echo "Restowing: $pkg"
+            stow -R $STOW_OPTS "$pkg"
+        else
+            echo "Package not found: $pkg"
+            exit 1
+        fi
+    done
+fi
+
+echo "Done."

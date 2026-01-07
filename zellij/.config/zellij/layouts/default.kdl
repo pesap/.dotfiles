@@ -1,0 +1,8 @@
+layout {
+    pane_template name="main" {
+        borderless true
+    }
+    tab name="work" focus=true {
+        main
+    }
+}

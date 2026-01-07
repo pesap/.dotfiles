@@ -1,35 +1,16 @@
 layout {
-    tab name="r2x-core" cwd="~/dev/r2x-core/fuzzy"{
-        pane size=1 borderless=true {
-            plugin location="zellij:compact-bar"
+    tab name="python" focus=true {
+        pane borderless=true command="zsh" {
+            args "-c" "source .venv/bin/activate 2>/dev/null; nvim ."
         }
-        pane split_direction="vertical" {
-            pane borderless=true name="" command="zsh" {
-                args "-c" "source .venv/bin/activate && nvim ."
+        floating_panes {
+            pane name="test" command="zsh" start_suspended=true {
+                args "-c" "uv run pytest tests/ --tb=short"
             }
-            pane split_direction="horizontal" {
-                pane name="test" command="zsh" start_suspended=true {
-                    args "-c" "uv run pytest tests/ --tb=short"
-                }
-                pane name="deps" edit="pyproject.toml"
+            pane name="shell" command="zsh" start_suspended=true {
+                args "-c" "source .venv/bin/activate; exec zsh"
             }
-        }
-    }
-    tab focus=true name="r2x-plugin" {
-        pane size=1 borderless=true {
-            plugin location="zellij:compact-bar"
-    }
-    pane split_direction="vertical" {
-        pane borderless=true name="" command="zsh" {
-            args "-c" "source .venv/bin/activate && nvim ."
-        }
-        pane split_direction="horizontal" {
-            pane name="test"
             pane name="deps" edit="pyproject.toml"
         }
-    }
-    }
-    tab name="sratch" {
-        pane
     }
 }

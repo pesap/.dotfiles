@@ -10,6 +10,7 @@ cargo install zoxide --locked
 cargo install zellij --locked
 cargo install ripgrep
 cargo install bat --locked
+cargo install lsd --locked
 cargo install --locked yazi-fm yazi-cli
 
 

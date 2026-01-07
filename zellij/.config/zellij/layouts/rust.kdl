@@ -1,0 +1,18 @@
+layout {
+    tab name="rust" focus=true {
+        pane borderless=true command="nvim" {
+            args "."
+        }
+        floating_panes {
+            pane name="test" command="zsh" start_suspended=true {
+                args "-c" "cargo test"
+            }
+            pane name="run" command="zsh" start_suspended=true {
+                args "-c" "cargo run"
+            }
+            pane name="check" command="zsh" start_suspended=true {
+                args "-c" "cargo clippy"
+            }
+        }
+    }
+}

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Bar appearance - dark solid
+sketchybar --bar \
+    height=32 \
+    blur_radius=0 \
+    position=top \
+    sticky=on \
+    padding_left=10 \
+    padding_right=10 \
+    color=0xff1e1e2e
+
+# Default item settings
+sketchybar --default \
+    icon.font="SF Pro:Bold:14.0" \
+    label.font="SF Pro:Semibold:14.0" \
+    icon.color=0xffcdd6f4 \
+    label.color=0xffcdd6f4 \
+    padding_left=5 \
+    padding_right=5
+
+# Spaces 1-4 on the left
+for i in {1..4}; do
+    sketchybar --add space space.$i left \
+        --set space.$i \
+            associated_space=$i \
+            icon=$i \
+            icon.padding_left=8 \
+            icon.padding_right=8 \
+            background.color=0xff45475a \
+            background.corner_radius=5 \
+            background.height=24 \
+            background.drawing=off \
+            script="$CONFIG_DIR/plugins/space.sh" \
+            click_script="yabai -m space --focus $i"
+done
+
+# Clock on the right
+sketchybar --add item clock right \
+    --set clock \
+        update_freq=10 \
+        script="$CONFIG_DIR/plugins/clock.sh"
+
+# WiFi on the right (next to clock)
+sketchybar --add item wifi right \
+    --set wifi \
+        update_freq=30 \
+        script="$CONFIG_DIR/plugins/wifi.sh"
+
+# Force update all items
+sketchybar --update

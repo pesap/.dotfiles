@@ -1,0 +1,10 @@
+layout {
+    tab name="repl" focus=true {
+        pane split_direction="vertical" {
+            pane borderless=true command="nvim" {
+                args "."
+            }
+            pane borderless=true name="repl" size="40%"
+        }
+    }
+}
