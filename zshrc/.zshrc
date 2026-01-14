@@ -1,13 +1,8 @@
-# Zshrc loader (modular).
+# Zshrc loader - sources numbered config files in order
 
-for f in ~/.config/zshrc/*; do
-    if [ ! -d "$f" ]; then
-        c=$(echo "$f" | sed -e "s=.config/zshrc=.config/zshrc/custom=")
-        [[ -f "$c" ]] && source "$c" || source "$f"
-    fi
+for f in ~/.config/zshrc/[0-9]*.zsh(N); do
+    source "$f"
 done
 
-if [ -f ~/.zshrc_custom ]; then
-    source ~/.zshrc_custom
-fi
-
+# Machine-specific local overrides (not in git)
+[[ -f ~/.zshrc_local ]] && source ~/.zshrc_local

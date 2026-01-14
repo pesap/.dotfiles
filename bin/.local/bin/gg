@@ -1,0 +1,447 @@
+#!/usr/bin/env bun
+// gg - Git workflow helper
+
+import { $ } from "bun";
+import { parseArgs } from "util";
+
+// Disable shell command echoing by default
+$.throws(true);
+
+// Colors
+const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
+const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
+const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
+
+const info = (msg: string) => console.log(`${green(">")} ${msg}`);
+const error = (msg: string) => {
+  console.error(`${red("error:")} ${msg}`);
+  process.exit(1);
+};
+
+// Prompt yes/no (default yes)
+async function yesOrNo(msg: string): Promise<boolean> {
+  process.stdout.write(`${cyan(msg)} [Y/n] `);
+  for await (const line of console) {
+    const resp = line.trim().toLowerCase();
+    return resp === "" || resp === "y" || resp === "yes";
+  }
+  return false;
+}
+
+// Detect main branch
+async function getMainBranch(): Promise<string> {
+  const branches = await $`git branch`.text().catch(() => "main");
+  return branches.includes(" master") ? "master" : "main";
+}
+
+// Detect primary remote
+async function getRemote(): Promise<string> {
+  const remotes = await $`git remote`.text().catch(() => "origin");
+  return remotes.includes("upstream") ? "upstream" : "origin";
+}
+
+// gg main - Switch to detached HEAD at remote/main
+async function cmdMain() {
+  const remote = await getRemote();
+  const main = await getMainBranch();
+  await $`git fetch ${remote}`.quiet();
+  await $`git switch -d ${remote}/${main}`;
+}
+
+// gg clone <user/repo>
+async function cmdClone(userRepo: string) {
+  if (!userRepo?.includes("/")) {
+    error("Invalid format. Use: gg clone user/repo");
+  }
+
+  const [user, repo] = userRepo.split("/");
+  const ghUser = await $`git config --get github.user`.text().catch(() => "");
+
+  if (!ghUser) {
+    info(`Cloning ${user}/${repo}...`);
+    await $`git clone git@github.com:${user}/${repo}.git`;
+    return;
+  }
+
+  info(`Cloning your fork of ${user}/${repo}...`);
+  await $`git clone git@github.com:${ghUser.trim()}/${repo}.git`;
+
+  if (user !== ghUser.trim()) {
+    $.cwd(repo);
+    info("Adding upstream remote...");
+    await $`git remote add upstream git@github.com:${user}/${repo}.git`;
+    await $`git fetch upstream`.quiet();
+
+    const branch = (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
+    await $`git switch ${branch}`;
+    await $`git reset --hard upstream/${branch}`;
+    await $`git branch --set-upstream-to=upstream/${branch}`;
+  }
+
+  info(`Done! cd ${repo}`);
+}
+
+// gg worktree add <name>
+async function cmdWorktreeAdd(name: string) {
+  if (!name) error("Usage: gg worktree add <name>");
+
+  const main = await getMainBranch();
+  await $`git worktree add ./${name} ${main} --detach`;
+  info(`Created worktree at ./${name}`);
+}
+
+// gg worktree init <remote>
+async function cmdWorktreeInit(remote: string) {
+  if (!remote) error("Usage: gg worktree init <remote-url>");
+
+  const dirName = remote.split("/").pop()?.replace(".git", "") ?? "repo";
+
+  await $`mkdir -p ${dirName}`;
+  $.cwd(dirName);
+  await $`git clone --bare ${remote} .bare`;
+  await Bun.write(".git", "gitdir: ./.bare");
+  await $`git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*`;
+
+  info(`Bare repo initialized at ${dirName}`);
+  info("Use 'gg worktree add <name>' to add worktrees");
+}
+
+// gg amend - Stage, show diff, confirm, amend
+async function cmdAmend() {
+  await $`git add .`;
+  console.log();
+  await $`git --no-pager diff --cached --color=always`;
+  console.log();
+  await $`git --no-pager show -s --oneline --abbrev-commit --color=always HEAD`;
+  console.log();
+
+  if (await yesOrNo("Continue?")) {
+    await $`git commit --amend --no-edit`;
+    info("Amended last commit");
+  } else {
+    info("Aborted");
+  }
+}
+
+// gg fixup [commit]
+async function cmdFixup(target?: string) {
+  if (!target) {
+    // Use fzf to select commit
+    const log = await $`git log --oneline -50`.text();
+    const selected = await $`fzf --height 50% --layout=reverse --border=rounded --prompt=${"Fixup commit> "} --header=${"Select commit to fixup"}`
+      .stdin(log)
+      .text()
+      .catch(() => "");
+
+    if (!selected) return;
+    target = selected.split(" ")[0];
+  }
+
+  await $`git commit --fixup=${target}`;
+  info(`Created fixup commit for ${target}`);
+  info(`Run 'git rebase -i --autosquash ${target}^' to apply`);
+}
+
+// gg switch [branch] [--remote]
+async function cmdSwitch(branch?: string, useRemote = false) {
+  const remote = await getRemote();
+  const main = await getMainBranch();
+
+  // Special case: "tip"
+  if (branch === "tip") {
+    await $`git fetch ${remote} ${main}`.quiet();
+    await $`git switch -d ${remote}/${main}`;
+    return;
+  }
+
+  if (branch) {
+    await $`git switch ${branch}`;
+    return;
+  }
+
+  // No branch - use fzf
+  let branches: string;
+  if (useRemote) {
+    await $`git fetch`.quiet();
+    branches = await $`git branch -r`.text();
+  } else {
+    branches = await $`git branch`.text();
+  }
+
+  const selected = await $`fzf --info=inline --height=~100% --reverse --tac`
+    .stdin(branches)
+    .text()
+    .catch(() => "");
+
+  if (!selected) return;
+
+  const branchName = selected.trim().replace(`${remote}/`, "");
+  await $`git switch ${branchName}`;
+}
+
+// gg branch <name> [--offline]
+async function cmdBranch(name: string, offline = false) {
+  if (!name) error("Usage: gg branch <name> [--offline]");
+
+  const remote = await getRemote();
+  const main = await getMainBranch();
+
+  if (offline) {
+    await $`git switch --create ${name}`;
+    await $`git reset --hard ${main}`;
+  } else {
+    await $`git fetch ${remote} ${main}`.quiet();
+    await $`git switch --create ${name}`;
+    await $`git reset --hard ${remote}/${main}`;
+  }
+
+  info(`Created branch ${name}`);
+}
+
+// gg prune
+async function cmdPrune() {
+  const merged = await $`git branch --merged`.text();
+  const branches = merged
+    .split("\n")
+    .map((b) => b.trim())
+    .filter((b) => b && !b.startsWith("*") && !b.startsWith("+") && b !== "main" && b !== "master");
+
+  if (branches.length === 0) {
+    info("No merged branches to prune");
+    return;
+  }
+
+  console.log(`Will delete: ${branches.join(", ")}`);
+  for (const branch of branches) {
+    await $`git branch -D ${branch}`;
+  }
+  info("Pruned merged branches");
+}
+
+// gg commit [message] [--branch name]
+async function cmdCommit(message = ".", branch?: string) {
+  await $`git add --all`;
+  console.log();
+  await $`git --no-pager diff --cached --color=always`;
+  console.log();
+
+  if (branch) {
+    await $`git switch -c ${branch}`;
+    await $`git commit -m ${message}`;
+    await $`git switch -`;
+  } else {
+    await $`git commit -m ${message}`;
+  }
+}
+
+// gg uncommit
+async function cmdUncommit() {
+  const message = await $`git log --format=%B -n 1 HEAD`.text();
+  await $`git reset --mixed HEAD~`;
+  await $`git commit --allow-empty -m ${message.trim()}`;
+  info("Uncommitted (message preserved as empty commit)");
+}
+
+// gg reset
+async function cmdReset() {
+  await $`git status --porcelain`;
+  console.log();
+
+  if (await yesOrNo("Reset and clean all changes?")) {
+    await $`git reset --hard`;
+    await $`git clean -fd`;
+    info("Reset complete");
+  } else {
+    info("Aborted");
+  }
+}
+
+// gg sync [--to branch] - Sync FROM remote
+async function cmdSync(branch?: string) {
+  const remote = await getRemote();
+  branch ??= (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
+
+  info(`Syncing ${branch} from ${remote}...`);
+  await $`git fetch ${remote} ${branch}`.quiet();
+  await $`git reset --hard ${remote}/${branch}`;
+  info(`Synced to ${remote}/${branch}`);
+}
+
+// gg refresh [--from commit] [--to branch]
+async function cmdRefresh(from?: string, to?: string) {
+  const remote = await getRemote();
+  const main = await getMainBranch();
+
+  if (!to) {
+    await $`git fetch ${remote} ${main}`.quiet();
+    to = `${remote}/${main}`;
+  }
+
+  if (from) {
+    info(`Rebasing onto ${to} (from ${from}^)...`);
+    await $`git rebase --onto ${to} ${from}^`;
+  } else {
+    info(`Rebasing onto ${to}...`);
+    await $`git rebase ${to}`;
+  }
+}
+
+// gg pr <number> [--review]
+async function cmdPr(prNumber: string, review = false) {
+  if (!prNumber) error("Usage: gg pr <number> [--review]");
+
+  const remote = await getRemote();
+  const main = await getMainBranch();
+
+  info(`Fetching PR #${prNumber}...`);
+  await $`git fetch ${remote}`.quiet();
+  await $`git fetch ${remote} refs/pull/${prNumber}/head`.quiet();
+  await $`git switch --detach FETCH_HEAD`;
+
+  if (review) {
+    const base = (await $`git merge-base FETCH_HEAD ${remote}/${main}`.text()).trim();
+    await $`git reset ${base}`;
+    info("Reset to merge base for review");
+  }
+
+  info(`Checked out PR #${prNumber}`);
+}
+
+// gg push [--to remote]
+async function cmdPush(remote = "origin") {
+  const branch = (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
+  info(`Pushing ${branch} to ${remote}...`);
+  await $`git push -u ${remote} ${branch} --force-with-lease`;
+}
+
+// Usage
+function usage() {
+  console.log(`gg - Git workflow helper
+
+USAGE:
+    gg <command> [args] [flags]
+
+COMMANDS:
+    main                    Switch to detached HEAD at remote/main
+    clone <user/repo>       Clone repo with upstream setup
+    worktree add <name>     Create worktree at main (detached)
+    worktree init <remote>  Initialize bare repo for worktrees
+    amend                   Stage all, show diff, confirm, amend
+    fixup [<commit>]        Create fixup commit (fzf picker if no commit)
+    switch [<branch>]       Switch branch (fzf if none, --remote for remote)
+    branch <name>           Create branch from main (--offline to skip fetch)
+    prune                   Delete merged branches
+    commit [<msg>]          Add all and commit (--branch <name> for side branch)
+    uncommit                Undo commit, keep message as empty commit
+    reset                   Hard reset + clean (with confirmation)
+    sync                    Sync FROM remote (fetch + reset, --to <branch>)
+    refresh                 Rebase onto main (--from <commit>, --to <branch>)
+    pr <number>             Checkout PR locally (--review for merge base)
+    push                    Push to remote (--to <remote>)
+    status                  Compact git status
+    log                     Compact git log
+
+EXAMPLES:
+    gg main                     # Switch to latest remote/main
+    gg clone rust-lang/rust     # Clone with upstream
+    gg branch my-feature        # Create branch from main
+    gg commit "fix: bug"        # Add all + commit
+    gg amend                    # Stage + show diff + amend
+    gg sync                     # Sync current branch from remote
+    gg refresh --from abc123    # Stacked PR rebase
+    gg pr 123 --review          # Review PR changes`);
+}
+
+// Main
+async function main() {
+  const { values, positionals } = parseArgs({
+    args: Bun.argv.slice(2),
+    options: {
+      remote: { type: "boolean", short: "r", default: false },
+      offline: { type: "boolean", short: "o", default: false },
+      review: { type: "boolean", default: false },
+      branch: { type: "string", short: "b" },
+      from: { type: "string" },
+      to: { type: "string" },
+      help: { type: "boolean", short: "h", default: false },
+    },
+    allowPositionals: true,
+  });
+
+  if (values.help) {
+    usage();
+    return;
+  }
+
+  const [cmd, arg1, arg2] = positionals;
+
+  switch (cmd) {
+    case "main":
+      await cmdMain();
+      break;
+    case "clone":
+      await cmdClone(arg1);
+      break;
+    case "worktree":
+      if (arg1 === "add") await cmdWorktreeAdd(arg2);
+      else if (arg1 === "init") await cmdWorktreeInit(arg2);
+      else error("Usage: gg worktree [add|init] <name>");
+      break;
+    case "amend":
+      await cmdAmend();
+      break;
+    case "fixup":
+      await cmdFixup(arg1);
+      break;
+    case "switch":
+      await cmdSwitch(arg1, values.remote);
+      break;
+    case "branch":
+      await cmdBranch(arg1, values.offline);
+      break;
+    case "prune":
+      await cmdPrune();
+      break;
+    case "commit":
+      await cmdCommit(arg1, values.branch);
+      break;
+    case "uncommit":
+      await cmdUncommit();
+      break;
+    case "reset":
+      await cmdReset();
+      break;
+    case "sync":
+      await cmdSync(values.to);
+      break;
+    case "refresh":
+      await cmdRefresh(values.from, values.to);
+      break;
+    case "pr":
+      await cmdPr(arg1, values.review);
+      break;
+    case "push":
+      await cmdPush(values.to ?? "origin");
+      break;
+    case "status":
+    case "st":
+      await $`git status --short --branch`;
+      break;
+    case "log":
+    case "lg":
+      await $`git log --oneline --graph -20`;
+      break;
+    case undefined:
+    case "":
+      usage();
+      break;
+    default:
+      error(`Unknown command: ${cmd} (use --help)`);
+  }
+}
+
+main().catch((e) => {
+  if (e.exitCode !== undefined) process.exit(e.exitCode);
+  console.error(e);
+  process.exit(1);
+});

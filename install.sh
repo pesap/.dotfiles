@@ -234,7 +234,7 @@ install_stow(){
 ensure_parent_dirs() {
     # Ensure common parent directories exist as real directories
     # to prevent stow from symlinking entire trees
-    for dir in ".config" ".local" ".local/bin" ".local/scripts"; do
+    for dir in ".config" ".local" ".local/bin"; do
         target="$HOME/$dir"
         if [ ! -d "$target" ]; then
             if [ "$DRY_RUN" = "1" ]; then

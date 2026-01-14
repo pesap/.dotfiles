@@ -15,7 +15,7 @@ ssh_only = true
 style = "bold purple"
 
 [git_branch]
-disabled = true
+disabled = false
 style = "bold yellow"
 
 [git_status]
