@@ -133,14 +133,21 @@ _auto_venv  # Run once for initial directory
 #=============================================================================
 
 # Folder jump using fd + fzf (with worktree support)
+# Searches only in dev, tmp, sandbox, work directories
 fj() {
     command -v fd >/dev/null 2>&1 || { echo "fd not installed"; return 1; }
     command -v fzf >/dev/null 2>&1 || { echo "fzf not installed"; return 1; }
 
-    local search_path="${1:-$HOME}"
-    local max_depth="${2:-1}"
+    local dirs=("$HOME/dev" "$HOME/tmp" "$HOME/sandbox" "$HOME/work")
+    local search_dirs=()
+    for dir in "${dirs[@]}"; do
+        [[ -d "$dir" ]] && search_dirs+=("$dir")
+    done
 
-    # Beautiful fzf options
+    [[ ${#search_dirs[@]} -eq 0 ]] && { echo "No project directories found"; return 1; }
+
+    local max_depth="${1:-1}"
+
     local fzf_opts=(
         --height=60%
         --layout=reverse
@@ -155,18 +162,14 @@ fj() {
         --color="border:#7aa2f7"
         --prompt="   "
         --header="  Navigate to folder"
-        --delimiter="/"
-        --with-nth="4.."
         --preview="lsd --color=always --icon=always {} 2>/dev/null || ls -la {}"
         --preview-window="right:40%:border-left"
     )
 
-    # Find directories with fd (depth 1, exclude hidden/build dirs)
     local selected
-    selected=$(fd --type d --hidden --exclude .git --exclude node_modules \
-        --exclude .venv --exclude __pycache__ --exclude .cache --exclude .bare \
-        --exclude .Trash --exclude Library --exclude Applications \
-        --max-depth "$max_depth" . "$search_path" 2>/dev/null | \
+    selected=$(fd --type d \
+        --exclude node_modules --exclude .bare \
+        --max-depth "$max_depth" . "${search_dirs[@]}" 2>/dev/null | \
         fzf "${fzf_opts[@]}")
 
     [[ -z "$selected" ]] && return 0
@@ -178,6 +181,77 @@ fj() {
 
         if [[ -n "$worktrees" ]]; then
             # Has worktrees - show picker
+            local wt_opts=(
+                --height=40%
+                --layout=reverse
+                --border=rounded
+                --margin=10%,20%
+                --padding=1
+                --pointer="▶"
+                --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
+                --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
+                --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
+                --color="border:#a6e3a1"
+                --prompt="   "
+                --header="  Git worktrees found — select one (or ESC for main)"
+            )
+
+            local all_trees
+            all_trees=$(git -C "$selected" worktree list 2>/dev/null)
+
+            local wt_selected
+            wt_selected=$(echo "$all_trees" | fzf "${wt_opts[@]}" | awk '{print $1}')
+
+            if [[ -n "$wt_selected" ]]; then
+                selected="$wt_selected"
+            fi
+        fi
+    fi
+
+    cd "$selected" && echo "  $(pwd)"
+}
+
+# Folder jump with hidden folders (Ctrl+Shift+F)
+fjh() {
+    command -v fd >/dev/null 2>&1 || { echo "fd not installed"; return 1; }
+    command -v fzf >/dev/null 2>&1 || { echo "fzf not installed"; return 1; }
+
+    local search_path="${1:-$HOME}"
+    local max_depth="${2:-2}"
+
+    local fzf_opts=(
+        --height=60%
+        --layout=reverse
+        --border=rounded
+        --margin=5%,10%
+        --padding=1
+        --pointer="▶"
+        --marker="●"
+        --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
+        --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
+        --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
+        --color="border:#f5c2e7"
+        --prompt="   "
+        --header="  Navigate to folder (hidden)"
+        --preview="lsd --color=always --icon=always {} 2>/dev/null || ls -la {}"
+        --preview-window="right:40%:border-left"
+    )
+
+    local selected
+    selected=$(fd --type d --hidden \
+        --exclude .git --exclude node_modules --exclude .bare \
+        --exclude .Trash --exclude Library --exclude Applications \
+        --max-depth "$max_depth" . "$search_path" 2>/dev/null | \
+        fzf "${fzf_opts[@]}")
+
+    [[ -z "$selected" ]] && return 0
+
+    # Same worktree support as fj()
+    if [[ -d "$selected/.git" ]] || [[ -f "$selected/.git" ]]; then
+        local worktrees
+        worktrees=$(git -C "$selected" worktree list 2>/dev/null | tail -n +2)
+
+        if [[ -n "$worktrees" ]]; then
             local wt_opts=(
                 --height=40%
                 --layout=reverse
@@ -294,6 +368,15 @@ _fj_widget() {
 }
 zle -N _fj_widget
 bindkey '^f' _fj_widget
+
+# Ctrl+Shift+F - Folder jump with hidden folders
+_fjh_widget() {
+    zle -I
+    fjh
+    zle reset-prompt
+}
+zle -N _fjh_widget
+bindkey '^[F' _fjh_widget
 
 # Ctrl+G - Project jump (silent)
 _pj_widget() {

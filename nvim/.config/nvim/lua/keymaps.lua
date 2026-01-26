@@ -73,3 +73,10 @@ vim.keymap.set("n", "zz", function()
 end, { expr = true, desc = "Scroll current line to top + offset" })
 
 vim.keymap.set("n", "<leader>ww", "<C-w><C-w>", { silent = true })
+
+-- Go to file with line number support
+local goto_file = require("utils.goto_file")
+vim.keymap.set({ "n", "v" }, "<leader>gF", function()
+    local mode = vim.fn.mode()
+    goto_file.goto_file({ mode = mode })
+end, { desc = "[G]o to [F]ile with line number" })

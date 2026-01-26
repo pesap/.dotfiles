@@ -5,15 +5,9 @@
 # Space 1: Terminal & Browser
 alt - 1 : yabai -m space --focus 1; ~/.local/bin/macos-switchapp Alacritty
 alt - 2 : yabai -m space --focus 1; ~/.local/bin/macos-switchapp Safari
-
-# Space 2: Finder
-alt - 0 : yabai -m space --focus 2; ~/.local/bin/macos-switchapp Finder
-
-# Space 3: Microsoft Teams
-alt - 3 : yabai -m space --focus 3; ~/.local/bin/macos-switchapp "Microsoft Teams"
-
-# Space 4: Outlook
-alt - 4 : yabai -m space --focus 4; ~/.local/bin/macos-switchapp "Microsoft Outlook"
+alt - 3 : yabai -m space --focus 2; ~/.local/bin/macos-switchapp Finder
+alt - 5 : yabai -m space --focus 3; ~/.local/bin/macos-switchapp "Microsoft Teams"
+alt - 6 : yabai -m space --focus 4; ~/.local/bin/macos-switchapp "Microsoft Outlook"
 
 # New private Safari window
 cmd - return : ~/.local/bin/macos-incognito
