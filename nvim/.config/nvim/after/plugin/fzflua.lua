@@ -18,6 +18,7 @@ vim.keymap.set("n", "<leader>fn", function()
 	builtin.files({ cwd = "~/.config/nvim" })
 end, { desc = "[F]ind [N]eovim" })
 vim.keymap.set("n", "<leader>fs", builtin.lsp_document_symbols, { desc = "[F]ind [S]ymbol" })
+vim.keymap.set("n", "<leader>ws", builtin.lsp_live_workspace_symbols, { desc = "[W]orkspace [S]ymbols" })
 
 vim.keymap.set("n", "<leader>fd", function()
 	builtin.files({ cwd = "~/dev/" })

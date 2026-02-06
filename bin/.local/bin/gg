@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gg - Git workflow helper
 
-import { $ } from "bun";
+import { $, TOML } from "bun";
 import { parseArgs } from "util";
 
 // Disable shell command echoing by default
@@ -17,6 +17,342 @@ const error = (msg: string) => {
   console.error(`${red("error:")} ${msg}`);
   process.exit(1);
 };
+
+const yellow = (s: string) => `\x1b[33m${s}\x1b[0m`;
+const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
+const warn = (msg: string) => console.log(`${yellow("warn:")} ${msg}`);
+
+// --- repos types & helpers ---
+
+interface RepoEntry {
+  git: string;
+  path?: string;
+  branch?: string;
+  tag?: string;
+  rev?: string;
+}
+
+interface ReposConfig {
+  path: string;
+  repos: Record<string, RepoEntry>;
+}
+
+type RefSpec = { type: "branch" | "tag" | "rev"; value: string };
+
+async function loadReposConfig(configPath: string): Promise<ReposConfig> {
+  const file = Bun.file(configPath);
+  if (!(await file.exists())) error(`Config not found: ${configPath}`);
+  const raw = TOML.parse(await file.text()) as any;
+
+  if (!raw.path || typeof raw.path !== "string") error(`Missing 'path' in ${configPath}`);
+  if (!raw.repos || typeof raw.repos !== "object") error(`Missing 'repos' in ${configPath}`);
+
+  for (const [name, entry] of Object.entries(raw.repos) as [string, any][]) {
+    if (!entry.git) error(`Repo '${name}' missing 'git' URL`);
+    const refs = [entry.branch, entry.tag, entry.rev].filter(Boolean);
+    if (refs.length !== 1) error(`Repo '${name}' must have exactly one of branch, tag, or rev`);
+  }
+
+  return raw as ReposConfig;
+}
+
+function repoDir(basePath: string, name: string, entry: RepoEntry): string {
+  return entry.path ?? `${basePath}/${name}`;
+}
+
+function getRef(entry: RepoEntry): RefSpec {
+  if (entry.branch) return { type: "branch", value: entry.branch };
+  if (entry.tag) return { type: "tag", value: entry.tag };
+  return { type: "rev", value: entry.rev! };
+}
+
+async function repoExists(dir: string): Promise<boolean> {
+  return await Bun.file(`${dir}/.git`).exists() ||
+    await Bun.file(`${dir}/.git/HEAD`).exists();
+}
+
+async function shortSha(dir: string, fallback = "???????"): Promise<string> {
+  return (await $`git -C ${dir} rev-parse --short HEAD`.text().catch(() => fallback)).trim();
+}
+
+// --- progress bar ---
+
+const BAR_WIDTH = 20;
+const FILLED = "█";
+const EMPTY = "░";
+
+function drawProgress(done: number, total: number, label: string): void {
+  const ratio = total > 0 ? done / total : 0;
+  const filled = Math.round(ratio * BAR_WIDTH);
+  const bar = FILLED.repeat(filled) + EMPTY.repeat(BAR_WIDTH - filled);
+  process.stdout.write(`\r\x1b[K  ${dim(bar)}  ${dim(`${done}/${total}`)}  ${dim(label)}`);
+}
+
+function clearProgress(): void {
+  process.stdout.write(`\r\x1b[K`);
+}
+
+// Run repo tasks in parallel with progress, then print results in order
+async function runWithProgress<T extends { line: string }>(
+  label: string,
+  entries: [string, RepoEntry][],
+  task: (name: string, entry: RepoEntry, index: number, tick: () => void) => Promise<T>,
+): Promise<void> {
+  const total = entries.length;
+  let done = 0;
+  drawProgress(0, total, label);
+
+  const results = await Promise.all(
+    entries.map(([name, entry], i) =>
+      task(name, entry, i, () => { done++; drawProgress(done, total, name); })
+    ),
+  );
+
+  clearProgress();
+  console.log();
+  for (const row of results) console.log(row.line);
+  console.log();
+}
+
+// --- repos commands ---
+
+async function syncRepoEntry(
+  basePath: string,
+  name: string,
+  entry: RepoEntry,
+  maxName: number,
+  skipSet: Set<string>,
+  tick: () => void,
+): Promise<{ line: string }> {
+  const dir = repoDir(basePath, name, entry);
+  const ref = getRef(entry);
+  const padName = name.padEnd(maxName);
+
+  if (skipSet.has(name)) {
+    tick();
+    return { line: `  ${dim("SKIP ")}  ${padName}  ${dim("skipped")}` };
+  }
+
+  const exists = await repoExists(dir);
+
+  if (!exists) {
+    await $`git clone ${entry.git} ${dir}`.quiet();
+  } else {
+    const currentUrl = (await $`git -C ${dir} remote get-url origin`.text()).trim();
+    if (currentUrl !== entry.git) {
+      await $`git -C ${dir} remote set-url origin ${entry.git}`;
+    }
+  }
+
+  await $`git -C ${dir} fetch origin`.quiet();
+
+  const oldSha = exists ? await shortSha(dir, "") : "";
+
+  if (ref.type === "branch") {
+    const localBranchExists =
+      (await $`git -C ${dir} branch --list ${ref.value}`.text()).trim() !== "";
+    const remoteBranchExists = await $`git -C ${dir} rev-parse --verify origin/${ref.value}`
+      .quiet().then(() => true).catch(() => false);
+
+    if (localBranchExists) {
+      await $`git -C ${dir} checkout ${ref.value}`.quiet();
+      if (remoteBranchExists) {
+        await $`git -C ${dir} reset --hard origin/${ref.value}`.quiet();
+      }
+    } else if (remoteBranchExists) {
+      await $`git -C ${dir} checkout -b ${ref.value} origin/${ref.value}`.quiet();
+    } else {
+      // Neither local nor remote branch exists — create it from HEAD and push
+      await $`git -C ${dir} checkout -b ${ref.value}`.quiet();
+      await $`git -C ${dir} push -u origin ${ref.value}`.quiet();
+    }
+  } else if (ref.type === "tag") {
+    await $`git -C ${dir} checkout --detach refs/tags/${ref.value}`.quiet();
+  } else {
+    await $`git -C ${dir} checkout --detach ${ref.value}`.quiet();
+  }
+
+  const newSha = await shortSha(dir);
+  tick();
+
+  let label: string;
+  if (!oldSha) {
+    label = `${dim(newSha)}  ${dim("cloned")}`;
+  } else if (oldSha === newSha) {
+    label = `${dim(newSha)}  ${dim("up to date")}`;
+  } else {
+    label = `${dim(oldSha)} → ${dim(newSha)}`;
+  }
+  return { line: `  ${green("OK   ")}  ${padName}  ${cyan(ref.value)}  ${label}` };
+}
+
+async function cmdReposSync(configPath: string) {
+  const config = await loadReposConfig(configPath);
+  const basePath = config.path;
+  const entries = Object.entries(config.repos);
+  const maxName = Math.max(...entries.map(([n]) => n.length));
+
+  // Phase 1: check dirty repos sequentially (needs interactive prompt)
+  const skipSet = new Set<string>();
+  for (const [name, entry] of entries) {
+    const dir = repoDir(basePath, name, entry);
+    if (await repoExists(dir)) {
+      const dirty = (await $`git -C ${dir} status --porcelain`.text()).trim() !== "";
+      if (dirty) {
+        console.log(`  ${yellow("DIRTY")}  ${name}  ${yellow("uncommitted changes")}`);
+        if (!(await yesOrNo(`    Discard changes in ${name}?`))) {
+          skipSet.add(name);
+        }
+      }
+    }
+  }
+
+  // Phase 2: sync all repos in parallel
+  await runWithProgress("syncing...", entries, async (name, entry, _i, tick) => {
+    return syncRepoEntry(basePath, name, entry, maxName, skipSet, tick);
+  });
+}
+
+async function cmdRepoSync(configPath: string, name: string) {
+  if (!name) error("Usage: gg repo sync <name> [--config path]");
+  const config = await loadReposConfig(configPath);
+  const entry = config.repos[name];
+  if (!entry) {
+    const known = Object.keys(config.repos);
+    const suffix = known.length > 0 ? ` Known: ${known.sort().join(", ")}` : "";
+    error(`Unknown repo '${name}'.${suffix}`);
+  }
+
+  const basePath = config.path;
+  const entries: [string, RepoEntry][] = [[name, entry]];
+  const maxName = name.length;
+
+  // Check dirty repo
+  const skipSet = new Set<string>();
+  const dir = repoDir(basePath, name, entry);
+  if (await repoExists(dir)) {
+    const dirty = (await $`git -C ${dir} status --porcelain`.text()).trim() !== "";
+    if (dirty) {
+      console.log(`  ${yellow("DIRTY")}  ${name}  ${yellow("uncommitted changes")}`);
+      if (!(await yesOrNo(`    Discard changes in ${name}?`))) {
+        skipSet.add(name);
+      }
+    }
+  }
+
+  await runWithProgress("syncing...", entries, async (repoName, repoEntry, _i, tick) => {
+    return syncRepoEntry(basePath, repoName, repoEntry, maxName, skipSet, tick);
+  });
+}
+
+async function cmdReposStatus(configPath: string) {
+  const config = await loadReposConfig(configPath);
+  const basePath = config.path;
+  const entries = Object.entries(config.repos);
+  const maxName = Math.max(...entries.map(([n]) => n.length));
+  const total = entries.length;
+
+  let done = 0;
+  drawProgress(0, total, "checking...");
+
+  type RepoInfo = {
+    name: string;
+    icon: string;
+    ref: string;
+    sha: string;
+    tags: string[];
+  };
+
+  const rows = await Promise.all(entries.map(async ([name, entry]): Promise<RepoInfo> => {
+    const dir = repoDir(basePath, name, entry);
+    const ref = getRef(entry);
+
+    if (!(await repoExists(dir))) {
+      done++; drawProgress(done, total, name);
+      return { name, icon: red("MISS "), ref: ref.value, sha: "", tags: [red("not cloned")] };
+    }
+
+    const head = (await $`git -C ${dir} rev-parse --abbrev-ref HEAD`.text().catch(() => "unknown")).trim();
+    const sha = await shortSha(dir);
+    const dirty = (await $`git -C ${dir} status --porcelain`.text()).trim() !== "";
+    const tags: string[] = [];
+
+    let ok: boolean;
+    if (ref.type === "branch") {
+      ok = head === ref.value;
+      if (!ok) tags.push(red(`on ${head}`));
+    } else {
+      const headSha = (await $`git -C ${dir} rev-parse HEAD`.text()).trim();
+      let expectedSha: string;
+      if (ref.type === "tag") {
+        expectedSha = (await $`git -C ${dir} rev-parse refs/tags/${ref.value}^{}`.text().catch(
+          () => $`git -C ${dir} rev-parse refs/tags/${ref.value}`.text()
+        )).trim();
+      } else {
+        expectedSha = ref.value;
+      }
+      ok = headSha.startsWith(expectedSha.slice(0, 7)) || expectedSha.startsWith(headSha.slice(0, 7));
+      if (!ok) tags.push(red(`at ${headSha.slice(0, 8)}`));
+    }
+
+    if (dirty) tags.push(yellow("dirty"));
+
+    let icon: string;
+    if (!ok) icon = red("FAIL ");
+    else if (dirty) icon = yellow("DIRTY");
+    else icon = green("OK   ");
+
+    done++; drawProgress(done, total, name);
+    return { name, icon, ref: ref.value, sha, tags };
+  }));
+
+  clearProgress();
+  const maxRef = Math.max(...rows.map((r) => r.ref.length));
+
+  console.log();
+  for (const row of rows) {
+    const padName = row.name.padEnd(maxName);
+    const padRef = row.ref.padEnd(maxRef);
+    const sha = row.sha ? dim(row.sha) : dim("───────");
+    const tagStr = row.tags.length > 0 ? "  " + row.tags.join(dim(" · ")) : "";
+    console.log(`  ${row.icon}  ${padName}  ${cyan(padRef)}  ${sha}${tagStr}`);
+  }
+  console.log();
+}
+
+async function cmdReposPull(configPath: string) {
+  const config = await loadReposConfig(configPath);
+  const basePath = config.path;
+  const entries = Object.entries(config.repos);
+  const maxName = Math.max(...entries.map(([n]) => n.length));
+
+  await runWithProgress("pulling...", entries, async (name, entry, _i, tick) => {
+    const dir = repoDir(basePath, name, entry);
+    const ref = getRef(entry);
+    const padName = name.padEnd(maxName);
+
+    if (!(await repoExists(dir))) {
+      tick();
+      return { line: `  ${red("MISS ")}  ${padName}  ${dim("not cloned")}` };
+    }
+
+    if (ref.type !== "branch") {
+      tick();
+      return { line: `  ${dim("SKIP ")}  ${padName}  ${dim(`pinned to ${ref.type}=${ref.value}`)}` };
+    }
+
+    const oldSha = await shortSha(dir);
+    await $`git -C ${dir} fetch origin`.quiet();
+    await $`git -C ${dir} reset --hard origin/${ref.value}`.quiet();
+    const newSha = await shortSha(dir);
+    tick();
+
+    const status = oldSha === newSha
+      ? `${dim(newSha)}  ${dim("up to date")}`
+      : `${dim(oldSha)} → ${dim(newSha)}`;
+    return { line: `  ${green("OK   ")}  ${padName}  ${cyan(ref.value)}  ${status}` };
+  });
+}
 
 // Prompt yes/no (default yes)
 async function yesOrNo(msg: string): Promise<boolean> {
@@ -259,11 +595,24 @@ async function cmdReset() {
 // gg sync [--to branch] - Sync FROM remote
 async function cmdSync(branch?: string) {
   const remote = await getRemote();
-  branch ??= (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
+  const currentBranch = (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
+  branch ??= currentBranch;
 
   info(`Syncing ${branch} from ${remote}...`);
   await $`git fetch ${remote} ${branch}`.quiet();
-  await $`git reset --hard ${remote}/${branch}`;
+
+  const localBranchExists =
+    (await $`git branch --list ${branch}`.text()).trim() !== "";
+
+  if (!localBranchExists) {
+    await $`git switch -c ${branch} ${remote}/${branch}`;
+  } else {
+    if (currentBranch !== branch) {
+      await $`git switch ${branch}`;
+    }
+    await $`git reset --hard ${remote}/${branch}`;
+  }
+
   info(`Synced to ${remote}/${branch}`);
 }
 
@@ -338,6 +687,10 @@ COMMANDS:
     refresh                 Rebase onto main (--from <commit>, --to <branch>)
     pr <number>             Checkout PR locally (--review for merge base)
     push                    Push to remote (--to <remote>)
+    repo sync <name>         Sync a single repo from repos.toml
+    repos sync              Clone/checkout repos from repos.toml
+    repos status            Show status of managed repos
+    repos pull              Pull latest for branch-tracking repos
     status                  Compact git status
     log                     Compact git log
 
@@ -349,7 +702,12 @@ EXAMPLES:
     gg amend                    # Stage + show diff + amend
     gg sync                     # Sync current branch from remote
     gg refresh --from abc123    # Stacked PR rebase
-    gg pr 123 --review          # Review PR changes`);
+    gg pr 123 --review          # Review PR changes
+    gg repo sync my-repo        # Sync single repo from repos.toml
+    gg repos sync               # Clone/sync repos from repos.toml
+    gg repos status             # Check status of managed repos
+    gg repos pull               # Pull branch-tracking repos
+    gg repos sync -c custom.toml  # Use custom config file`);
 }
 
 // Main
@@ -363,6 +721,7 @@ async function main() {
       branch: { type: "string", short: "b" },
       from: { type: "string" },
       to: { type: "string" },
+      config: { type: "string", short: "c" },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: true,
@@ -423,6 +782,20 @@ async function main() {
     case "push":
       await cmdPush(values.to ?? "origin");
       break;
+    case "repos": {
+      const reposConfig = values.config ?? "repos.toml";
+      if (arg1 === "sync") await cmdReposSync(reposConfig);
+      else if (arg1 === "status") await cmdReposStatus(reposConfig);
+      else if (arg1 === "pull") await cmdReposPull(reposConfig);
+      else error("Usage: gg repos [sync|status|pull] [--config path]");
+      break;
+    }
+    case "repo": {
+      const reposConfig = values.config ?? "repos.toml";
+      if (arg1 === "sync") await cmdRepoSync(reposConfig, arg2);
+      else error("Usage: gg repo sync <name> [--config path]");
+      break;
+    }
     case "status":
     case "st":
       await $`git status --short --branch`;
