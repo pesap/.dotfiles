@@ -8,7 +8,7 @@ vim.keymap.set("n", "<leader>t", function()
 end, { desc = "[t]ag file" })
 
 -- Toggle quick menu
-vim.keymap.set("n", "<leader>m", function()
+vim.keymap.set("n", "<leader>mm", function()
 	harpoon.ui:toggle_quick_menu(harpoon:list())
 end, { desc = "Harpoon menu" })
 
