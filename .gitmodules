@@ -4,3 +4,4 @@
 [submodule "personal"]
 	path = personal
 	url = git@github.com:pesap/.dotfiles-personal.git
+	branch = main
