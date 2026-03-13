@@ -46,3 +46,21 @@ vim.keymap.set("n", "<leader>gs", function()
 		vim.cmd("Git")
 	end
 end, { desc = "[G]it [S]tatus (Fugitive)" })
+
+vim.api.nvim_create_user_command("ReviewPR", function(opts)
+	local base = opts.args ~= "" and opts.args or "main"
+	vim.cmd("enew")
+	vim.bo.buftype = "nofile"
+	vim.bo.bufhidden = "wipe"
+	vim.bo.filetype = "git"
+	vim.cmd("r !git diff --name-status " .. vim.fn.shellescape(base) .. "...HEAD")
+	vim.cmd("1d")
+	vim.api.nvim_buf_set_name(0, "PR Review (" .. base .. ")")
+end, {
+	nargs = "?",
+	complete = function()
+		local branches = vim.fn.systemlist("git branch -a --format='%(refname:short)'")
+		return branches
+	end,
+	desc = "List files changed vs base branch (default: main)",
+})

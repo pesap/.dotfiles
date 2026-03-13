@@ -34,3 +34,67 @@ vim.keymap.set("n", "<leader>ft", function()
 		cmd = "fd --type f . tests -E .git", -- search only inside tests/
 	})
 end, { desc = "Fuzzy find test files" })
+
+local pr_review = { base = nil, reviewed = {}, files = {} }
+
+local function pr_open_picker()
+	local base = pr_review.base
+	local reviewed = pr_review.reviewed
+	local files = pr_review.files
+	local done = vim.tbl_count(reviewed)
+
+	local entries = {}
+	for _, f in ipairs(files) do
+		local prefix = reviewed[f] and "[x]" or "[ ]"
+		table.insert(entries, prefix .. " " .. f)
+	end
+
+	local function strip_prefix(s)
+		return s:gsub("^%[.%] ", "")
+	end
+
+	builtin.fzf_exec(entries, {
+		prompt = "PR (" .. base .. ") [" .. done .. "/" .. #files .. "]❯ ",
+		actions = {
+			["default"] = function(selected)
+				local file = strip_prefix(selected[1])
+				reviewed[file] = true
+				vim.cmd("edit " .. file)
+			end,
+			["ctrl-d"] = function(selected)
+				local file = strip_prefix(selected[1])
+				reviewed[file] = true
+				vim.cmd("edit " .. file)
+				vim.cmd("Gvdiffsplit " .. base)
+			end,
+		},
+		previewer = false,
+		fzf_opts = {
+			["--no-sort"] = "",
+			["--preview"] = [[f="$(echo {} | sed 's/^\[.\] //')"; bat --style=numbers --color=always -- "$f" 2>/dev/null || cat -n "$f"]],
+			["--preview-window"] = "right",
+		},
+	})
+end
+
+vim.keymap.set("n", "<leader>rp", function()
+	if pr_review.base then
+		pr_open_picker()
+		return
+	end
+	local base = vim.fn.input("Base branch: ", "main")
+	if base == "" then
+		return
+	end
+	pr_review.base = base
+	pr_review.reviewed = {}
+	pr_review.files = vim.fn.systemlist("git diff --name-only " .. vim.fn.shellescape(base) .. "...HEAD")
+	pr_open_picker()
+end, { desc = "[R]eview [P]R files" })
+
+vim.keymap.set("n", "<leader>rr", function()
+	pr_review.base = nil
+	pr_review.reviewed = {}
+	pr_review.files = {}
+	vim.notify("PR review session reset")
+end, { desc = "[R]eview [R]eset" })

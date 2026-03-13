@@ -6,3 +6,5 @@ done
 
 # Machine-specific local overrides (not in git)
 [[ -f ~/.zshrc_local ]] && source ~/.zshrc_local
+
+eval "$(/Users/psanchez/.local/bin/mise activate zsh)" # added by https://mise.run/zsh

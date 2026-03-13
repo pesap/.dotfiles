@@ -92,6 +92,153 @@ swt() {
     [[ -n "$worktree" ]] && cd "$worktree"
 }
 
+# Git switch branch using fzf (select existing or create new)
+gsb() {
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        echo "Not in a git repository"
+        return 1
+    fi
+
+    # Parse branch name from a styled fzf line:
+    # - remove ANSI colors
+    # - remove current-branch marker (`*`)
+    # - trim leading spaces
+    # - read first token as ref name
+    _gsb_parse_ref() {
+        local raw="$1"
+        local plain ref
+
+        plain=$(printf '%s' "$raw" | sed -E $'s/\x1B\\[[0-9;]*m//g')
+        plain="${plain#\* }"
+        plain="${plain#"${plain%%[![:space:]]*}"}"
+        ref="${plain%%[[:space:]]*}"
+        printf '%s\n' "$ref"
+    }
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    # Build branch list: local + remote (deduped), slim display
+    local branches
+    branches=$({
+        # Local branches
+        git for-each-ref --sort=-committerdate \
+            --format='%(refname:short)§%(committerdate:relative)§local' \
+            refs/heads/
+
+        # Remote branches: skip HEAD, skip those with a local counterpart
+        git for-each-ref --sort=-committerdate \
+            --format='%(refname:short)§%(committerdate:relative)§remote' \
+            refs/remotes/ | while IFS='§' read -r branch date type; do
+            case "$branch" in */HEAD) continue;; esac
+            case "$branch" in */*) ;; *) continue;; esac
+            short="${branch#*/}"
+            git show-ref --verify --quiet "refs/heads/$short" && continue
+            printf "%s§%s§%s\n" "$branch" "$date" "$type"
+        done
+    } | while IFS='§' read -r branch date type; do
+        if [[ "$branch" = "$current_branch" ]]; then
+            printf "* \033[1;35m%-30s\033[0m  \033[0;33m%s\033[0m\n" "$branch" "$date"
+        elif [[ "$type" = "remote" ]]; then
+            printf "  \033[0;34m%-30s\033[0m  \033[0;33m%s\033[0m\n" "$branch" "$date"
+        else
+            printf "  \033[1;32m%-30s\033[0m  \033[0;33m%s\033[0m\n" "$branch" "$date"
+        fi
+    done)
+
+    local fzf_opts=(
+        --height=70%
+        --layout=reverse
+        --border=rounded
+        --margin=1,2
+        --padding=1
+        --pointer="▶"
+        --ansi
+        --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
+        --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
+        --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
+        --color="border:#a6e3a1"
+        --prompt="  Branch  "
+        --header=$'\n  Switch branch · type a new name to create\n  ctrl-d: diff stat · ctrl-l: log\n'
+        --print-query
+        --nth=1
+        --preview="git log --color=always --format='%C(yellow)%h%C(reset) %C(white)%s%C(reset)%n         %C(cyan)%an%C(reset) · %C(green)%cr%C(reset)' -15 {1} 2>/dev/null"
+        --preview-window="right:55%:border-left:wrap"
+        --bind="ctrl-d:preview(git diff --stat --color=always {1} 2>/dev/null)"
+        --bind="ctrl-l:preview(git log --color=always --format='%C(yellow)%h%C(reset) %C(white)%s%C(reset)%n         %C(cyan)%an%C(reset) · %C(green)%cr%C(reset)' -15 {1} 2>/dev/null)"
+        --header-first
+    )
+
+    # Run fzf — output: line 1 = query, line 2 = selection (if any)
+    local result
+    result=$(echo "$branches" | fzf "${fzf_opts[@]}")
+    local fzf_exit=$?
+
+    local query selection
+    query=$(echo "$result" | sed -n '1p')
+    selection=$(_gsb_parse_ref "$(echo "$result" | sed -n '2p')")
+
+    # ESC or Ctrl-C — abort
+    [[ $fzf_exit -eq 130 ]] && return 0
+    [[ -z "$query" && -z "$selection" ]] && return 0
+
+    if [[ -n "$selection" ]]; then
+        # Only strip remote name for true remote refs (origin/foo -> foo).
+        if git show-ref --verify --quiet "refs/remotes/$selection"; then
+            git switch "${selection#*/}"
+        else
+            git switch "$selection"
+        fi
+    else
+        # No selection — query is a new branch name
+        local new_branch="$query"
+
+        # Check if it matches a remote branch
+        local remote_match
+        remote_match=$(git branch -r --format='%(refname:short)' | sed 's|^[^/]*/||' | grep -x "$new_branch")
+        if [[ -n "$remote_match" ]]; then
+            git switch "$new_branch"
+            return
+        fi
+
+        echo "Branch '$new_branch' does not exist. Creating..."
+
+        # Pick a base branch — slim list, same style
+        local base_branches
+        base_branches=$(git for-each-ref --sort=-committerdate \
+            --format='%(refname:short)§%(committerdate:relative)' \
+            refs/heads/ | while IFS='§' read -r branch date; do
+            printf "  \033[1;32m%-30s\033[0m  \033[0;33m%s\033[0m\n" "$branch" "$date"
+        done)
+
+        local base_opts=(
+            --height=50%
+            --layout=reverse
+            --border=rounded
+            --margin=1,2
+            --padding=1
+            --pointer="▶"
+            --ansi
+            --nth=1
+            --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
+            --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
+            --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
+            --color="border:#e0af68"
+            --prompt="  Base  "
+            --header=$'\n  Select base branch for '"'$new_branch'"$'\n'
+            --preview="git log --color=always --format='%C(yellow)%h%C(reset) %s %C(green)(%cr)%C(reset)' -10 {1} 2>/dev/null"
+            --preview-window="right:50%:border-left:wrap"
+            --header-first
+        )
+
+        local base
+        base=$(_gsb_parse_ref "$(echo "$base_branches" | fzf "${base_opts[@]}")")
+        [[ -z "$base" ]] && return 0
+
+        git switch -c "$new_branch" "$base"
+    fi
+}
+
 #=============================================================================
 # Python Auto-venv
 #=============================================================================

@@ -1,13 +1,20 @@
 layout {
     tab name="opencode-dev" focus=true {
-        pane split_direction="horizontal" {
-            pane size="80%" split_direction="vertical" {
-                pane size="67%" borderless=true command="nvim" {
+        pane split_direction="vertical" {
+            pane size="67%" split_direction="horizontal" {
+                pane size="80%" borderless=true command="nvim" {
                     args "."
                 }
-                pane size="33%" borderless=true command="opencode"
+                pane size="20%" borderless=true name="term"
             }
-            pane size="20%" borderless=true name="term"
+            pane size="33%" split_direction="horizontal" {
+                pane size="50%" borderless=true name="opencode-plan" command="opencode" {
+                    args "--agent" "plan"
+                }
+                pane size="50%" borderless=true name="opencode-build" command="opencode" {
+                    args "--agent" "build"
+                }
+            }
         }
     }
 }
