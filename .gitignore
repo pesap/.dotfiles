@@ -1,2 +1,5 @@
 .DS_Store
 .documented
+.worktrees/
+docs/
+dotfiles.tar.gz
