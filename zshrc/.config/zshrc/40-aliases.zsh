@@ -10,7 +10,11 @@ alias zpy='zellij --layout py'
 alias zrepl='zellij --layout repl'
 
 # Source personal aliases (from personal/ submodule)
-[[ -f ~/.aliases_unix ]] && source ~/.aliases_unix
+if [[ -f ~/.aliases_unix ]]; then
+    source ~/.aliases_unix
+elif [[ -f ~/.dotfiles/personal/.aliases_unix ]]; then
+    source ~/.dotfiles/personal/.aliases_unix
+fi
 
 # Private/sensitive aliases
 [[ -f ~/.private ]] && source ~/.private
