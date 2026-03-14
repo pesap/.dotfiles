@@ -4,7 +4,8 @@ export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME=""
 
 plugins=(
-    gitfast
+    git
+    gh
     fzf
     zsh-autosuggestions
     zsh-syntax-highlighting
