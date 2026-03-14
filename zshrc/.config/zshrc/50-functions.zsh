@@ -507,18 +507,32 @@ pj() {
 # Keybindings
 #=============================================================================
 
-# Ctrl+S - Zellij sessionizer popup
+# Force emacs keymap to avoid accidental vi mode
+bindkey -e
+
+_bind_widget_all_keymaps() {
+    local key="$1"
+    local widget="$2"
+
+    bindkey "$key" "$widget"
+    bindkey -M emacs "$key" "$widget"
+    bindkey -M viins "$key" "$widget"
+    bindkey -M vicmd "$key" "$widget"
+}
+
+# Ctrl+G - Zellij sessionizer popup
 if [[ -o interactive ]]; then
     stty -ixon 2>/dev/null
 fi
 
 _zellij_sessionizer_widget() {
     zle -I
-    zellij-sessionizer
-    zle reset-prompt
+    BUFFER="zellij-sessionizer"
+    CURSOR=${#BUFFER}
+    zle accept-line
 }
 zle -N _zellij_sessionizer_widget
-bindkey '^s' _zellij_sessionizer_widget
+_bind_widget_all_keymaps '^g' _zellij_sessionizer_widget
 
 # Ctrl+F - Folder jump (silent)
 _fj_widget() {
@@ -527,7 +541,7 @@ _fj_widget() {
     zle reset-prompt
 }
 zle -N _fj_widget
-bindkey '^f' _fj_widget
+_bind_widget_all_keymaps '^f' _fj_widget
 
 # Ctrl+Shift+F - Folder jump with hidden folders
 _fjh_widget() {
@@ -538,11 +552,11 @@ _fjh_widget() {
 zle -N _fjh_widget
 bindkey '^[F' _fjh_widget
 
-# Ctrl+G - Project jump (silent)
+# Alt+G - Project jump (silent)
 _pj_widget() {
     zle -I
     pj
     zle reset-prompt
 }
 zle -N _pj_widget
-bindkey '^g' _pj_widget
+_bind_widget_all_keymaps '^[g' _pj_widget

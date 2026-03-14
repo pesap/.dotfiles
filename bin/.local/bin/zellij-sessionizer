@@ -23,6 +23,10 @@ get_atime() {
   fi
 }
 
+session_name_for_dir() {
+  basename "$1"
+}
+
 generate_display_list() {
   local all_dirs=()
 
@@ -65,11 +69,11 @@ generate_display_list() {
         session_name=$(echo "$line" | awk '{print $1}')
 
         if [[ "$line" == *"(current)"* ]]; then
-          session_status["$session_name"]=" $(tput setaf 2)(current)$(tput sgr0)"
+          session_status["$session_name"]=" (current)"
         elif [[ "$line" == *"(EXITED"* ]]; then
-          session_status["$session_name"]=" $(tput setaf 1)(exited)$(tput sgr0)"
+          session_status["$session_name"]=" (exited)"
         else
-          session_status["$session_name"]=" $(tput setaf 3)(active)$(tput sgr0)"
+          session_status["$session_name"]=" (active)"
         fi
       fi
     done < <(zellij ls -n 2>/dev/null)
@@ -77,15 +81,19 @@ generate_display_list() {
 
   for dir in "${sorted_dirs[@]}"; do
     local display_name
-    display_name=$(echo "$dir" | sed "s|^$HOME|~|")
+    if [[ "$dir" == "$HOME"* ]]; then
+      display_name="~${dir#$HOME}"
+    else
+      display_name="$dir"
+    fi
     local session_name
-    session_name=$(basename "$dir")
+    session_name=$(session_name_for_dir "$dir")
 
     if [[ -n "${session_status[$session_name]}" ]]; then
       display_name="${display_name}${session_status[$session_name]}"
     fi
 
-    echo "$display_name"
+    printf '%s\t%s\n' "$dir" "$display_name"
   done
 }
 
@@ -99,18 +107,7 @@ cat > "$temp_script" << 'EOF'
 #!/usr/bin/env bash
 
 extract_session_name() {
-  local display_line="$1"
-  local clean_path
-  clean_path=$(echo "$display_line" | sed 's/ \x1b\[[0-9;]*m([^)]*)\x1b\[[0-9;]*m$//' | sed 's/ ([^)]*)$//')
-
-  local full_path
-  if [[ "$clean_path" == ~* ]]; then
-    full_path="$HOME${clean_path:1}"
-  else
-    full_path="$clean_path"
-  fi
-
-  basename "$full_path"
+  basename "$1"
 }
 
 if [[ "$1" == "delete" ]]; then
@@ -130,33 +127,54 @@ EOF
 
 chmod +x "$temp_script"
 
-selected_display=$(generate_display_list | fzf --ansi \
+selected_entry=$(generate_display_list | fzf --delimiter=$'\t' --with-nth=2.. \
   --prompt="Select project: " \
   --header="Enter: Select | Ctrl+D: Delete Session | Ctrl+K: Kill Session" \
-  --bind="ctrl-d:execute($temp_script delete {})+reload($0 --generate-list)" \
-  --bind="ctrl-k:execute($temp_script kill {})+reload($0 --generate-list)")
+  --bind="ctrl-d:execute($temp_script delete {1})+reload($0 --generate-list)" \
+  --bind="ctrl-k:execute($temp_script kill {1})+reload($0 --generate-list)")
 
 rm -f "$temp_script"
 
-if [[ -z "$selected_display" ]]; then
+if [[ -z "$selected_entry" ]]; then
   exit 0
 fi
+selected_dir="${selected_entry%%$'\t'*}"
 
-clean_display=$(echo "$selected_display" | sed 's/ \x1b\[[0-9;]*m([^)]*)\x1b\[[0-9;]*m$//' | sed 's/ ([^)]*)$//')
+session_name=$(session_name_for_dir "$selected_dir")
 
-if [[ "$clean_display" == ~* ]]; then
-  selected_dir="$HOME${clean_display:1}"
-else
-  selected_dir="$clean_display"
-fi
-
-session_name=$(basename "$selected_dir")
-
-if [[ -v "ZELLIJ" ]]; then
-  zellij pipe --plugin "$ZELLIJ_SWITCH_PLUGIN" -- "--session $session_name --cwd $selected_dir"
-else
+attach_or_create_session() {
   (
     cd "$selected_dir" || exit 1
     zellij attach "$session_name" --create
   )
+}
+
+session_exists() {
+  zellij ls -n 2>/dev/null | awk '{print $1}' | grep -Fxq "$session_name"
+}
+
+session_has_connected_clients() {
+  local client_count
+  client_count=$(zellij -s "$session_name" action list-clients 2>/dev/null | awk 'NR > 1 {count++} END {print count + 0}')
+  [[ "$client_count" -gt 0 ]]
+}
+
+if [[ -v "ZELLIJ" ]]; then
+  if ! zellij pipe --plugin "$ZELLIJ_SWITCH_PLUGIN" -- "--session $session_name --cwd $selected_dir"; then
+    attach_or_create_session
+  fi
+else
+  if session_exists; then
+    if ! session_has_connected_clients; then
+      zellij delete-session "$session_name" --force >/dev/null 2>&1 || true
+      attach_or_create_session
+    else
+      zellij -s "$session_name" action new-tab --cwd "$selected_dir" >/dev/null 2>&1 || true
+      if ! zellij attach "$session_name"; then
+        attach_or_create_session
+      fi
+    fi
+  else
+    attach_or_create_session
+  fi
 fi

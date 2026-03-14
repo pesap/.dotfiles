@@ -1,3 +1,7 @@
+options {
+    support_kitty_keyboard_protocol false
+}
+
 // If you'd like to override the default keybindings completely, be sure to change "keybinds" to "keybinds clear-defaults=true"
 keybinds {
     normal {
@@ -175,7 +179,7 @@ keybinds {
                 move_to_focused_tab true
             }
         }
-        bind "Ctrl '" {
+        bind "Ctrl '" "Ctrl g" {
             Run "zellij-sessionizer" {
                 close_on_exit true
                 floating true
@@ -202,7 +206,7 @@ keybinds {
     shared_except "session" "locked" {
         unbind "Ctrl o" {SwitchToMode "Session";}
         bind "Ctrl s" { SwitchToMode "Session"; }
-        bind "Ctrl '" {
+        bind "Ctrl '" "Ctrl g" {
             Run "zellij-sessionizer" {
                 close_on_exit true
                 floating true
