@@ -1,0 +1,15 @@
+layout {
+    tab name="pi" focus=true {
+        pane split_direction="vertical" {
+            pane size="66%" split_direction="horizontal" {
+                pane size="70%" borderless=true command="nvim" {
+                    args "."
+                }
+                pane size="30%" borderless=true name="term"
+            }
+            pane size="34%" borderless=true name="pi" command="zsh" {
+                args "-lc" "pi"
+            }
+        }
+    }
+}
