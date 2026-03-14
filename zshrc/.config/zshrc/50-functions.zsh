@@ -507,6 +507,19 @@ pj() {
 # Keybindings
 #=============================================================================
 
+# Ctrl+S - Zellij sessionizer popup
+if [[ -o interactive ]]; then
+    stty -ixon 2>/dev/null
+fi
+
+_zellij_sessionizer_widget() {
+    zle -I
+    zellij-sessionizer
+    zle reset-prompt
+}
+zle -N _zellij_sessionizer_widget
+bindkey '^s' _zellij_sessionizer_widget
+
 # Ctrl+F - Folder jump (silent)
 _fj_widget() {
     zle -I

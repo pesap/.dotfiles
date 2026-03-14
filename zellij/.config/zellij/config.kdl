@@ -144,7 +144,7 @@ keybinds {
         bind "Space" { NextSwapLayout; }
         bind "x" { CloseFocus; SwitchToMode "Normal"; }
         unbind "Ctrl o" {SwitchToMode "Session";}
-        bind "Ctrl s" { SwitchToMode "Session"; }
+        bind "Ctrl f" { SwitchToMode "Session"; }
     }
     shared_except "locked" {
         unbind "Ctrl g" { SwitchToMode "Locked"; }
@@ -175,6 +175,17 @@ keybinds {
                 move_to_focused_tab true
             }
         }
+        bind "Ctrl '" {
+            Run "zellij-sessionizer" {
+                close_on_exit true
+                floating true
+                x "30%"
+                y "10%"
+                width "40%"
+                height "80%"
+            }
+            SwitchToMode "Locked"
+        }
     }
     shared_except "normal" "locked" {
         bind "Enter" "Esc" { SwitchToMode "Normal"; }
@@ -186,11 +197,22 @@ keybinds {
         bind "Ctrl n" { SwitchToMode "Resize"; }
     }
     shared_except "scroll" "locked" {
-        unbind "Ctrl s" { SwitchToMode "Scroll"; }
+        unbind "Ctrl f" { SwitchToMode "Scroll"; }
     }
     shared_except "session" "locked" {
         unbind "Ctrl o" {SwitchToMode "Session";}
         bind "Ctrl s" { SwitchToMode "Session"; }
+        bind "Ctrl '" {
+            Run "zellij-sessionizer" {
+                close_on_exit true
+                floating true
+                x "30%"
+                y "10%"
+                width "40%"
+                height "80%"
+            }
+            SwitchToMode "Locked"
+        }
     }
     shared_except "tab" "locked" {
         bind "Ctrl t" { SwitchToMode "Tab"; }
