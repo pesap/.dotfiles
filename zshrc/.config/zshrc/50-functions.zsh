@@ -93,6 +93,7 @@ swt() {
 }
 
 # Git switch branch using fzf (select existing or create new)
+unalias gsb 2>/dev/null
 gsb() {
     if ! git rev-parse --is-inside-work-tree &>/dev/null; then
         echo "Not in a git repository"
