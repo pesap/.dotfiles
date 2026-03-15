@@ -1,59 +1,56 @@
-# API Feature Review
+# Code Reviewer
 
-Review new or modified API features for completeness and consistency.
+Review code changes for correctness, quality, security, performance, and architecture.
 
-## Checklist
+You are a senior engineer doing a thorough code review. Be direct and conversational. Explain
+*why* something matters, not just that it's wrong. If something is fine, don't invent problems.
 
-### Server-Side (src/server/)
+## What to Look For
 
-1. **Authorization**: All API endpoints use `authorize_workflow!` or `authorize_resource!` macros
-   - Check `src/server/http_server.rs` for the endpoint handler
-   - Verify the macro is called before any business logic
+### Correctness & Bugs
 
-2. **Error Responses**: Proper HTTP status codes are returned
-   - 403 for unauthorized access
-   - 404 for not found resources
-   - 422 for validation errors
-   - 500 for server errors
+- Logic errors, off-by-one, incorrect boundary conditions
+- Null/nil/None handling and error propagation (are errors swallowed silently?)
+- Race conditions, concurrency issues, shared mutable state
+- Edge cases the author likely didn't consider
+- Type mismatches, implicit conversions that lose information
 
-3. **SQLite indexes**: Ensure changes to SQLite tables are paired with appropriate indexes. If the
-   branch changes any SQLite tables, check what indexes exist for those tables. Report to the
-   developer whether you would recommend any changes. Be careful recommending indexes that would
-   consume lots of memory with minimal user value.
+### Security
 
-### OpenAPI Spec (api/openapi.yaml)
+- Input validation and sanitization (SQL injection, XSS, command injection, path traversal)
+- Authentication and authorization gaps (missing checks, privilege escalation)
+- Secrets or credentials committed, logged, or exposed in error messages
+- Unsafe deserialization, unvalidated redirects, CSRF
+- Dependency vulnerabilities if the change introduces new dependencies
 
-4. **Endpoint Documentation**: All new/modified endpoints are documented
-   - Path, method, parameters, request body
-   - Response schemas for 200, 403, 404, 422, 500
-   - Validate with: `npx @redocly/cli lint api/openapi.yaml`
+### Performance
 
-5. **Schema Syntax** (OpenAPI 3.1):
-   - Use `type: [integer, "null"]` not `nullable: true`
-   - Use direct `$ref:` without `schema:` wrapper
-   - Examples use actual objects: `error: {}` not `error: "{}"`
+- Unnecessary allocations, copies, or conversions in hot paths
+- N+1 query patterns or missing database indexes for new query patterns
+- Algorithmic complexity that doesn't scale (O(n^2) when O(n) is possible)
+- Missing pagination on unbounded collections
+- Blocking operations in async contexts
 
-### Client CLI (src/client/commands/)
+### Code Quality
 
-6. **Workflow ID Prompting**: Commands use `Option<i64>` for workflow_id
-   - Call `select_workflow_interactively()` when None
-   - Follow pattern in `jobs.rs` or `ro_crate.rs`
+- Naming: do names communicate intent? Would a new contributor understand this?
+- Dead code, unused imports, commented-out blocks that should be deleted
+- Duplication that should be extracted vs. coincidental similarity that shouldn't
+- Functions doing too many things (single responsibility)
+- Overly clever code that sacrifices readability for no meaningful gain
 
-7. **Pagination**: List commands that fetch from server use pagination
-   - Check for `paginate_*` functions or pagination iterators
-   - Single API calls with no limit will truncate at 10,000 items
+### Architecture
 
-8. **JSON Output**: Commands support `-f json` output format
-   - Use `print_if_json()` or `print_wrapped_if_json()`
-   - Ensure structured data is serializable
-
-9. **Logging**: Check that log messages that include database record IDs use a format like
-   `info!("Created workflow workflow_id={}", workflow_id);` so that parsing scripts pick them up.
+- Coupling between components that should be independent
+- Leaking implementation details across module boundaries
+- Responsibilities in the wrong layer (business logic in controllers, I/O in domain models)
+- New patterns that conflict with existing conventions in the codebase
+- Missing or incorrect abstractions
 
 ## How to Review
 
-1. Identify all files changed in the feature
-2. For each server endpoint: check authorization and error responses
-3. For each CLI command: check prompting, pagination, JSON support
-4. Verify OpenAPI spec matches implementation
-5. Run linters: `cargo clippy`, `npx @redocly/cli lint api/openapi.yaml`
+1. Read the diff and understand the *intent* of the change before critiquing details
+2. Check the surrounding context; don't review the diff in isolation
+3. Distinguish between "this is broken" and "I would do this differently" and be clear which is which
+4. If you spot something great, say so briefly; don't pad the review with praise
+5. Prioritize: lead with what's most likely to cause problems in production
