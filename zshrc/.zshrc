@@ -5,8 +5,10 @@ for f in ~/.config/zshrc/[0-9]*.zsh(N); do
 done
 
 # Machine-specific local overrides (not in git)
-[[ -f ~/.zshrc_local ]] && source ~/.zshrc_local
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 
 if command -v mise >/dev/null 2>&1; then
     eval "$(mise activate zsh)"
 fi
+
+export PATH="/Users/psanchez/.pixi/bin:$PATH"

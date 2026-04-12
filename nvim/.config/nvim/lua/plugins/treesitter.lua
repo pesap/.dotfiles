@@ -30,6 +30,7 @@ return {
 				"csv",
 				"json",
 				"jq",
+				"kdl",
 			},
 			incremental_selection = {
 				enable = true,
