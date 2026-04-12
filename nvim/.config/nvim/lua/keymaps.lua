@@ -51,13 +51,27 @@ vim.keymap.set(
 	{ desc = "[S]earch [R]eplace [P]roject-wide word under cursor" }
 )
 
-vim.keymap.set("n", "<leader>qf", ":copen<CR>", { desc = "[Q]uick [f]ix open." })
+vim.keymap.set("n", "<leader>qo", ":copen<CR>", { desc = "[Q]uickfix [o]pen" })
+vim.keymap.set("n", "<leader>qc", ":cclose<CR>", { desc = "[Q]uickfix [c]lose" })
+vim.keymap.set("n", "<leader>qj", ":cnext<CR>zz", { desc = "[Q]uickfix [j]next (centered)" })
+vim.keymap.set("n", "<leader>qk", ":cprev<CR>zz", { desc = "[Q]uickfix [k]prev (centered)" })
+vim.keymap.set("n", "<leader>qh", ":cfirst<CR>", { desc = "[Q]uickfix [h]first" })
+vim.keymap.set("n", "<leader>ql", ":clast<CR>", { desc = "[Q]uickfix [l]last" })
 
 vim.keymap.set("t", "<", "<C-\\><C-n><C-w>h", { silent = true })
 
 -- Stop being a silly
 vim.keymap.set("n", ":Wq", ":wq")
 vim.keymap.set("n", ":Q", ":q")
+
+-- Search improvements
+-- Don't jump on * search (keep position)
+vim.keymap.set("n", "*", "*N", { desc = "Search word (no jump)" })
+vim.keymap.set("n", "#", "#N", { desc = "Search word backward (no jump)" })
+-- Clear search highlight
+vim.keymap.set("n", "<Esc>", ":noh<CR>", { desc = "Clear search highlight" })
+-- Visual mode search for selection
+vim.keymap.set("v", "//", 'y/<C-R>"<CR>', { desc = "Search for selection" })
 
 -- Force to use hjkl
 vim.keymap.set("n", "<left>", '<cmd>echo "Use h to move!!"<CR>')

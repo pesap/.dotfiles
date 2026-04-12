@@ -2,11 +2,8 @@
 vim.o.hlsearch = false
 vim.opt.incsearch = true
 
--- Make line numbers default
-vim.wo.number = true
-
 -- Relative numbers
-vim.opt.number = true -- show absolute number
+vim.opt.number = true
 vim.opt.relativenumber = true
 
 -- Cursor line
@@ -57,7 +54,6 @@ vim.opt.undofile = true
 
 -- Always more than 10 lines
 vim.opt.scrolloff = 10
-vim.opt.signcolumn = "yes"
 vim.opt.colorcolumn = "110"
 
 -- Remove insert text
@@ -74,12 +70,6 @@ vim.opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
 
 -- Preview substitutions live, as you type!
 vim.opt.inccommand = "split"
-
--- Show which line your cursor is on
-vim.opt.cursorline = true
-
--- Minimal number of screen lines to keep above and below the cursor.
-vim.opt.scrolloff = 10
 
 -- Configure how new splits should be opened
 vim.opt.splitright = true
