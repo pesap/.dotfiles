@@ -24,6 +24,13 @@ Health check:
 dotfiles-healthcheck
 ```
 
+Safe WM apply (Linux/macOS):
+```sh
+dotfiles run
+# non-interactive
+DOTFILES_SKIP_SMOKE=1 dotfiles run --yes   # testing only
+```
+
 Notes:
 - The bootstrap script installs prerequisites via your package manager.
 - The installer defaults to non-interactive behavior for `curl | sh`.
