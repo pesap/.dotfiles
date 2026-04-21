@@ -1,0 +1,11 @@
+layout {
+    tab name="pi+lazygit" focus=true {
+        pane borderless=true name="pi" command="zsh" {
+            args "-lc" "pi"
+        }
+
+        floating_panes {
+            pane name="lazygit" command="lazygit" x "74%" y "2%" width "24%" height "96%"
+        }
+    }
+}
