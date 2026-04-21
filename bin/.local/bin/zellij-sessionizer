@@ -136,7 +136,9 @@ case "$1" in
     zellij delete-session "$session_name" --force 2>/dev/null
     ;;
   kill)
-    zellij kill-session "$session_name" 2>/dev/null
+    # `kill-session` leaves the session in EXITED state (resurrectable),
+    # which restores the last layout on next attach. Use hard delete here.
+    zellij delete-session "$session_name" --force 2>/dev/null
     ;;
 esac
 EOF
@@ -145,9 +147,11 @@ chmod +x "$temp_script"
 
 selected_entry=$(generate_display_list | fzf --delimiter=$'\t' --with-nth=2.. \
   --prompt="Select project: " \
-  --header="Enter: Select | Ctrl+D: Delete Session | Ctrl+K: Kill Session" \
+  --header="Enter: Select | Ctrl/Alt+D: Delete Session | Ctrl/Alt+K: Hard Kill Session" \
   --bind="ctrl-d:execute($temp_script delete {1})+reload($0 --generate-list)" \
-  --bind="ctrl-k:execute($temp_script kill {1})+reload($0 --generate-list)")
+  --bind="alt-d:execute($temp_script delete {1})+reload($0 --generate-list)" \
+  --bind="ctrl-k:execute($temp_script kill {1})+reload($0 --generate-list)" \
+  --bind="alt-k:execute($temp_script kill {1})+reload($0 --generate-list)")
 
 if [[ -z "$selected_entry" ]]; then
   exit 0

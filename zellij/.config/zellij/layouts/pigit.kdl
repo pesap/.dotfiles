@@ -1,0 +1,11 @@
+layout {
+    tab focus=true {
+        pane split_direction="vertical" {
+            pane size="35%" borderless=true name="lazygit" command="lazygit"
+            pane size="65%" borderless=true name="pi" command="zsh" {
+                args "-lc" "pi"
+            }
+        }
+    }
+}
+
