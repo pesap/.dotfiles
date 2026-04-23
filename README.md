@@ -26,9 +26,9 @@ dotfiles-healthcheck
 
 Safe WM apply (Linux/macOS):
 ```sh
-dotfiles run
+dotcfg run
 # non-interactive
-DOTFILES_SKIP_SMOKE=1 dotfiles run --yes   # testing only
+DOTFILES_SKIP_SMOKE=1 dotcfg run --yes   # testing only
 ```
 
 Notes:

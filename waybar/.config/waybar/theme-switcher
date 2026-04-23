@@ -1,0 +1,55 @@
+#!/bin/bash
+
+THEMES_DIR="$HOME/.config/waybar/themes"
+THEME="${1:-}"
+TARGET_CONFIG="$HOME/.config/waybar/config"
+TARGET_STYLE="$HOME/.config/waybar/style.css"
+
+if [ -z "$THEME" ]; then
+  if ! command -v vicinae >/dev/null 2>&1; then
+    echo "vicinae is not installed." >&2
+    exit 1
+  fi
+
+  THEME=$(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+    | sort \
+    | vicinae dmenu --navigation-title "Waybar Theme" --placeholder "Type to filter themes")
+fi
+
+if [ -n "$THEME" ] && [ -d "$THEMES_DIR/$THEME" ]; then
+  THEME_CONFIG="$THEMES_DIR/$THEME/config"
+  THEME_STYLE="$THEMES_DIR/$THEME/style.css"
+
+  # MangoWC compatibility path:
+  # - map Hyprland modules to Mango-supported modules
+  # - strip modules that rely on other compositors
+  # - normalize GTK CSS properties that are deprecated in current GTK
+  if pgrep -x mango >/dev/null 2>&1; then
+    rm -f "$TARGET_CONFIG" "$TARGET_STYLE"
+
+    sed -E \
+      -e '/^[[:space:]]*"hyprland\/mode",[[:space:]]*$/d' \
+      -e '/^[[:space:]]*"sway\/language",[[:space:]]*$/d' \
+      -e 's/"hyprland\/workspaces"/"ext\/workspaces"/g' \
+      -e 's/"hyprland\/window"/"dwl\/window"/g' \
+      -e 's/"sort-by-number"/"sort-by-id"/g' \
+      -e '/hyprctl[[:space:]]+dispatch[[:space:]]+workspace/d' \
+      "$THEME_CONFIG" > "$TARGET_CONFIG"
+
+    if ! ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
+      sed -i -E '/^[[:space:]]*"battery",[[:space:]]*$/d' "$TARGET_CONFIG"
+    fi
+
+    sed -E \
+      -e 's/\bicon-shadow[[:space:]]*:/-gtk-icon-shadow:/g' \
+      -e 's/([[:space:]]margin-(top|right|bottom|left)[[:space:]]*:[[:space:]]*)([0-9]+)([[:space:]]*;)/\1\3px\4/g' \
+      "$THEME_STYLE" > "$TARGET_STYLE"
+  else
+    ln -sf "$THEME_CONFIG" "$TARGET_CONFIG"
+    ln -sf "$THEME_STYLE" "$TARGET_STYLE"
+  fi
+
+  # Restart Waybar
+  killall -q waybar
+  waybar &
+fi

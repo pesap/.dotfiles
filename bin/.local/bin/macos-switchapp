@@ -7,9 +7,13 @@ if [[ -z "$APP" ]]; then
   exit 1
 fi
 
-# Try to locate .app bundle in custom path or default path
+# Try to locate .app bundle in user-custom path or default path
+# Override with: USER_APPS_DIR="/some/path" macos-switchapp <AppName>
+USER_APPS_DIR="${USER_APPS_DIR:-$HOME/User Apps}"
+
 APP_PATH="$(
-  find "/Users/psanchez/User Apps/" -maxdepth 1 -type d -name "$APP.app" 2>/dev/null | head -n 1
+  [[ -d "$USER_APPS_DIR" ]] && \
+  find "$USER_APPS_DIR" -maxdepth 1 -type d -name "$APP.app" 2>/dev/null | head -n 1
 )"
 
 if [[ -z "$APP_PATH" ]]; then

@@ -21,6 +21,8 @@ if [[ $# -eq 0 ]]; then
     echo "Restowing all packages..."
     for dir in */; do
         [[ "$dir" == ".git/" ]] && continue
+        [[ "$dir" == "docs/" ]] && continue
+        [[ "$dir" == "opencode/" ]] && continue
         [[ -d "$dir" ]] || continue
         pkg="${dir%/}"
         echo "  → $pkg"

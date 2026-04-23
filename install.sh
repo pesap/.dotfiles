@@ -124,6 +124,8 @@ download_link_dotfiles(){
             folder="${folder%/}"
             [ "$folder" = ".git" ] && continue
             folder="${folder##*/}"
+            [ "$folder" = "docs" ] && continue
+            [ "$folder" = "opencode" ] && continue
             link_files "$local_source" "$folder"
         done
         exit 0
@@ -135,6 +137,8 @@ download_link_dotfiles(){
                 [ -d "$folder" ] || continue
                 folder="${folder##*/}"
                 [ "$folder" = ".git" ] && continue
+                [ "$folder" = "docs" ] && continue
+                [ "$folder" = "opencode" ] && continue
                 link_files "$RECEIPT_HOME" "$folder"
             done
             exit 0
@@ -196,6 +200,8 @@ download_link_dotfiles(){
         [ -d "$folder" ] || continue
         folder="${folder##*/}"
         [ "$folder" = ".git" ] && continue
+        [ "$folder" = "docs" ] && continue
+        [ "$folder" = "opencode" ] && continue
         link_files "$RECEIPT_HOME" "$folder"
     done
     rm -rf "$_temp_dir"
@@ -423,7 +429,7 @@ verify_tools() {
         fi
     done
 
-    for tool in nvim rg cargo; do
+    for tool in nvim rg cargo dotcfg; do
         if check_cmd "$tool"; then
             say_verbose "ok: $tool"
         else
