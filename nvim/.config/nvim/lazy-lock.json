@@ -15,7 +15,7 @@
   "mole.nvim": { "branch": "main", "commit": "62af21156f102132aa3aaccf160edaf339ac29af" },
   "nui.nvim": { "branch": "main", "commit": "de740991c12411b663994b2860f1a4fd0937c130" },
   "nvim-eldoc": { "branch": "master", "commit": "865c40e8d77059211e619799c7492713be2441ba" },
-  "nvim-treesitter": { "branch": "main", "commit": "4916d6592ede8c07973490d9322f187e07dfefac" },
+  "nvim-treesitter": { "branch": "master", "commit": "cf12346a3414fa1b06af75c79faebe7f76df080a" },
   "nvim-treesitter-textobjects": { "branch": "main", "commit": "851e865342e5a4cb1ae23d31caf6e991e1c99f1e" },
   "plenary.nvim": { "branch": "master", "commit": "74b06c6c75e4eeb3108ec01852001636d85a932b" },
   "review.nvim": { "branch": "main", "commit": "eeb5b0c1b0844fe45ab2445c1f6f917b479b0e69" },
