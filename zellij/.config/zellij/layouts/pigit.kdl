@@ -1,8 +1,8 @@
 layout {
-    tab focus=true {
+    tab focus=true cwd="." {
         pane split_direction="vertical" {
-            pane size="35%" borderless=true name="lazygit" command="lazygit"
-            pane size="65%" borderless=true name="pi" command="zsh" {
+            pane size="35%" borderless=true name="lazygit" cwd="." command="lazygit"
+            pane size="65%" borderless=true name="pi" cwd="." command="zsh" {
                 args "-lc" "pi"
             }
         }

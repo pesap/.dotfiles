@@ -18,6 +18,28 @@ ZELLIJ_SWITCH_PLUGIN="${ZELLIJ_SESSIONIZER_SWITCH_PLUGIN:-"https://github.com/mo
 session_name_for_dir() {
   local dir="$1"
   dir="${dir%/}"
+
+  if [[ -d "$dir" ]]; then
+    dir="$(cd "$dir" 2>/dev/null && pwd -P)"
+  fi
+
+  if [[ "$dir" == "$HOME" ]]; then
+    dir="home"
+  elif [[ "$dir" == "$HOME/"* ]]; then
+    dir="${dir#$HOME/}"
+  else
+    dir="${dir#/}"
+  fi
+
+  dir="${dir//\//__}"
+  dir="${dir// /_}"
+
+  printf '%s\n' "$dir"
+}
+
+legacy_session_name_for_dir() {
+  local dir="$1"
+  dir="${dir%/}"
   printf '%s\n' "${dir##*/}"
 }
 
@@ -64,7 +86,7 @@ session_status_for_name() {
 
 print_display_entry() {
   local dir="$1"
-  local display_name session_name session_status
+  local display_name session_name legacy_session_name session_status
 
   [[ -d "$dir" ]] || return 0
 
@@ -76,6 +98,11 @@ print_display_entry() {
 
   session_name=$(session_name_for_dir "$dir")
   session_status=$(session_status_for_name "$session_name" 2>/dev/null || true)
+
+  if [[ -z "$session_status" ]]; then
+    legacy_session_name=$(legacy_session_name_for_dir "$dir")
+    session_status=$(session_status_for_name "$legacy_session_name" 2>/dev/null || true)
+  fi
 
   if [[ -n "$session_status" ]]; then
     display_name="${display_name} (${session_status})"
@@ -115,43 +142,53 @@ generate_display_list() {
   done
 }
 
+delete_session_for_dir() {
+  local target_dir="$1"
+  local session_name legacy_session_name
+
+  session_name=$(session_name_for_dir "$target_dir")
+  legacy_session_name=$(legacy_session_name_for_dir "$target_dir")
+
+  zellij delete-session "$session_name" --force 2>/dev/null || true
+
+  # Backward-compat cleanup for sessions created with the old basename-only key.
+  if [[ "$legacy_session_name" != "$session_name" ]]; then
+    zellij delete-session "$legacy_session_name" --force 2>/dev/null || true
+  fi
+}
+
 if [[ "$1" == "--generate-list" ]]; then
   generate_display_list
   exit $?
 fi
 
-temp_script=$(mktemp)
-trap 'rm -f "$temp_script"' EXIT
-cat > "$temp_script" << 'EOF'
-#!/usr/bin/env bash
+if [[ "$1" == "--session-action" ]]; then
+  action="$2"
+  target_dir="$3"
 
-session_name=$(basename "$2")
+  if [[ -z "$action" || -z "$target_dir" ]]; then
+    exit 1
+  fi
 
-if [[ -z "$session_name" ]]; then
+  case "$action" in
+    delete|kill)
+      delete_session_for_dir "$target_dir"
+      ;;
+    *)
+      exit 1
+      ;;
+  esac
+
   exit 0
 fi
-
-case "$1" in
-  delete)
-    zellij delete-session "$session_name" --force 2>/dev/null
-    ;;
-  kill)
-    # `kill-session` leaves the session in EXITED state (resurrectable),
-    # which restores the last layout on next attach. Use hard delete here.
-    zellij delete-session "$session_name" --force 2>/dev/null
-    ;;
-esac
-EOF
-
-chmod +x "$temp_script"
 
 selected_entry=$(generate_display_list | fzf --delimiter=$'\t' --with-nth=2.. \
   --prompt="Select project: " \
   --header="Enter: Select | Ctrl/Alt+D: Delete Session | Ctrl/Alt+K: Hard Kill Session" \
-  --bind="ctrl-d:execute($temp_script delete {1})+reload($0 --generate-list)" \
-  --bind="alt-d:execute($temp_script delete {1})+reload($0 --generate-list)" \
-  --bind="ctrl-k:execute($temp_script kill {1})+reload($0 --generate-list)" \
-  --bind="alt-k:execute($temp_script kill {1})+reload($0 --generate-list)")
+  --bind="ctrl-d:execute($0 --session-action delete {1})+reload($0 --generate-list)" \
+  --bind="alt-d:execute($0 --session-action delete {1})+reload($0 --generate-list)" \
+  --bind="ctrl-k:execute($0 --session-action kill {1})+reload($0 --generate-list)" \
+  --bind="alt-k:execute($0 --session-action kill {1})+reload($0 --generate-list)")
 
 if [[ -z "$selected_entry" ]]; then
   exit 0
