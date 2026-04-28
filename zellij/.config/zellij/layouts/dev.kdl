@@ -1,0 +1,23 @@
+layout {
+    tab name="code" focus=true {
+        pane split_direction="vertical" {
+            pane size="75%" borderless=true command="nvim" {
+                args "."
+            }
+            pane size="25%" borderless=true name="pi" command="zsh" {
+                args "-lc" "pi"
+            }
+        }
+    }
+    tab name="review" {
+        pane split_direction="vertical" {
+            pane size="75%" borderless=true name="gitu" command="zsh" {
+                args "-lc" "gitu"
+            }
+            pane size="25%" borderless=true name="pi" command="zsh" {
+                args "-lc" "pi"
+            }
+        }
+    }
+}
+
