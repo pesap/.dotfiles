@@ -5,6 +5,17 @@ options {
 keybinds {
     locked {
         bind "Ctrl l" { SwitchToMode "Normal"; }
+        bind "Ctrl g" {
+            Run "zellij-sessionizer" {
+                close_on_exit true
+                floating true
+                x "30%"
+                y "10%"
+                width "40%"
+                height "80%"
+            }
+            SwitchToMode "Locked"
+        }
     }
 
     tab {

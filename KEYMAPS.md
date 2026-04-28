@@ -134,6 +134,7 @@ No direct binds in this block (navigation mostly comes from shared blocks below)
 | Key | Action |
 |---|---|
 | `Ctrl+l` | switch to Normal mode |
+| `Ctrl+g` | run `zellij-sessionizer` floating + stay Locked |
 
 #### `resize`
 
