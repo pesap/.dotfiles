@@ -4,7 +4,7 @@ import = [
 ]
 
 [font]
-size = 18
+size = 16
 
 [font.normal]
 family = "0xProto Nerd Font"
@@ -23,3 +23,9 @@ history = 100000
 
 [env]
 term = "xterm-256color"
+
+[keyboard]
+bindings = [
+    { key = "Key1", mods = "Command", chars = "\u001b1" },
+    { key = "Key2", mods = "Command", chars = "\u001b2" },
+]

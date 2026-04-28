@@ -58,6 +58,7 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 | `<leader>gd` | Go to definition (fzf) |
 | `<leader>gr` | Go to references (fzf) |
 | `<leader>t` | Harpoon: add file |
+| `<leader>tc` | Theme picker (colorschemes) |
 | `<leader>mm` | Harpoon: toggle menu |
 | `<leader>1-5` | Harpoon: jump to file 1-5 |
 | `<leader>gs` | Git status (Fugitive) |
@@ -89,7 +90,7 @@ Auto-format on save is enabled.
 
 ## Colorscheme
 
-[thorn.nvim](https://github.com/jpwol/thorn.nvim) with transparent background.
+[kintsugi-nvim](https://github.com/metalelf0/kintsugi-nvim) (`kintsugi-dark`) with transparent background.
 
 ## Maintenance Notes
 
