@@ -337,6 +337,7 @@ These apply on top of mode keymaps.
 
 - `code` tab: `nvim` + `pi`
 - `review` tab: `gitu` + `pi`
+- In both tabs, primary pane width is fixed to `110` columns (to match default Neovim width), secondary `pi` pane fills remainder
 - Tests are ephemeral: use `Alt+t` to open floating pinned `just test`
 
 ---
@@ -370,7 +371,9 @@ Configured hotkeys include:
 Source:
 - `mango/.config/mango/config-bindings.conf`
 
-This file contains the full Linux keymap set (window focus/move/resize/layout/tags/screenshots/mouse/gestures), including ALT/SUPER fallback bindings for workspace navigation.
+This file contains the full Linux keymap set (window focus/move/resize/layout/tags/screenshots/mouse/gestures), using ALT number bindings for workspace navigation.
+
+Note: SUPER+1..9 workspace fallback bindings were intentionally removed to avoid collisions with terminal/Zellij `Cmd(Super)+number` shortcuts.
 
 ---
 
