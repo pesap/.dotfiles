@@ -9,7 +9,7 @@ return {
 	config = function()
 		local configs = require("nvim-treesitter.configs")
 		configs.setup({
-			auto_install = { enable = false },
+			auto_install = false,
 			highlight = { enable = true },
 			indent = { enable = true },
 			sync_install = false,
@@ -87,5 +87,8 @@ return {
 				},
 			},
 		})
+
+		-- Work around markdown injection crash in Neovim treesitter highlighter.
+		vim.treesitter.query.set("markdown", "injections", "")
 	end,
 }
