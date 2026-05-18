@@ -1,6 +1,6 @@
 # Keymaps by Program
 
-Last updated: 2026-04-28
+Last updated: 2026-05-17
 
 This is a central index of keymaps configured in this dotfiles repo, grouped by program.
 
@@ -134,7 +134,7 @@ No direct binds in this block (navigation mostly comes from shared blocks below)
 | Key | Action |
 |---|---|
 | `Ctrl+l` | switch to Normal mode |
-| `Ctrl+\\` | run `zellij-sessionizer` floating + stay Locked |
+| `Ctrl+\\` / `Alt+\\` | run `zellij-sessionizer` floating + stay Locked |
 
 #### `resize`
 
@@ -310,9 +310,8 @@ These apply on top of mode keymaps.
 | `Alt+t` | run floating pinned `just test` pane + Normal mode |
 | `Alt+p` | fast pane selector (`room.wasm`) + Normal mode |
 | `Alt+Shift+p` | floating pane inventory (`zellij action list-panes --all --json`) + Normal mode |
-| `Ctrl+\\` | run `zellij-sessionizer` floating + switch to Locked |
+| `Ctrl+\\` / `Alt+\\` / `Ctrl+'` | run `zellij-sessionizer` floating + switch to Locked |
 | `Ctrl+y` | open layout picker plugin (tiled, non-floating) |
-| `Ctrl+\\` / `Ctrl+'` | run `zellij-sessionizer` floating + switch to Locked |
 
 #### `shared_except "normal" "locked"`
 
@@ -348,8 +347,14 @@ Source:
 - `alacritty/.config/alacritty/alacritty.toml`
 
 Custom keyboard remaps:
-- `Cmd+1` sends `ESC 1` (used by Zellij as `Alt 1`)
-- `Cmd+2` sends `ESC 2` (used by Zellij as `Alt 2`)
+- `Cmd+1..4` sends `ESC 1..4` (macOS)
+- `Super+1..4` sends `ESC 1..4` (Linux)
+- These are used by Zellij as `Alt+1..4` fallback tab selectors
+
+Other Alacritty workflow settings:
+- `live_config_reload = true`
+- `dynamic_padding = true`
+- `selection.save_to_clipboard = true`
 
 ---
 
