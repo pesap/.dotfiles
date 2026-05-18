@@ -11,9 +11,3 @@ done
 if command -v mise >/dev/null 2>&1; then
     eval "$(mise activate zsh)"
 fi
-
-export PATH="/Users/psanchez/.pixi/bin:$PATH"
-
-# Added by GitButler installer
-export PATH="$HOME/.local/bin:$PATH"
-eval "$(but completions zsh)"

@@ -12,6 +12,9 @@ command -v direnv >/dev/null && eval "$(direnv hook zsh)"
 # Zoxide
 command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 
+# GitButler completions
+command -v but >/dev/null && eval "$(but completions zsh)"
+
 # lsd (better ls)
 if command -v lsd >/dev/null; then
     alias ls='lsd'
