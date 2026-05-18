@@ -1,11 +1,12 @@
 options {
-    support_kitty_keyboard_protocol true
+    mouse_mode false
+    support_kitty_keyboard_protocol false
 }
 
 keybinds {
     locked {
         bind "Ctrl l" { SwitchToMode "Normal"; }
-        bind "Ctrl \\" {
+        bind "Ctrl \\" "Alt \\" {
             Run "zellij-sessionizer" {
                 close_on_exit true
                 floating true
@@ -79,7 +80,7 @@ keybinds {
             SwitchToMode "Normal"
         }
 
-        bind "Ctrl \\" "Ctrl '" {
+        bind "Ctrl \\" "Alt \\" "Ctrl '" {
             Run "zellij-sessionizer" {
                 close_on_exit true
                 floating true

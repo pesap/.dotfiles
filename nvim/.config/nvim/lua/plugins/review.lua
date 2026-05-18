@@ -1,6 +1,6 @@
 return {
 	"pesap/review.nvim",
-	branch = "main",
+	dir = "/Users/psanchez/dev/review.nvim",
 	config = function()
 		require("review").setup()
 	end,
