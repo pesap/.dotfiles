@@ -1,5 +1,6 @@
 [general]
 import = ["~/.config/alacritty/themes/themes/tokyo-night.toml"]
+live_config_reload = true
 
 [font]
 size = 16
@@ -11,6 +12,7 @@ family = "0xProto Nerd Font"
 decorations = "none"
 startup_mode = "Maximized"
 option_as_alt = "Both"
+dynamic_padding = true
 
 [window.padding]
 x = 10
@@ -26,8 +28,17 @@ history = 100000
 [env]
 term = "xterm-256color"
 
+[selection]
+save_to_clipboard = true
+
 [keyboard]
 bindings = [
-  { key = "Key1", mods = "Command", chars = "\u001b1" },
-  { key = "Key2", mods = "Command", chars = "\u001b2" },
+    { key = "Key1", mods = "Command", chars = "\u001b1" },
+    { key = "Key2", mods = "Command", chars = "\u001b2" },
+    { key = "Key3", mods = "Command", chars = "\u001b3" },
+    { key = "Key4", mods = "Command", chars = "\u001b4" },
+    { key = "Key1", mods = "Super", chars = "\u001b1" },
+    { key = "Key2", mods = "Super", chars = "\u001b2" },
+    { key = "Key3", mods = "Super", chars = "\u001b3" },
+    { key = "Key4", mods = "Super", chars = "\u001b4" },
 ]
