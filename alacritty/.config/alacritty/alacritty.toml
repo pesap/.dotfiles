@@ -1,7 +1,5 @@
 [general]
-import = [
-    "~/.config/alacritty/themes/themes/tokyo-night.toml"
-]
+import = ["~/.config/alacritty/themes/themes/tokyo-night.toml"]
 
 [font]
 size = 16
@@ -18,6 +16,10 @@ option_as_alt = "Both"
 x = 10
 y = 10
 
+[cursor.style]
+shape = "Underline"
+blinking = "On"
+
 [scrolling]
 history = 100000
 
@@ -26,6 +28,6 @@ term = "xterm-256color"
 
 [keyboard]
 bindings = [
-    { key = "Key1", mods = "Command", chars = "\u001b1" },
-    { key = "Key2", mods = "Command", chars = "\u001b2" },
+  { key = "Key1", mods = "Command", chars = "\u001b1" },
+  { key = "Key2", mods = "Command", chars = "\u001b2" },
 ]

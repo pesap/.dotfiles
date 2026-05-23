@@ -1,5 +1,17 @@
+scan_timeout = 30
+command_timeout = 500
+add_newline = true
+
 [package]
 disabled = true
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = 'bold underline'
+read_only = ' 🔒'
+read_only_style = 'red'
+home_symbol = '~'
 
 [python]
 format = 'via [(${version} )(\($virtualenv\) )]($style)'
@@ -17,9 +29,22 @@ style = "bold purple"
 [git_branch]
 disabled = false
 style = "bold yellow"
+symbol = ' '
+truncation_length = 9223372036854775807
+truncation_symbol = '…'
 
 [git_status]
 disabled = true
+stashed = '\$'
+ahead = '⇡'
+behind = '⇣'
+diverged = '⇕'
+conflicted = '='
+deleted = '✘'
+renamed = '»'
+modified = '!'
+staged = '+'
+untracked = '?'
 
 [git_state]
 disabled = true

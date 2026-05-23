@@ -1,5 +1,20 @@
 # Environment variables
 
+HISTSIZE=1000
+SAVEHIST=2000
+HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+
+setopt HIST_IGNORE_SPACE
+setopt HIST_IGNORE_DUPS
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+setopt SHARE_HISTORY
+
+zstyle ':completion:*' matcher-list \
+    'm:{a-zA-Z}={A-Za-z}' \
+    'r:|[._-]=* r:|=*' \
+    'l:|=* r:|=*'
+
 export PYTHONDONTWRITEBYTECODE=1
 export TERM='xterm-256color'
 export EDITOR='nvim'
