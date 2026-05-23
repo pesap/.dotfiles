@@ -280,6 +280,36 @@ _auto_venv  # Run once for initial directory
 # Navigation Functions
 #=============================================================================
 
+# Shared: resolve git worktree to actual checkout dir
+# If the given dir has worktrees, show a picker; otherwise echo dir as-is.
+_git_worktree_picker() {
+    local dir="$1"
+    [[ -d "$dir/.git" ]] || [[ -f "$dir/.git" ]] || { echo "$dir"; return; }
+
+    local worktrees
+    worktrees=$(git -C "$dir" worktree list 2>/dev/null | tail -n +2)
+    [[ -z "$worktrees" ]] && { echo "$dir"; return; }
+
+    local wt_opts=(
+        --height=40%
+        --layout=reverse
+        --border=rounded
+        --margin=10%,20%
+        --padding=1
+        --pointer="▶"
+        --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
+        --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
+        --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
+        --color="border:#a6e3a1"
+        --prompt="   "
+        --header="  Git worktrees found — select one (or ESC for main)"
+    )
+
+    local wt_selected
+    wt_selected=$(echo "$worktrees" | fzf "${wt_opts[@]}" | awk '{print $1}')
+    echo "${wt_selected:-$dir}"
+}
+
 # Folder jump using fd + fzf (with worktree support)
 # Searches only in dev, tmp, sandbox, work directories
 fj() {
@@ -321,41 +351,7 @@ fj() {
         fzf "${fzf_opts[@]}")
 
     [[ -z "$selected" ]] && return 0
-
-    # Check if it's a git repo with worktrees
-    if [[ -d "$selected/.git" ]] || [[ -f "$selected/.git" ]]; then
-        local worktrees
-        worktrees=$(git -C "$selected" worktree list 2>/dev/null | tail -n +2)
-
-        if [[ -n "$worktrees" ]]; then
-            # Has worktrees - show picker
-            local wt_opts=(
-                --height=40%
-                --layout=reverse
-                --border=rounded
-                --margin=10%,20%
-                --padding=1
-                --pointer="▶"
-                --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
-                --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
-                --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
-                --color="border:#a6e3a1"
-                --prompt="   "
-                --header="  Git worktrees found — select one (or ESC for main)"
-            )
-
-            local all_trees
-            all_trees=$(git -C "$selected" worktree list 2>/dev/null)
-
-            local wt_selected
-            wt_selected=$(echo "$all_trees" | fzf "${wt_opts[@]}" | awk '{print $1}')
-
-            if [[ -n "$wt_selected" ]]; then
-                selected="$wt_selected"
-            fi
-        fi
-    fi
-
+    selected=$(_git_worktree_picker "$selected")
     cd "$selected" && echo "  $(pwd)"
 }
 
@@ -393,40 +389,7 @@ fjh() {
         fzf "${fzf_opts[@]}")
 
     [[ -z "$selected" ]] && return 0
-
-    # Same worktree support as fj()
-    if [[ -d "$selected/.git" ]] || [[ -f "$selected/.git" ]]; then
-        local worktrees
-        worktrees=$(git -C "$selected" worktree list 2>/dev/null | tail -n +2)
-
-        if [[ -n "$worktrees" ]]; then
-            local wt_opts=(
-                --height=40%
-                --layout=reverse
-                --border=rounded
-                --margin=10%,20%
-                --padding=1
-                --pointer="▶"
-                --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
-                --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
-                --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
-                --color="border:#a6e3a1"
-                --prompt="   "
-                --header="  Git worktrees found — select one (or ESC for main)"
-            )
-
-            local all_trees
-            all_trees=$(git -C "$selected" worktree list 2>/dev/null)
-
-            local wt_selected
-            wt_selected=$(echo "$all_trees" | fzf "${wt_opts[@]}" | awk '{print $1}')
-
-            if [[ -n "$wt_selected" ]]; then
-                selected="$wt_selected"
-            fi
-        fi
-    fi
-
+    selected=$(_git_worktree_picker "$selected")
     cd "$selected" && echo "  $(pwd)"
 }
 
@@ -467,40 +430,7 @@ pj() {
         . $search_dirs 2>/dev/null | fzf "${fzf_opts[@]}")
 
     [[ -z "$selected" ]] && return 0
-
-    # Check for worktrees (same logic as fj)
-    if [[ -d "$selected/.git" ]] || [[ -f "$selected/.git" ]]; then
-        local worktrees
-        worktrees=$(git -C "$selected" worktree list 2>/dev/null | tail -n +2)
-
-        if [[ -n "$worktrees" ]]; then
-            local wt_opts=(
-                --height=40%
-                --layout=reverse
-                --border=rounded
-                --margin=10%,20%
-                --padding=1
-                --pointer="▶"
-                --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
-                --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
-                --color="marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
-                --color="border:#a6e3a1"
-                --prompt="   "
-                --header="  Git worktrees found — select one (or ESC for main)"
-            )
-
-            local all_trees
-            all_trees=$(git -C "$selected" worktree list 2>/dev/null)
-
-            local wt_selected
-            wt_selected=$(echo "$all_trees" | fzf "${wt_opts[@]}" | awk '{print $1}')
-
-            if [[ -n "$wt_selected" ]]; then
-                selected="$wt_selected"
-            fi
-        fi
-    fi
-
+    selected=$(_git_worktree_picker "$selected")
     cd "$selected" && echo "  $(pwd)"
 }
 

@@ -30,7 +30,7 @@ style = "bold purple"
 disabled = false
 style = "bold yellow"
 symbol = ' '
-truncation_length = 9223372036854775807
+truncation_length = 0
 truncation_symbol = '…'
 
 [git_status]

@@ -3,3 +3,6 @@
 .worktrees/
 docs/
 dotfiles.tar.gz
+node_modules/
+bun.lock
+package-lock.json

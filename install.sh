@@ -21,7 +21,7 @@ DRY_RUN=${INSTALLER_DRY_RUN:-0}
 BACKUP=${INSTALLER_BACKUP:-1}
 BACKUP_DIR=""
 
-set -u
+set -eu
 
 set_dotfiles_remote() {
     os="$(uname -s 2>/dev/null || echo unknown)"
@@ -403,14 +403,15 @@ restore_backups() {
 extract_stow_conflicts() {
     awk '
         /cannot stow/ {
-            if (match($0, /existing target [^ ]+/)) {
+            if (match($0, /stow: [^ ]+$/)) {
                 s = substr($0, RSTART, RLENGTH)
-                sub(/^existing target /, "", s)
+                sub(/^stow: /, "", s)
                 seen[s] = 1
             }
+            next
         }
         /existing target is not owned by stow:/ {
-            if (match($0, /stow: [^ ]+/)) {
+            if (match($0, /stow: [^ ]+$/)) {
                 s = substr($0, RSTART, RLENGTH)
                 sub(/^stow: /, "", s)
                 seen[s] = 1

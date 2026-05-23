@@ -12,9 +12,8 @@ if command -v mise >/dev/null 2>&1; then
     eval "$(mise activate zsh)"
 fi
 
-# bun completions
-[ -s "/home/morgoth/.bun/_bun" ] && source "/home/morgoth/.bun/_bun"
-
 # Added by GitButler installer
-export PATH="$HOME/.local/bin:$PATH"
 eval "$(but completions zsh)"
+
+# JJ version control completions
+command -v jj >/dev/null 2>&1 && source <(jj util completion zsh 2>/dev/null)

@@ -1,7 +1,7 @@
 #!/bin/sh
 # POSIX bootstrap for prerequisites + installer.
 
-set -u
+set -eu
 
 VERSION="${INSTALLER_VERSION:-0.0.1}"
 REPO_RAW_BASE="https://raw.githubusercontent.com/pesap/.dotfiles"

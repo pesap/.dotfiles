@@ -15,11 +15,54 @@ check() {
     return 1
 }
 
-say "Dotfiles health check"
+say "========================================"
+say "   Dotfiles Health Check"
+say "========================================"
+say ""
+
+# Core
+say "--- Core Tools ---"
 check stow
 check git
 check curl
 check rsync
+
+# Shell & Prompt
+say ""
+say "--- Shell & Prompt ---"
 check nvim
+check zsh
+check starship
+
+# File Management (from aliases/functions)
+say ""
+say "--- File Management ---"
+check fd
+check fzf
+check bat
+check lsd
 check rg
+
+# Dev Tooling
+say ""
+say "--- Dev Tooling ---"
 check cargo
+check rustup
+check mise
+check pixi
+check just
+
+# Navigation & Productivity
+say ""
+say "--- Navigation & Productivity ---"
+check zoxide
+check zellij
+check yazi
+check direnv
+check jq
+
+# Version Control
+say ""
+say "--- Version Control ---"
+check gh
+check jj

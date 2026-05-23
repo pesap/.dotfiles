@@ -36,6 +36,9 @@ else
     usage
 fi
 
+# Verify gh is authenticated
+gh auth status &>/dev/null || { echo "Error: gh not authenticated. Run 'gh auth login' first."; exit 1; }
+
 echo "=== PR #${pr_number} in ${repo} ==="
 echo ""
 

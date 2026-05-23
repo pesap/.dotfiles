@@ -24,7 +24,6 @@ blinking = "On"
 history = 100000
 
 [env]
-term = "xterm-256color"
 
 [keyboard]
 bindings = [

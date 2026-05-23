@@ -1,10 +1,16 @@
-# OS-specific configuration
+# OS-specific configuration (merged from os/*.zsh)
+
+# Julia (used on both Linux and macOS)
+if [[ -d "$HOME/.juliaup/bin" ]]; then
+    path=("$HOME/.juliaup/bin" $path)
+    export PATH
+fi
 
 case "$OSTYPE" in
     darwin*)
-        [[ -f ~/.config/zshrc/os/macos.zsh ]] && source ~/.config/zshrc/os/macos.zsh
+        [[ -f ~/.aliases_macOS ]] && source ~/.aliases_macOS
         ;;
     linux*)
-        [[ -f ~/.config/zshrc/os/linux.zsh ]] && source ~/.config/zshrc/os/linux.zsh
+        [[ -f ~/.aliases_arch ]] && source ~/.aliases_arch
         ;;
 esac
