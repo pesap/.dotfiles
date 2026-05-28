@@ -2,13 +2,15 @@
 
 usage() {
   cat <<'EOF'
-Usage: zellij-sessionizer [--help] [--generate-list] [--refresh-cache] [--session-action delete <dir>]
+Usage: zession [--help] [--generate-list] [--refresh-cache] [--session-action delete <dir>]
 
 Environment:
-  ZELLIJ_SESSIONIZER_SEARCH_PATHS    Colon-delimited base directories to scan.
-  ZELLIJ_SESSIONIZER_SPECIFIC_PATHS  Colon-delimited extra directories to include.
-  ZELLIJ_SESSIONIZER_MAX_DEPTH       fd max depth (default: 1).
-  ZELLIJ_SESSIONIZER_SWITCH_PLUGIN   zellij-switch plugin URL.
+  ZESSION_SEARCH_PATHS    Colon-delimited base directories to scan.
+  ZESSION_SPECIFIC_PATHS  Colon-delimited extra directories to include.
+  ZESSION_MAX_DEPTH       fd max depth (default: 1).
+  ZESSION_SWITCH_PLUGIN   zellij-switch plugin URL.
+
+Legacy ZELLIJ_SESSIONIZER_* names are still accepted.
 EOF
 }
 
@@ -31,35 +33,48 @@ split_path_list() {
   esac
 }
 
-if [[ -n "${ZELLIJ_SESSIONIZER_SEARCH_PATHS:-}" ]]; then
-  split_path_list "$ZELLIJ_SESSIONIZER_SEARCH_PATHS" SEARCH_PATHS
+ZESSION_SEARCH_PATHS="${ZESSION_SEARCH_PATHS:-${ZELLIJ_SESSIONIZER_SEARCH_PATHS:-}}"
+ZESSION_SPECIFIC_PATHS="${ZESSION_SPECIFIC_PATHS:-${ZELLIJ_SESSIONIZER_SPECIFIC_PATHS:-}}"
+ZESSION_MAX_DEPTH="${ZESSION_MAX_DEPTH:-${ZELLIJ_SESSIONIZER_MAX_DEPTH:-1}}"
+ZESSION_SWITCH_PLUGIN="${ZESSION_SWITCH_PLUGIN:-${ZELLIJ_SESSIONIZER_SWITCH_PLUGIN:-}}"
+ZESSION_SESSION_NAME_MAX="${ZESSION_SESSION_NAME_MAX:-20}"
+
+if [[ -n "${ZESSION_SEARCH_PATHS:-}" ]]; then
+  split_path_list "$ZESSION_SEARCH_PATHS" SEARCH_PATHS
 else
   SEARCH_PATHS=("$HOME/dev" "$HOME/tmp" "$HOME/sandbox" "$HOME/work")
 fi
 
-if [[ -n "${ZELLIJ_SESSIONIZER_SPECIFIC_PATHS:-}" ]]; then
-  split_path_list "$ZELLIJ_SESSIONIZER_SPECIFIC_PATHS" SPECIFIC_PATHS
+if [[ -n "${ZESSION_SPECIFIC_PATHS:-}" ]]; then
+  split_path_list "$ZESSION_SPECIFIC_PATHS" SPECIFIC_PATHS
 else
   SPECIFIC_PATHS=("$HOME/.dotfiles")
 fi
 
-command -v fzf >/dev/null 2>&1 || { log::error "fzf is required"; exit 1; }
-
-ZELLIJ_SESSIONIZER_MAX_DEPTH="${ZELLIJ_SESSIONIZER_MAX_DEPTH:-1}"
-ZELLIJ_SWITCH_PLUGIN="${ZELLIJ_SESSIONIZER_SWITCH_PLUGIN:-"https://github.com/mostafaqanbaryan/zellij-switch/releases/download/0.2.1/zellij-switch.wasm"}"
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zellij-sessionizer"
+ZELLIJ_SWITCH_PLUGIN="${ZESSION_SWITCH_PLUGIN:-"https://github.com/mostafaqanbaryan/zellij-switch/releases/download/0.2.1/zellij-switch.wasm"}"
+STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}"
+STATE_DIR="${STATE_ROOT}/zession"
+LEGACY_STATE_DIR="${STATE_ROOT}/zellij-sessionizer"
+if [[ ! -d "$STATE_DIR" && -d "$LEGACY_STATE_DIR" ]]; then
+  STATE_DIR="$LEGACY_STATE_DIR"
+fi
 MRU_FILE="${STATE_DIR}/mru.tsv"
 LIST_CACHE_FILE="${STATE_DIR}/list.tsv"
 MRU_DIRS=()
 MRU_TIMESTAMPS=()
 
-# Prefer a locally cached plugin over fetching from the network
-if [[ "$ZELLIJ_SWITCH_PLUGIN" == http* ]]; then
-  local_plugin="$HOME/.config/zellij/plugins/zellij-switch.wasm"
-  if [[ -f "$local_plugin" ]]; then
-    ZELLIJ_SWITCH_PLUGIN="$local_plugin"
-  fi
-fi
+session_name_hash() {
+  local value="$1"
+  cksum <<< "$value" | awk '{print $1}'
+}
+
+sanitize_session_name_part() {
+  local value="$1"
+  value="${value//\//__}"
+  value="${value// /_}"
+  value="${value//[^[:alnum:]_.-]/_}"
+  printf '%s\n' "$value"
+}
 
 session_name_for_dir() {
   local dir="$1"
@@ -69,18 +84,32 @@ session_name_for_dir() {
     dir="$(cd "$dir" 2>/dev/null && pwd -P)"
   fi
 
+  local name
   if [[ "$dir" == "$HOME" ]]; then
-    dir="home"
+    name="home"
   elif [[ "$dir" == "$HOME/"* ]]; then
-    dir="home__${dir#"$HOME"/}"
+    name="home__${dir#"$HOME"/}"
   else
-    dir="abs__${dir#/}"
+    name="abs__${dir#/}"
   fi
 
-  dir="${dir//\//__}"
-  dir="${dir// /_}"
+  name="$(sanitize_session_name_part "$name")"
 
-  printf '%s\n' "$dir"
+  # Zellij includes the session name in its Unix-domain IPC socket path.
+  # macOS $TMPDIR paths are often already very long, so keep names tiny.
+  if [[ ${#name} -gt $ZESSION_SESSION_NAME_MAX ]]; then
+    local basename hash basename_max
+    hash="$(session_name_hash "$dir")"
+    basename_max=$(( ZESSION_SESSION_NAME_MAX - ${#hash} - 2 ))
+    if [[ $basename_max -lt 1 ]]; then
+      basename_max=1
+    fi
+    basename="$(sanitize_session_name_part "${dir##*/}")"
+    name="${basename:0:$basename_max}__${hash}"
+    name="${name:0:$ZESSION_SESSION_NAME_MAX}"
+  fi
+
+  printf '%s\n' "$name"
 }
 
 legacy_session_name_for_dir() {
@@ -220,20 +249,31 @@ print_display_entry() {
   printf '%s\t%s %s\t%s\n' "$dir" "$chip" "$project_name" "$mru_ts"
 }
 
+dir_was_seen() {
+  local target="$1"
+  local seen_dir
+
+  for seen_dir in "${seen_dirs[@]}"; do
+    [[ "$seen_dir" == "$target" ]] && return 0
+  done
+
+  return 1
+}
+
 generate_display_list() {
   if ! command -v fd >/dev/null 2>&1; then
-    log::error "fd is required (same as fj)"
+    echo "zession: fd is required (same as fj)" >&2
     return 1
   fi
 
   local search_dirs=()
-  local dir seen_dir already_seen
+  local dir
   for dir in "${SEARCH_PATHS[@]}"; do
     [[ -d "$dir" ]] && search_dirs+=("$dir")
   done
 
   if [[ ${#search_dirs[@]} -eq 0 ]]; then
-    log::error "no search directories found"
+    echo "zession: no search directories found" >&2
     return 1
   fi
 
@@ -245,30 +285,16 @@ generate_display_list() {
   {
     while IFS= read -r dir; do
       [[ -n "$dir" ]] || continue
-      already_seen=0
-      for seen_dir in "${seen_dirs[@]}"; do
-        if [[ "$seen_dir" == "$dir" ]]; then
-          already_seen=1
-          break
-        fi
-      done
-      [[ "$already_seen" -eq 1 ]] && continue
+      dir_was_seen "$dir" && continue
       seen_dirs+=("$dir")
       print_display_entry "$dir"
     done < <(fd --type d \
       --exclude node_modules --exclude .bare \
-      --max-depth "$ZELLIJ_SESSIONIZER_MAX_DEPTH" \
+      --max-depth "$ZESSION_MAX_DEPTH" \
       . "${search_dirs[@]}" 2>/dev/null)
 
     for dir in "${SPECIFIC_PATHS[@]}"; do
-      already_seen=0
-      for seen_dir in "${seen_dirs[@]}"; do
-        if [[ "$seen_dir" == "$dir" ]]; then
-          already_seen=1
-          break
-        fi
-      done
-      [[ "$already_seen" -eq 1 ]] && continue
+      dir_was_seen "$dir" && continue
       seen_dirs+=("$dir")
       print_display_entry "$dir"
     done
@@ -331,7 +357,7 @@ if [[ "${1:-}" == "--session-action" ]]; then
   target_dir="${3:-}"
 
   if [[ -z "$action" || -z "$target_dir" ]]; then
-    echo "zellij-sessionizer: --session-action requires: delete <dir>" >&2
+    echo "zession: --session-action requires: delete <dir>" >&2
     exit 1
   fi
 
@@ -340,7 +366,7 @@ if [[ "${1:-}" == "--session-action" ]]; then
       delete_session_for_dir "$target_dir"
       ;;
     *)
-      echo "zellij-sessionizer: unsupported session action: $action" >&2
+      echo "zession: unsupported session action: $action" >&2
       exit 1
       ;;
   esac
@@ -349,12 +375,12 @@ if [[ "${1:-}" == "--session-action" ]]; then
 fi
 
 if ! command -v zellij >/dev/null 2>&1; then
-  echo "zellij-sessionizer: zellij is required" >&2
+  echo "zession: zellij is required" >&2
   exit 1
 fi
 
 if ! command -v fzf >/dev/null 2>&1; then
-  echo "zellij-sessionizer: fzf is required" >&2
+  echo "zession: fzf is required" >&2
   exit 1
 fi
 
@@ -375,7 +401,7 @@ selected_entry=$(print_cached_or_fresh_list | fzf --delimiter=$'\t' --with-nth=2
   --bind="ctrl-r:execute-silent($0 --refresh-cache >/dev/null 2>&1)+reload($0 --generate-list)" \
   --bind="ctrl-d:execute($0 --session-action delete {1})+reload($0 --generate-list)" \
   --bind="alt-d:execute($0 --session-action delete {1})+reload($0 --generate-list)" \
-  --bind="?:execute(echo 'zellij-sessionizer keys\n\nEnter      switch selected project\nAlt-Enter  switch most recent (top row)\nCtrl-R     refresh project list\nCtrl-D     delete session for selected project\nEsc/Ctrl-C close picker\n' | less -R)")
+  --bind="?:execute(echo 'zession keys\n\nEnter      switch selected project\nAlt-Enter  switch most recent (top row)\nCtrl-R     refresh project list\nCtrl-D     delete session for selected project\nEsc/Ctrl-C close picker\n' | less -R)")
 
 if [[ -z "$selected_entry" ]]; then
   exit 0
@@ -396,9 +422,30 @@ session_has_connected_clients() {
   [[ "$client_count" -gt 0 ]]
 }
 
+session_exists() {
+  zellij ls -s 2>/dev/null | grep -Fxq "$session_name"
+}
+
+session_has_terminal_pane() {
+  zellij --session "$session_name" action list-panes --all --json 2>/dev/null \
+    | grep -q '"is_plugin": false'
+}
+
+ensure_background_session() {
+  if ! session_exists; then
+    (cd "$selected_dir" && zellij attach "$session_name" --create-background) || return 1
+  fi
+
+  if ! session_has_terminal_pane; then
+    zellij --session "$session_name" run --cwd "$selected_dir" -- "${SHELL:-zsh}" >/dev/null || return 1
+  fi
+}
+
 switched=0
 if [[ -n "${ZELLIJ:-}" ]]; then
-  if zellij pipe --plugin "$ZELLIJ_SWITCH_PLUGIN" -- "--session $session_name --cwd $selected_dir"; then
+  if ensure_background_session && zellij action switch-session "$session_name" --cwd "$selected_dir"; then
+    switched=1
+  elif zellij pipe --plugin "$ZELLIJ_SWITCH_PLUGIN" -- "--session $session_name --cwd $selected_dir --layout default"; then
     switched=1
   elif attach_or_create_session; then
     switched=1

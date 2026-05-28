@@ -50,6 +50,15 @@ ze() {
     fi
 }
 
+# Zellij attach/create by project picker
+za() { zession "$@"; }
+
+# Zellij delete all sessions
+zd() {
+    zellij delete-all-sessions --force --yes >/dev/null 2>&1 || true
+    zellij ls -n
+}
+
 # Zellij edit file (renamed from ze to avoid conflict)
 zed() { zellij edit "$@"; }
 zedf() { zellij edit --floating "$@"; }
@@ -521,20 +530,20 @@ _bind_widget_all_keymaps() {
     bindkey -M vicmd "$key" "$widget"
 }
 
-# Ctrl+\\ - Zellij sessionizer popup
+# Ctrl+\\ - zession project/session picker
 if [[ -o interactive ]]; then
     stty -ixon 2>/dev/null
     stty quit undef 2>/dev/null
 fi
 
-_zellij_sessionizer_widget() {
+_zession_widget() {
     zle -I
-    BUFFER="zellij-sessionizer"
+    BUFFER="zession"
     CURSOR=${#BUFFER}
     zle accept-line
 }
-zle -N _zellij_sessionizer_widget
-_bind_widget_all_keymaps '^\\' _zellij_sessionizer_widget
+zle -N _zession_widget
+_bind_widget_all_keymaps '^\\' _zession_widget
 
 # Ctrl+F - Folder jump (silent)
 _fj_widget() {
