@@ -24,42 +24,6 @@ Health check:
 dotfiles-healthcheck
 ```
 
-## Windows `pil`
-
-The Windows launcher is a single file:
-
-```text
-bin/.local/bin/pil.cmd
-```
-
-How to use it:
-
-1. Copy `pil.cmd` to a folder on your Windows `PATH`.
-2. Open a new Command Prompt, PowerShell, or Windows Terminal.
-3. Run:
-
-```powershell
-pil setup
-```
-
-Then use it normally:
-
-```powershell
-pil
-pil --help
-```
-
-If it is not on `PATH` yet, run it directly from the current folder:
-
-```powershell
-.\pil.cmd
-```
-
-Requirements:
-
-- `pi` installed and on `PATH`
-- `pwsh` or `powershell` on `PATH`
-
 Safe WM apply (Linux/macOS):
 ```sh
 dotcfg run
