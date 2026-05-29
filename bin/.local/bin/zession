@@ -1,429 +1,171 @@
 #!/usr/bin/env bash
+# zession — zellij project/session picker.
+#
+# Two row types in the picker:
+#   [CUR|ACT|EXT] <session>   live zellij sessions
+#   <path>                     directories from zoxide + SPECIFIC_PATHS
+# Selection attaches/switches to the session, creating it from <path> if
+# needed. Session name = basename of the path, sanitised. Two dirs with the
+# same basename map to the same session by design (rename one if it bites).
+
+set -uo pipefail
+
+# ---------- config ----------
+# Colon-separated roots: only zoxide paths under these dirs are shown.
+ZESSION_ROOTS="${ZESSION_ROOTS:-$HOME/dev:$HOME/sandbox:$HOME/work:$HOME/.dotfiles}"
+ZESSION_SWITCH_PLUGIN="${ZESSION_SWITCH_PLUGIN:-}"
+IFS=':' read -r -a _ROOTS <<< "$ZESSION_ROOTS"
+
+XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+STATE_DIR="${XDG_STATE_HOME}/zession"
+mkdir -p "$STATE_DIR" 2>/dev/null || true
+LIST_CACHE_FILE="${STATE_DIR}/list"
 
 usage() {
   cat <<'EOF'
-Usage: zession [--help] [--generate-list] [--refresh-cache] [--session-action delete <dir>]
+Usage: zession [--help|--generate-list|--refresh-cache|--session-action delete <name>]
+
+Discovery:
+  - directories: zoxide query -l filtered to ZESSION_ROOTS
+  - roots are seeded into zoxide so they always appear
+  - live zellij sessions are listed at the top with [CUR]/[ACT]/[EXT] chips
 
 Environment:
-  ZESSION_SEARCH_PATHS    Colon-delimited base directories to scan.
-  ZESSION_SPECIFIC_PATHS  Colon-delimited extra directories to include.
-  ZESSION_MAX_DEPTH       fd max depth (default: 1).
-  ZESSION_SWITCH_PLUGIN   zellij-switch plugin URL.
-
-Legacy ZELLIJ_SESSIONIZER_* names are still accepted.
+  ZESSION_ROOTS          colon-separated root dirs (default: ~/dev:~/sandbox:~/work:~/.dotfiles)
+  ZESSION_SWITCH_PLUGIN  optional zellij plugin url for switch-session
 EOF
 }
 
-split_path_list() {
-  local value="$1"
-  local var_name="$2"
-  local list=()
-
-  if [[ -n "$value" ]]; then
-    IFS=':' read -r -a list <<< "$value"
-  fi
-
-  case "$var_name" in
-    SEARCH_PATHS)
-      SEARCH_PATHS=("${list[@]}")
-      ;;
-    SPECIFIC_PATHS)
-      SPECIFIC_PATHS=("${list[@]}")
-      ;;
-  esac
+# ---------- session naming ----------
+# Just the basename, sanitised. No hash, no path mangling.
+session_name_for_path() {
+  local p="${1%/}"
+  local n="${p##*/}"
+  [[ -z "$n" || "$n" == "." ]] && n="root"
+  printf '%s\n' "$n" | tr -c '[:alnum:]._-' '_' | sed 's/__*/_/g; s/^_//; s/_$//'
 }
 
-ZESSION_SEARCH_PATHS="${ZESSION_SEARCH_PATHS:-${ZELLIJ_SESSIONIZER_SEARCH_PATHS:-}}"
-ZESSION_SPECIFIC_PATHS="${ZESSION_SPECIFIC_PATHS:-${ZELLIJ_SESSIONIZER_SPECIFIC_PATHS:-}}"
-ZESSION_MAX_DEPTH="${ZESSION_MAX_DEPTH:-${ZELLIJ_SESSIONIZER_MAX_DEPTH:-1}}"
-ZESSION_SWITCH_PLUGIN="${ZESSION_SWITCH_PLUGIN:-${ZELLIJ_SESSIONIZER_SWITCH_PLUGIN:-}}"
-ZESSION_SESSION_NAME_MAX="${ZESSION_SESSION_NAME_MAX:-20}"
-
-if [[ -n "${ZESSION_SEARCH_PATHS:-}" ]]; then
-  split_path_list "$ZESSION_SEARCH_PATHS" SEARCH_PATHS
-else
-  SEARCH_PATHS=("$HOME/dev" "$HOME/tmp" "$HOME/sandbox" "$HOME/work")
-fi
-
-if [[ -n "${ZESSION_SPECIFIC_PATHS:-}" ]]; then
-  split_path_list "$ZESSION_SPECIFIC_PATHS" SPECIFIC_PATHS
-else
-  SPECIFIC_PATHS=("$HOME/.dotfiles")
-fi
-
-ZELLIJ_SWITCH_PLUGIN="${ZESSION_SWITCH_PLUGIN:-"https://github.com/mostafaqanbaryan/zellij-switch/releases/download/0.2.1/zellij-switch.wasm"}"
-STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}"
-STATE_DIR="${STATE_ROOT}/zession"
-LEGACY_STATE_DIR="${STATE_ROOT}/zellij-sessionizer"
-if [[ ! -d "$STATE_DIR" && -d "$LEGACY_STATE_DIR" ]]; then
-  STATE_DIR="$LEGACY_STATE_DIR"
-fi
-MRU_FILE="${STATE_DIR}/mru.tsv"
-LIST_CACHE_FILE="${STATE_DIR}/list.tsv"
-MRU_DIRS=()
-MRU_TIMESTAMPS=()
-
-session_name_hash() {
-  local value="$1"
-  cksum <<< "$value" | awk '{print $1}'
-}
-
-sanitize_session_name_part() {
-  local value="$1"
-  value="${value//\//__}"
-  value="${value// /_}"
-  value="${value//[^[:alnum:]_.-]/_}"
-  printf '%s\n' "$value"
-}
-
-session_name_for_dir() {
-  local dir="$1"
-  dir="${dir%/}"
-
-  if [[ -d "$dir" ]]; then
-    dir="$(cd "$dir" 2>/dev/null && pwd -P)"
-  fi
-
-  local name
-  if [[ "$dir" == "$HOME" ]]; then
-    name="home"
-  elif [[ "$dir" == "$HOME/"* ]]; then
-    name="home__${dir#"$HOME"/}"
-  else
-    name="abs__${dir#/}"
-  fi
-
-  name="$(sanitize_session_name_part "$name")"
-
-  # Zellij includes the session name in its Unix-domain IPC socket path.
-  # macOS $TMPDIR paths are often already very long, so keep names tiny.
-  if [[ ${#name} -gt $ZESSION_SESSION_NAME_MAX ]]; then
-    local basename hash basename_max
-    hash="$(session_name_hash "$dir")"
-    basename_max=$(( ZESSION_SESSION_NAME_MAX - ${#hash} - 2 ))
-    if [[ $basename_max -lt 1 ]]; then
-      basename_max=1
-    fi
-    basename="$(sanitize_session_name_part "${dir##*/}")"
-    name="${basename:0:$basename_max}__${hash}"
-    name="${name:0:$ZESSION_SESSION_NAME_MAX}"
-  fi
-
-  printf '%s\n' "$name"
-}
-
-legacy_session_name_for_dir() {
-  local dir="$1"
-  dir="${dir%/}"
-  printf '%s\n' "${dir##*/}"
-}
-
-SESSION_NAMES=()
-SESSION_STATUSES=()
-
-load_session_statuses() {
-  SESSION_NAMES=()
-  SESSION_STATUSES=()
-
-  command -v zellij >/dev/null 2>&1 || return 0
-
-  local line name status
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    name="${line%%[[:space:]]*}"
-
-    if [[ "$line" == *"(current)"* ]]; then
-      status="current"
-    elif [[ "$line" == *"(EXITED"* ]]; then
-      status="exited"
-    else
-      status="active"
-    fi
-
-    SESSION_NAMES+=("$name")
-    SESSION_STATUSES+=("$status")
-  done < <(zellij list-sessions --no-formatting 2>/dev/null)
-}
-
-session_status_for_name() {
-  local target="$1"
-  local i
-
-  for (( i=0; i<${#SESSION_NAMES[@]}; i++ )); do
-    if [[ "${SESSION_NAMES[$i]}" == "$target" ]]; then
-      printf '%s' "${SESSION_STATUSES[$i]}"
-      return 0
-    fi
+# ---------- discovery ----------
+# Seed roots into zoxide so they appear even if never cd'd into.
+# Only adds missing entries so zoxide's frecency scoring isn't skewed.
+seed_zoxide() {
+  local known p
+  known=$(zoxide query -l 2>/dev/null) || return 0
+  for p in "${_ROOTS[@]}"; do
+    [[ -d "$p" ]] || continue
+    grep -Fxq -- "$p" <<< "$known" || zoxide add -- "$p" 2>/dev/null
   done
-
-  return 1
-}
-
-client_count_for_session() {
-  local session_name="$1"
-  zellij -s "$session_name" action list-clients 2>/dev/null | awk 'NR > 1 {count++} END {print count + 0}'
-}
-
-load_mru_map() {
-  MRU_DIRS=()
-  MRU_TIMESTAMPS=()
-
-  [[ -f "$MRU_FILE" ]] || return 0
-
-  local path ts
-  while IFS=$'\t' read -r path ts; do
-    [[ -n "$path" ]] || continue
-    MRU_DIRS+=("$path")
-    MRU_TIMESTAMPS+=("${ts:-0}")
-  done < "$MRU_FILE"
-}
-
-mru_timestamp_for_dir() {
-  local dir="$1"
-  local i
-  for (( i=0; i<${#MRU_DIRS[@]}; i++ )); do
-    if [[ "${MRU_DIRS[$i]}" == "$dir" ]]; then
-      printf '%s\n' "${MRU_TIMESTAMPS[$i]}"
-      return 0
-    fi
-  done
-  printf '0\n'
-}
-
-update_mru() {
-  local dir="$1"
-  local timestamp
-  timestamp=$(date +%s)
-
-  mkdir -p "$(dirname "$MRU_FILE")" || return 1
-
-  local tmp_file
-  tmp_file="${MRU_FILE}.tmp.$$"
-
-  {
-    printf '%s\t%s\n' "$dir" "$timestamp"
-    if [[ -f "$MRU_FILE" ]]; then
-      awk -F '\t' -v target="$dir" '$1 != target {print $0}' "$MRU_FILE"
-    fi
-  } > "$tmp_file"
-
-  mv "$tmp_file" "$MRU_FILE"
-}
-
-status_chip_for_display() {
-  local session_status="$1"
-  case "$session_status" in
-    current) printf '[CUR] ' ;;
-    active) printf '[ACT] ' ;;
-    exited) printf '[EXT] ' ;;
-    *) printf '[---] ' ;;
-  esac
-}
-
-project_name_for_display() {
-  local dir="$1"
-  local name
-
-  name="${dir%/}"
-  name="${name##*/}"
-
-  if [[ -z "$name" || "$name" == "." || "$name" == "~" ]]; then
-    name="$dir"
-  fi
-
-  printf '%s' "$name"
-}
-
-print_display_entry() {
-  local dir="$1"
-  local project_name session_name session_status mru_ts chip
-
-  [[ -d "$dir" ]] || return 0
-
-  session_name=$(session_name_for_dir "$dir")
-  session_status=$(session_status_for_name "$session_name" 2>/dev/null || true)
-  mru_ts=$(mru_timestamp_for_dir "$dir")
-  chip=$(status_chip_for_display "$session_status")
-  project_name=$(project_name_for_display "$dir")
-
-  printf '%s\t%s %s\t%s\n' "$dir" "$chip" "$project_name" "$mru_ts"
-}
-
-dir_was_seen() {
-  local target="$1"
-  local seen_dir
-
-  for seen_dir in "${seen_dirs[@]}"; do
-    [[ "$seen_dir" == "$target" ]] && return 0
-  done
-
-  return 1
 }
 
 generate_display_list() {
-  if ! command -v fd >/dev/null 2>&1; then
-    echo "zession: fd is required (same as fj)" >&2
+  if ! command -v zoxide >/dev/null 2>&1; then
+    echo "zession: zoxide is required" >&2
     return 1
   fi
 
-  local search_dirs=()
-  local dir
-  for dir in "${SEARCH_PATHS[@]}"; do
-    [[ -d "$dir" ]] && search_dirs+=("$dir")
-  done
-
-  if [[ ${#search_dirs[@]} -eq 0 ]]; then
-    echo "zession: no search directories found" >&2
-    return 1
-  fi
-
-  load_session_statuses
-  load_mru_map
-
-  local seen_dirs=()
+  seed_zoxide
 
   {
-    while IFS= read -r dir; do
-      [[ -n "$dir" ]] || continue
-      dir_was_seen "$dir" && continue
-      seen_dirs+=("$dir")
-      print_display_entry "$dir"
-    done < <(fd --type d \
-      --exclude node_modules --exclude .bare \
-      --max-depth "$ZESSION_MAX_DEPTH" \
-      . "${search_dirs[@]}" 2>/dev/null)
-
-    for dir in "${SPECIFIC_PATHS[@]}"; do
-      dir_was_seen "$dir" && continue
-      seen_dirs+=("$dir")
-      print_display_entry "$dir"
-    done
-  } | sort -t $'\t' -k3,3nr -k2,2
+    zellij list-sessions --no-formatting 2>/dev/null | awk '
+      NF {
+        if      (index($0, "(current)")) chip = "[CUR]"
+        else if (index($0, "(EXITED"))   chip = "[EXT]"
+        else                             chip = "[ACT]"
+        print chip " " $1
+      }'
+    zoxide query -l 2>/dev/null | awk -v roots="$ZESSION_ROOTS" -v home="$HOME" '
+      BEGIN { n = split(roots, r, ":") }
+      { for (i=1; i<=n; i++) if (index($0, r[i]) == 1) { sub(home "/", "~/"); print; break } }
+    '
+  } | awk '!seen[$0]++'
 }
 
 refresh_list_cache() {
-  mkdir -p "$STATE_DIR" || return 1
-  local tmp_file
-  tmp_file="${LIST_CACHE_FILE}.tmp.$$"
-  if generate_display_list > "$tmp_file"; then
-    mv "$tmp_file" "$LIST_CACHE_FILE"
-    return 0
+  local tmp="${LIST_CACHE_FILE}.tmp.$$"
+  if generate_display_list > "$tmp"; then
+    mv "$tmp" "$LIST_CACHE_FILE"
+  else
+    rm -f "$tmp"
+    return 1
   fi
-  rm -f "$tmp_file"
-  return 1
 }
 
 print_cached_or_fresh_list() {
   if [[ -s "$LIST_CACHE_FILE" ]]; then
     cat "$LIST_CACHE_FILE"
-    return 0
-  fi
-
-  generate_display_list
-}
-
-delete_session_for_dir() {
-  local target_dir="$1"
-  local session_name legacy_session_name
-
-  session_name=$(session_name_for_dir "$target_dir")
-  legacy_session_name=$(legacy_session_name_for_dir "$target_dir")
-
-  zellij delete-session --force -- "$session_name" 2>/dev/null || true
-
-  if [[ "$legacy_session_name" != "$session_name" ]]; then
-    zellij delete-session --force -- "$legacy_session_name" 2>/dev/null || true
+  else
+    generate_display_list
   fi
 }
 
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  usage
-  exit 0
-fi
+# ---------- session action: delete ----------
+delete_session_by_name() {
+  local name="$1"
+  [[ -n "$name" ]] || return 1
+  zellij delete-session --force -- "$name" 2>/dev/null || true
+}
 
-if [[ "${1:-}" == "--generate-list" ]]; then
-  generate_display_list
-  exit $?
-fi
+# ---------- CLI dispatch ----------
+case "${1:-}" in
+  -h|--help)        usage; exit 0 ;;
+  --generate-list)  generate_display_list; exit $? ;;
+  --refresh-cache)  refresh_list_cache; exit $? ;;
+  --session-action)
+    case "${2:-}" in
+      delete) delete_session_by_name "${3:-}"; exit 0 ;;
+      *) echo "zession: unsupported session action: ${2:-}" >&2; exit 1 ;;
+    esac
+    ;;
+esac
 
-if [[ "${1:-}" == "--refresh-cache" ]]; then
-  refresh_list_cache
-  exit $?
-fi
+# ---------- picker ----------
+for dep in zellij fzf zoxide; do
+  command -v "$dep" >/dev/null 2>&1 || {
+    echo "zession: $dep is required" >&2; exit 1
+  }
+done
 
-if [[ "${1:-}" == "--session-action" ]]; then
-  action="${2:-}"
-  target_dir="${3:-}"
+[[ -s "$LIST_CACHE_FILE" ]] || refresh_list_cache >/dev/null 2>&1 || true
 
-  if [[ -z "$action" || -z "$target_dir" ]]; then
-    echo "zession: --session-action requires: delete <dir>" >&2
-    exit 1
-  fi
+ZESSION_HEADER=$'↵ switch   ⌃R refresh   ⌃D delete   ⌥↵ first match   esc close'
 
-  case "$action" in
-    delete)
-      delete_session_for_dir "$target_dir"
-      ;;
-    *)
-      echo "zession: unsupported session action: $action" >&2
-      exit 1
-      ;;
-  esac
+# ctrl-d: row is either "[CHIP] name" (existing session) or a path (session
+# name = basename). Both reduce to a single session name.
+delete_bind='row={};
+if [[ "$row" == "["*"] "* ]]; then sess="${row#* }"; \
+else sess=$(basename "$row" | tr -c "[:alnum:]._-" "_"); fi
+printf "\n  delete session %s? [y/N] " "$sess"; read -r ans
+case "$ans" in [yY]*) '"$0"' --session-action delete "$sess" ;; esac'
 
-  exit 0
-fi
-
-if ! command -v zellij >/dev/null 2>&1; then
-  echo "zession: zellij is required" >&2
-  exit 1
-fi
-
-if ! command -v fzf >/dev/null 2>&1; then
-  echo "zession: fzf is required" >&2
-  exit 1
-fi
-
-mkdir -p "$STATE_DIR" >/dev/null 2>&1 || true
-if [[ ! -s "$LIST_CACHE_FILE" ]]; then
-  refresh_list_cache >/dev/null 2>&1 || true
-fi
-
-selected_entry=$(print_cached_or_fresh_list | fzf --delimiter=$'\t' --with-nth=2 \
+selected=$(print_cached_or_fresh_list | fzf \
   --prompt="project > " \
-  --header="Enter switch • ?: help" \
+  --header="$ZESSION_HEADER" \
   --layout=reverse \
   --info=inline-right \
   --height=95% \
   --cycle \
-  --bind="start:pos(1)+execute-silent($0 --refresh-cache >/dev/null 2>&1 &)" \
+  --bind="start:pos(1)+reload($0 --refresh-cache >/dev/null 2>&1 && cat \"$LIST_CACHE_FILE\")" \
   --bind="alt-enter:pos(1)+accept" \
-  --bind="ctrl-r:execute-silent($0 --refresh-cache >/dev/null 2>&1)+reload($0 --generate-list)" \
-  --bind="ctrl-d:execute($0 --session-action delete {1})+reload($0 --generate-list)" \
-  --bind="alt-d:execute($0 --session-action delete {1})+reload($0 --generate-list)" \
-  --bind="?:execute(echo 'zession keys\n\nEnter      switch selected project\nAlt-Enter  switch most recent (top row)\nCtrl-R     refresh project list\nCtrl-D     delete session for selected project\nEsc/Ctrl-C close picker\n' | less -R)")
+  --bind="ctrl-r:reload($0 --refresh-cache >/dev/null 2>&1 && cat \"$LIST_CACHE_FILE\")" \
+  --bind="ctrl-d:execute($delete_bind)+reload($0 --generate-list)")
 
-if [[ -z "$selected_entry" ]]; then
-  exit 0
+[[ -z "$selected" ]] && exit 0
+
+# Parse selection into (session_name, target_dir, pure_attach)
+if [[ "$selected" == "["*"] "* ]]; then
+  session_name="${selected#* }"
+  target_dir=""
+  pure_attach=1
+else
+  target_dir="${selected/#\~/$HOME}"
+  session_name=$(session_name_for_path "$target_dir")
+  pure_attach=0
 fi
-selected_dir="${selected_entry%%$'\t'*}"
-printf 'switching: %s\n' "$selected_dir" >&2
 
-session_name=$(session_name_for_dir "$selected_dir")
+printf 'switching: %s\n' "$session_name" >&2
 
-attach_or_create_session() {
-  cd -- "$selected_dir" || exit 1
-  zellij attach --create -- "$session_name"
-}
-
-session_has_connected_clients() {
-  local client_count
-  client_count=$(client_count_for_session "$session_name")
-  [[ "$client_count" -gt 0 ]]
-}
-
-session_exists() {
-  zellij ls -s 2>/dev/null | grep -Fxq "$session_name"
-}
+# ---------- attach / switch ----------
+session_exists() { zellij ls -s 2>/dev/null | grep -Fxq -- "$session_name"; }
 
 session_has_terminal_pane() {
   zellij --session "$session_name" action list-panes --all --json 2>/dev/null \
@@ -432,37 +174,46 @@ session_has_terminal_pane() {
 
 ensure_background_session() {
   if ! session_exists; then
-    (cd "$selected_dir" && zellij attach "$session_name" --create-background) || return 1
+    (cd "$target_dir" && zellij attach "$session_name" --create-background) || return 1
   fi
-
   if ! session_has_terminal_pane; then
-    zellij --session "$session_name" run --cwd "$selected_dir" -- "${SHELL:-zsh}" >/dev/null || return 1
+    zellij --session "$session_name" run --cwd "$target_dir" -- "${SHELL:-zsh}" >/dev/null || return 1
   fi
 }
 
-switched=0
-if [[ -n "${ZELLIJ:-}" ]]; then
-  if ensure_background_session && zellij action switch-session "$session_name" --cwd "$selected_dir"; then
-    switched=1
-  elif zellij pipe --plugin "$ZELLIJ_SWITCH_PLUGIN" -- "--session $session_name --cwd $selected_dir --layout default"; then
-    switched=1
-  elif attach_or_create_session; then
-    switched=1
+client_count_for_session() {
+  zellij -s "$session_name" action list-clients 2>/dev/null \
+    | awk 'NR > 1 {c++} END {print c+0}'
+}
+
+attach_or_create_session() {
+  if [[ -n "$target_dir" ]]; then cd -- "$target_dir" || exit 1; fi
+  zellij attach --create -- "$session_name"
+}
+
+if [[ "$pure_attach" -eq 1 ]]; then
+  if [[ -n "${ZELLIJ:-}" ]]; then
+    zellij action switch-session "$session_name" && exit 0
   fi
-else
-  if session_has_connected_clients; then
-    zellij -s "$session_name" action new-tab --cwd "$selected_dir" >/dev/null 2>&1 || true
-  fi
-  if zellij attach "$session_name"; then
-    switched=1
-  elif attach_or_create_session; then
-    switched=1
-  fi
+  zellij attach "$session_name" && exit 0
+  exit 1
 fi
 
-if [[ "$switched" -eq 1 ]]; then
-  update_mru "$selected_dir" || true
-  exit 0
+if [[ -n "${ZELLIJ:-}" ]]; then
+  if ensure_background_session && zellij action switch-session "$session_name" --cwd "$target_dir"; then
+    exit 0
+  fi
+  if [[ -n "$ZESSION_SWITCH_PLUGIN" ]] \
+     && zellij pipe --plugin "$ZESSION_SWITCH_PLUGIN" -- "--session $session_name --cwd $target_dir --layout default"; then
+    exit 0
+  fi
+  attach_or_create_session && exit 0
+else
+  if [[ "$(client_count_for_session)" -gt 0 ]]; then
+    zellij -s "$session_name" action new-tab --cwd "$target_dir" >/dev/null 2>&1 || true
+  fi
+  zellij attach "$session_name" 2>/dev/null && exit 0
+  attach_or_create_session && exit 0
 fi
 
 exit 1

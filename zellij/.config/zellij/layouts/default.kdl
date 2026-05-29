@@ -28,6 +28,7 @@ layout {
                 max_name_length 14
             }
         }
-        pane borderless=true
+        pane borderless=false
     }
 }
+

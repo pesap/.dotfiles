@@ -13,9 +13,6 @@ keybinds clear-defaults=true {
         bind "Ctrl l" {
             SwitchToMode "Normal"
         }
-        bind "Alt d" {
-            Detach
-        }
         bind "Alt f" {
             ToggleFloatingPanes
         }

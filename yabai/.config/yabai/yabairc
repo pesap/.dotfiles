@@ -6,11 +6,11 @@
 yabai -m config layout bsp
 
 # Window padding (top accounts for sketchybar height of 32px)
-yabai -m config top_padding    30
-yabai -m config bottom_padding 8
-yabai -m config left_padding   8
-yabai -m config right_padding  8
-yabai -m config window_gap     8
+yabai -m config top_padding    32
+yabai -m config bottom_padding 5
+yabai -m config left_padding   5
+yabai -m config right_padding  5
+yabai -m config window_gap     5
 
 # Mouse settings
 yabai -m config mouse_follows_focus off
