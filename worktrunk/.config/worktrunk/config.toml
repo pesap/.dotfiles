@@ -1,0 +1,67 @@
+# ~/.config/worktrunk/config.toml
+# Managed via dotfiles — symlinked by stow
+
+worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize }}"
+
+[commit.generation]
+command = "CLAUDECODE= MAX_THINKING_TOKENS=0 claude -p --no-session-persistence --model=haiku --tools='' --disable-slash-commands --setting-sources='' --system-prompt=''"
+
+# ----------------------------------------------------------------------------
+# Zellij integration — each worktree gets its own tab in the current session.
+# ----------------------------------------------------------------------------
+# All three hooks no-op when not inside Zellij ($ZELLIJ is set by the session).
+# Tab name format: "<repo>/<branch>" so multiple repos don't collide.
+
+[pre-switch]
+zellij-focus = """
+[ -z "$ZELLIJ" ] && exit 0
+NAME='{{ repo | sanitize }}/{{ branch | sanitize }}'
+if zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME"; then
+  zellij action go-to-tab-name "$NAME"
+elif git -C '{{ worktree_path }}' rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  zellij action new-tab --layout default --name "$NAME" --cwd '{{ worktree_path }}'
+fi
+"""
+
+[pre-start]
+zellij-tab = """
+[ -z "$ZELLIJ" ] && exit 0
+NAME='{{ repo | sanitize }}/{{ branch | sanitize }}'
+if zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME"; then
+  zellij action go-to-tab-name "$NAME"
+else
+  zellij action new-tab --layout default --name "$NAME" --cwd '{{ worktree_path }}'
+fi
+"""
+
+[pre-remove]
+zellij-close = """
+[ -z "$ZELLIJ" ] && exit 0
+NAME='{{ repo | sanitize }}/{{ branch | sanitize }}'
+zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME" || exit 0
+zellij action go-to-tab-name "$NAME" && zellij action close-tab
+"""
+
+# ----------------------------------------------------------------------------
+# Aliases
+# ----------------------------------------------------------------------------
+
+[aliases]
+# wt bare git@github.com:owner/repo.git → ./repo/{.bare,.git} + origin refspec
+bare = """
+url='{{ args[0] }}' && name=$(basename "$url" .git) && \
+mkdir -p "$name" && cd "$name" && \
+git clone --bare "$url" .bare && \
+printf 'gitdir: ./.bare\n' > .git && \
+git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && \
+git fetch origin
+"""
+
+# wt fork owner/repo → clone YOUR fork, add upstream, fetch
+fork = """
+slug='{{ args[0] }}' && upstream_owner=${slug%/*} && repo=${slug#*/} && \
+me=$(git config --global --get github.user) && \
+gh repo clone "$me/$repo" -- --origin origin && cd "$repo" && \
+git remote add upstream "git@github.com:$upstream_owner/$repo.git" && \
+git fetch upstream
+"""

@@ -1,38 +1,33 @@
+// Vertical tab bar on the LEFT side
+// Source: ~/dev/zellij-vertical-tabs/examples/vertical-tabs-left.kdl
+keybinds {
+    shared {
+        // Toggle selectability (for resizing the pane)
+        bind "Alt s" {
+            MessagePlugin "file:~/.config/zellij/plugins/zellij-vertical-tabs.wasm" {
+                name "toggle_selectable"
+            }
+        }
+    }
+}
 layout {
-    pane_template name="main" {
-        borderless true
-    }
-    tab name="work" focus=true {
-        main
-    }
-
-    swap_floating_layout name="staggered" {
-        floating_panes max_panes=1 {
-            pane { x "10%"; y "10%"; width "80%"; height "80%"; }
-        }
-        floating_panes max_panes=2 {
-            pane { x "5%"; y "5%"; width "45%"; height "45%"; }
-            pane { x "50%"; y "50%"; width "45%"; height "45%"; }
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="file:~/.config/zellij/plugins/zellij-locked-indicator.wasm"
         }
     }
-
-    swap_floating_layout name="enlarged" {
-        floating_panes max_panes=1 {
-            pane { x "5%"; y "5%"; width "90%"; height "90%"; }
+    pane split_direction="vertical" {
+        pane size=18 borderless=true {
+            plugin location="file:~/.config/zellij/plugins/zellij-vertical-tabs.wasm" {
+                format "#[fg=muted]{index} #[fg=none]{name}"
+                format_active "#[fg=accent]▶ {index} {name} #[fg=success]{indicators}"
+                indicator_active "●"
+                indicator_fullscreen "□"
+                indicator_sync "⇄"
+                max_name_length 14
+            }
         }
-        floating_panes max_panes=2 {
-            pane { x "5%"; y "5%"; width "90%"; height "45%"; }
-            pane { x "5%"; y "52%"; width "90%"; height "45%"; }
-        }
-    }
-
-    swap_floating_layout name="spread" {
-        floating_panes max_panes=1 {
-            pane { x "25%"; y "25%"; width "50%"; height "50%"; }
-        }
-        floating_panes max_panes=2 {
-            pane { x "5%"; y "25%"; width "45%"; height "50%"; }
-            pane { x "50%"; y "25%"; width "45%"; height "50%"; }
-        }
+        pane borderless=true
     }
 }
