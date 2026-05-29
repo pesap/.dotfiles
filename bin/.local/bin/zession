@@ -342,7 +342,6 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 if [[ "${1:-}" == "--generate-list" ]]; then
->>>>>>> efadb69 (feat(dotfiles): bundle pending nvim zellij and tooling updates)
   generate_display_list
   exit $?
 fi
