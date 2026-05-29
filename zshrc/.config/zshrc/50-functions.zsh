@@ -521,9 +521,10 @@ _bind_widget_all_keymaps() {
     bindkey -M vicmd "$key" "$widget"
 }
 
-# Ctrl+G - Zellij sessionizer popup
+# Ctrl+\\ - Zellij sessionizer popup
 if [[ -o interactive ]]; then
     stty -ixon 2>/dev/null
+    stty quit undef 2>/dev/null
 fi
 
 _zellij_sessionizer_widget() {
@@ -533,7 +534,7 @@ _zellij_sessionizer_widget() {
     zle accept-line
 }
 zle -N _zellij_sessionizer_widget
-_bind_widget_all_keymaps '^g' _zellij_sessionizer_widget
+_bind_widget_all_keymaps '^\\' _zellij_sessionizer_widget
 
 # Ctrl+F - Folder jump (silent)
 _fj_widget() {

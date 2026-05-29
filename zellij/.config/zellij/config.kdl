@@ -5,7 +5,7 @@ options {
 keybinds {
     locked {
         bind "Ctrl l" { SwitchToMode "Normal"; }
-        bind "Ctrl g" {
+        bind "Ctrl \\" {
             Run "zellij-sessionizer" {
                 close_on_exit true
                 floating true
@@ -79,21 +79,7 @@ keybinds {
             SwitchToMode "Normal"
         }
 
-        bind "Ctrl \\" {
-            LaunchOrFocusPlugin "file:~/.config/zellij/plugins/room.wasm" {
-                floating true
-                ignore_case true
-                quick_jump true
-            }
-        }
-
-        bind "Ctrl y" {
-            LaunchOrFocusPlugin "file:~/.config/zellij/plugins/zellij-layout-picker.wasm" {
-                move_to_focused_tab true
-            }
-        }
-
-        bind "Ctrl '" "Ctrl g" {
+        bind "Ctrl \\" "Ctrl '" {
             Run "zellij-sessionizer" {
                 close_on_exit true
                 floating true
@@ -104,6 +90,13 @@ keybinds {
             }
             SwitchToMode "Locked"
         }
+
+        bind "Ctrl y" {
+            LaunchOrFocusPlugin "file:~/.config/zellij/plugins/zellij-layout-picker.wasm" {
+                move_to_focused_tab true
+            }
+        }
+
     }
 
     shared_except "scroll" "locked" {

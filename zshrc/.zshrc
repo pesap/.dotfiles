@@ -12,8 +12,7 @@ if command -v mise >/dev/null 2>&1; then
     eval "$(mise activate zsh)"
 fi
 
-# bun completions
-[ -s "/home/morgoth/.bun/_bun" ] && source "/home/morgoth/.bun/_bun"
+export PATH="/Users/psanchez/.pixi/bin:$PATH"
 
 # Added by GitButler installer
 export PATH="$HOME/.local/bin:$PATH"

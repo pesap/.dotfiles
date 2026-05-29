@@ -134,7 +134,7 @@ No direct binds in this block (navigation mostly comes from shared blocks below)
 | Key | Action |
 |---|---|
 | `Ctrl+l` | switch to Normal mode |
-| `Ctrl+g` | run `zellij-sessionizer` floating + stay Locked |
+| `Ctrl+\\` | run `zellij-sessionizer` floating + stay Locked |
 
 #### `resize`
 
@@ -294,7 +294,7 @@ These apply on top of mode keymaps.
 
 | Key | Action |
 |---|---|
-| `Ctrl+g` | default locked-toggle removed (key is reused below) |
+| `Ctrl+g` | default locked-toggle removed |
 | `Ctrl+l` | switch to Locked mode |
 | `Ctrl+q` | **unbound** |
 | `Alt+f` | toggle floating panes |
@@ -310,9 +310,9 @@ These apply on top of mode keymaps.
 | `Alt+t` | run floating pinned `just test` pane + Normal mode |
 | `Alt+p` | fast pane selector (`room.wasm`) + Normal mode |
 | `Alt+Shift+p` | floating pane inventory (`zellij action list-panes --all --json`) + Normal mode |
-| `Ctrl+\\` | open `room.wasm` pane selector |
+| `Ctrl+\\` | run `zellij-sessionizer` floating + switch to Locked |
 | `Ctrl+y` | open layout picker plugin (tiled, non-floating) |
-| `Ctrl+'` / `Ctrl+g` | run `zellij-sessionizer` floating + switch to Locked |
+| `Ctrl+\\` / `Ctrl+'` | run `zellij-sessionizer` floating + switch to Locked |
 
 #### `shared_except "normal" "locked"`
 

@@ -15,7 +15,8 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 │   └── plugins/          # Plugin specs (Lazy.nvim)
 │       ├── colorscheme.lua
 │       ├── commenter.lua
-│       ├── fzflua.lua    # Fuzzy finder + keymaps
+│       ├── fff.lua       # FFF file picker + keymaps
+│       ├── fzflua.lua    # LSP/buffer/git branch pickers + PR review workflow
 │       ├── gitsigns.lua  # Git signs
 │       ├── harpoon.lua   # File marks
 │       ├── mini.lua      # Mini.statusline
@@ -41,7 +42,8 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 ## Key Features
 
 - **Plugin Manager**: [lazy.nvim](https://github.com/folke/lazy.nvim)
-- **Fuzzy Finder**: [fzf-lua](https://github.com/ibhagwan/fzf-lua) with custom PR review workflow
+- **File Picker**: [FFF](https://github.com/dmtrKovalenko/fff) for frecency-ranked file search
+- **Fuzzy Finder**: [fzf-lua](https://github.com/ibhagwan/fzf-lua) for non-FFF pickers (LSP, buffers, git branches, PR review)
 - **LSP**: Native 0.11+ (`vim.lsp.enable`) with [mason.nvim](https://github.com/williamboman/mason.nvim)
 - **Completion**: [blink.cmp](https://github.com/saghen/blink.cmp)
 - **Formatting**: [conform.nvim](https://github.com/stevearc/conform.nvim)
@@ -53,8 +55,8 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 | Key | Action |
 |-----|--------|
 | `<Space>` | Leader key |
-| `<leader>ff` | Find files |
-| `<leader>gg` | Live grep |
+| `<leader>ff` | Find files (FFF) |
+| `<leader>gg` | Live grep (FFF) |
 | `<leader>gd` | Go to definition (fzf) |
 | `<leader>gr` | Go to references (fzf) |
 | `<leader>t` | Harpoon: add file |
