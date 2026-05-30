@@ -1,6 +1,6 @@
 # Keymaps by Program
 
-Last updated: 2026-04-28
+Last updated: 2026-05-18
 
 This is a central index of keymaps configured in this dotfiles repo, grouped by program.
 
@@ -127,14 +127,26 @@ Sources:
 
 #### `normal`
 
-No direct binds in this block (navigation mostly comes from shared blocks below).
+| Key | Action |
+|---|---|
+| `Ctrl+l` | switch to Locked mode |
+| `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
+| `Alt+1..4` | go to tab 1..4 + return to Locked mode |
+| `Alt+f` | open floating `zsh` pane + return to Locked mode |
+| `Alt+p` | open floating pane inventory (`list-panes --all --json`) + return to Locked mode |
+| `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
+| `Alt+Shift+h` / `Alt+Shift+l` | resize decrease/increase |
+| `Alt+{` / `Alt+}` | move focus up/down + return to Locked mode |
+| `Ctrl+\\` / `Alt+\\` | run floating `zession` Bash picker + return to Locked mode |
+| `Ctrl+y` | open layout picker plugin + return to Locked mode |
 
 #### `locked`
 
 | Key | Action |
 |---|---|
 | `Ctrl+l` | switch to Normal mode |
-| `Ctrl+g` | run `zellij-sessionizer` floating + stay Locked |
+| `Alt+d` | detach session |
+| `Ctrl+\\` / `Alt+\\` | run floating `zession` Bash picker + stay Locked |
 
 #### `resize`
 
@@ -259,7 +271,7 @@ No direct binds in this block (navigation mostly comes from shared blocks below)
 
 | Key | Action |
 |---|---|
-| `Ctrl+o` | switch to Normal mode |
+| `Ctrl+o` | switch to Normal mode inside Session mode only |
 | `Ctrl+s` | switch to Scroll mode |
 | `d` | detach |
 | `w` | open/focus session-manager plugin (floating) + Normal mode |
@@ -286,52 +298,49 @@ No direct binds in this block (navigation mostly comes from shared blocks below)
 | `Ctrl+o` | **unbound** Session mode entry |
 | `Ctrl+f` | switch to Session mode |
 
-### Shared keymaps (`shared_except ...`)
+### Zellij keymaps
 
-These apply on top of mode keymaps.
+`keybinds clear-defaults=true` is intentional: only keys listed here are active, so hidden default bindings such as `Ctrl+g` are not present.
 
-#### `shared_except "locked"`
-
-| Key | Action |
-|---|---|
-| `Ctrl+g` | default locked-toggle removed (key is reused below) |
-| `Ctrl+l` | switch to Locked mode |
-| `Ctrl+q` | **unbound** |
-| `Alt+f` | toggle floating panes |
-| `Alt+n` | new pane |
-| `Alt+i` / `Alt+o` | move tab left/right |
-| `Alt+h/j/k/l` (+ arrows variants) | focus movement |
-| `Alt+Shift+l` / `Alt+Shift+h` | resize increase/decrease |
-| `Alt+=` / `Alt++` / `Alt+-` | resize increase/decrease |
-| `Alt+[` / `Alt+]` | previous/next swap layout |
-| `Alt+{` / `Alt+}` | move focus up/down + Normal mode (great with stacked lanes) |
-| `Super+1` / `Super+2` | go to tab 1/2 + Normal mode |
-| `Alt+1` / `Alt+2` | fallback go to tab 1/2 + Normal mode |
-| `Alt+t` | run floating pinned `just test` pane + Normal mode |
-| `Alt+p` | fast pane selector (`room.wasm`) + Normal mode |
-| `Alt+Shift+p` | floating pane inventory (`zellij action list-panes --all --json`) + Normal mode |
-| `Ctrl+\\` | open `room.wasm` pane selector |
-| `Ctrl+y` | open layout picker plugin (tiled, non-floating) |
-| `Ctrl+'` / `Ctrl+g` | run `zellij-sessionizer` floating + switch to Locked |
-
-#### `shared_except "normal" "locked"`
-
-| Key | Action |
-|---|---|
-| `Enter` / `Esc` | switch to Normal mode |
-
-#### Mode entry shared keys
-
-| Block | Key | Action |
+| Mode | Key | Action |
 |---|---|---|
-| `shared_except "pane" "locked"` | `Ctrl+p` | switch to Pane mode |
-| `shared_except "resize" "locked"` | `Ctrl+n` | switch to Resize mode |
-| `shared_except "scroll" "locked"` | `Ctrl+f` | **unbound** Scroll mode entry |
-| `shared_except "session" "locked"` | `Ctrl+o` | **unbound** Session mode entry |
-| `shared_except "session" "locked"` | `Ctrl+s` | switch to Session mode |
-| `shared_except "tab" "locked"` | `Ctrl+t` | switch to Tab mode |
-| `shared_except "move" "locked"` | `Ctrl+h` | switch to Move mode |
-| `shared_except "tmux" "locked"` | `Ctrl+b` | switch to Tmux mode |
+| locked | `Ctrl+l` | unlock to Normal mode |
+| locked | `Alt+d` | detach |
+| locked/normal | `Alt+1..4` | go to tab 1..4 + return to Locked mode |
+| locked/normal | `Ctrl+\\` / `Alt+\\` | run floating `zession` Bash picker |
+| normal | `Ctrl+l` | lock Zellij |
+| normal | `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
+| normal | `Alt+f` | open floating `zsh` pane + return to Locked mode |
+| normal | `Alt+p` | floating pane inventory + return to Locked mode |
+| normal | `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
+| normal | `Ctrl+y` | open layout picker plugin + return to Locked mode |
+| tab | `1..4` | go to tab 1..4 + return to Locked mode |
+| pane/tab/resize/move/tmux/scroll | `Esc` / `Enter` or mode entry key | return to Normal mode |
+
+### Mode/keymap notes
+
+- Zellij starts in `locked` mode so app-level keys pass through by default.
+- `Ctrl+l` toggles between `locked` and `normal`; use it to unlock Zellij controls or lock back into app keymaps.
+- `Ctrl+o` is intentionally unbound globally so Pi can use it to expand tools.
+- `Alt+d` detaches directly from locked mode.
+- Inside `zession`, `Ctrl-D`/`Alt-D` deletes the selected saved/live session entry; `Esc`/`Ctrl-C` closes the picker.
+- `default.kdl`, `dev.kdl`, `pi.kdl`, and `vibe.kdl` add a top `zellij-locked-indicator` row that shows `🔐` only while locked.
+
+### Theme notes
+
+- Zellij theme is explicitly set to built-in `tokyo-night-storm`
+- This now matches the broader Tokyo Night terminal/editor palette better than the default theme
+
+### Layout-specific notes (`default.kdl`)
+
+- `term` tab: regular terminal only
+- Use `Alt+f` for a floating terminal pane
+
+### Layout-specific notes (`vibe.kdl`)
+
+- `pi` tab: large left `pi`, top-right `pi`, bottom-right scratch terminal
+- `review` tab: `nvim` in the project cwd with `ReviewToggle` opened
+- `scratch` tab: single scratch terminal
 
 ### Layout-specific notes (`dev.kdl`)
 
@@ -347,9 +356,16 @@ These apply on top of mode keymaps.
 Source:
 - `alacritty/.config/alacritty/alacritty.toml`
 
-Custom keyboard remaps:
-- `Cmd+1` sends `ESC 1` (used by Zellij as `Alt 1`)
-- `Cmd+2` sends `ESC 2` (used by Zellij as `Alt 2`)
+Keyboard handling:
+- `Cmd+1..4` in Alacritty sends `Alt+1..4` escape sequences to Zellij.
+- `Super+1..4` does the same on Linux when the window manager does not intercept it.
+- Zellij binds `Alt+1..4` directly in locked and normal modes.
+- Physical `Alt+1/2/3/9/0` on macOS belongs to skhd app/space switching, not Zellij.
+
+Other Alacritty workflow settings:
+- `live_config_reload = true`
+- `dynamic_padding = true`
+- `selection.save_to_clipboard = true`
 
 ---
 
@@ -373,7 +389,10 @@ Source:
 
 This file contains the full Linux keymap set (window focus/move/resize/layout/tags/screenshots/mouse/gestures), using ALT number bindings for workspace navigation.
 
-Note: SUPER+1..9 workspace fallback bindings were intentionally removed to avoid collisions with terminal/Zellij `Cmd(Super)+number` shortcuts.
+Notable launcher:
+- `Alt+Return` launches Alacritty
+
+Note: SUPER+1..4 is reserved for Alacritty/Zellij tab selection; Linux workspace switching uses the configured Ctrl/Alt bindings instead.
 
 ---
 

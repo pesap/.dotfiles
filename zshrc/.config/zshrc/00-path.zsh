@@ -25,4 +25,10 @@ fi
 # OpenCode
 [[ -d "$HOME/.opencode/bin" ]] && path=("$HOME/.opencode/bin" $path)
 
+# Pixi
+[[ -d "$HOME/.pixi/bin" ]] && path=("$HOME/.pixi/bin" $path)
+
+# Juliaupt
+[[ -d "$HOME/.juliaup/bin" ]] &&  path=("$HOME/.juliaup/bin" $path)
+
 export PATH

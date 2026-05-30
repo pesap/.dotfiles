@@ -1,0 +1,519 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GITCHECKOUT_VERSION="0.3.0"
+
+NONNEGATIVE_INTEGER_RE='^[0-9]+$'
+SAFE_NAME_RE='^[A-Za-z0-9._-]+$'
+SAFE_REMOTE_ROOT_RE='^[A-Za-z0-9._~/-]+$'
+
+usage() {
+  cat <<'EOF'
+Usage: git-checkouts --host user@host [options]
+       git checkouts --host user@host [options]
+
+Configure `git push <remote>` to keep one reproducible remote checkout per repo:
+
+  <root>/<forge-host>/<name>/.bare            # hidden bare repo
+  <root>/<forge-host>/<name>/runs/<run-id>/   # one worktree per deploy
+  <root>/<forge-host>/<name>/latest           # symlink to the newest run
+  <root>/<forge-host>/<name>/LATEST_SHA
+  <root>/<forge-host>/<name>/deploy-log
+
+Quick start:
+  git-checkouts --host user@kestrel.hpc.nrel.gov --root /scratch/$USER/git
+  git push checkouts
+
+Options:
+  --host HOST            SSH host. Env: GIT_CHECKOUTS_HOST
+  --repo PATH            Local repo. Env: GIT_CHECKOUTS_REPO. Default: .
+  --name NAME            Remote repo folder name. Env: GIT_CHECKOUTS_REPO_NAME.
+                         Alias: --repo-name
+                         Default: local repo basename
+  --remote NAME          Local git remote name. Env: GIT_CHECKOUTS_REMOTE_NAME.
+                         Alias: --remote-name
+                         Default: checkouts
+  --root PATH            Remote root prefix. Env: GIT_CHECKOUTS_REMOTE_ROOT. Default: git
+                         Alias: --remote-root
+                         Final remote path is <root>/<forge-host>/<repo>
+                         Relative paths are under the remote user's HOME.
+  --ref REF              Destination ref for plain `git push <remote>`.
+                         Env: GIT_CHECKOUTS_PUSH_REF.
+                         Alias: --push-ref
+                         Default: +HEAD:refs/heads/checkouts/latest
+  --keep-runs N          Keep at most N deploy runs under <repo>/runs. Env:
+                         GIT_CHECKOUTS_KEEP_RUNS. Default: 5
+  --max-run-age DAYS     Delete deploy runs older than DAYS. Env:
+                         GIT_CHECKOUTS_MAX_RUN_AGE_DAYS. Default: 3
+  --force                Replace an existing different local remote URL or managed hook
+  --dry-run              Print planned actions and exit without changing local/remote state
+  --json                 Emit machine-readable JSON result on stdout
+  --version              Show script version
+  -h, --help             Show this help
+
+Examples:
+  GIT_CHECKOUTS_HOST=user@kestrel.hpc.nrel.gov git-checkouts --root /scratch/$USER/git
+  git-checkouts --host user@host --root /scratch/$USER/git --name myproject
+  git push checkouts +HEAD:refs/heads/checkouts/latest
+
+If `git push <remote>` says the remote repo does not exist, re-run:
+  git-checkouts --host user@host --root /scratch/$USER/git --force
+
+After each push, inspect the deployed commit with:
+  cat <root>/<forge-host>/<name>/LATEST_SHA
+  ls -l <root>/<forge-host>/<name>/latest
+  git -C <root>/<forge-host>/<name>/latest rev-parse HEAD
+
+Old deploy runs under <repo>/runs are pruned automatically on each push.
+Run IDs use UTC ISO-style timestamps without milliseconds plus the short SHA.
+EOF
+}
+
+log() { printf 'info: %s\n' "$*" >&2; }
+ok() { printf 'ok: %s\n' "$*" >&2; }
+fail() {
+  local message="${1:?message}"
+  local exit_code="${2:-1}"
+  printf 'error: %s\n' "$message" >&2
+  exit "$exit_code"
+}
+
+show_recovery_hint() {
+  local host="${HOST:-<user@host>}"
+  local remote_root="${REMOTE_ROOT:-<remote-root>}"
+  local remote_name="${REMOTE_NAME:-<remote-name>}"
+  printf 'hint: re-run git-checkouts to bootstrap or recreate the remote repo:\n' >&2
+  printf 'hint:   git-checkouts --host %s --root %s --force\n' "$host" "$remote_root" >&2
+  printf 'hint: then push again with: git push %s\n' "$remote_name" >&2
+}
+
+need_cmd() {
+  local cmd="${1:?cmd}"
+  command -v "$cmd" >/dev/null 2>&1 || fail "missing required command: $cmd" 3
+}
+
+require_value() {
+  local name="${1:?name}"
+  local value="${2-}"
+  [[ -n "$value" ]] || fail "missing required argument: $name" 2
+}
+
+matches_regex() {
+  local value="${1:?value}"
+  local pattern="${2:?pattern}"
+  [[ "$value" =~ $pattern ]]
+}
+
+require_nonnegative_integer() {
+  local flag_name="${1:?flag_name}"
+  local value="${2:?value}"
+  matches_regex "$value" "$NONNEGATIVE_INTEGER_RE" || fail "$flag_name must be a non-negative integer: $value" 2
+}
+
+safe_name() {
+  local value="${1:?value}"
+  matches_regex "$value" "$SAFE_NAME_RE" && [[ "$value" != .* && "$value" != *..* ]]
+}
+
+safe_remote_root() {
+  local value="${1:?value}"
+  matches_regex "$value" "$SAFE_REMOTE_ROOT_RE" && [[ "$value" != *..* ]]
+}
+
+push_ref_is_supported() {
+  local value="${1:?value}"
+  [[ "$value" == HEAD:refs/heads/* || "$value" == HEAD:refs/tags/* || "$value" == refs/heads/* || "$value" == refs/tags/* ]]
+}
+
+extract_host_from_url() {
+  local url="${1:?url}"
+  local host=''
+
+  if [[ "$url" =~ ^ssh://([^@/]+@)?([^/:]+)(:[0-9]+)?/ ]]; then
+    host="${BASH_REMATCH[2]}"
+  elif [[ "$url" =~ ^https?://([^/:]+) ]]; then
+    host="${BASH_REMATCH[1]}"
+  elif [[ "$url" =~ ^([^@/]+@)?([^:]+):[^/].*$ ]]; then
+    host="${BASH_REMATCH[2]}"
+  fi
+
+  [[ -n "$host" ]] || return 1
+  safe_name "$host" || fail "derived forge host path segment is unsafe: $host" 2
+  printf '%s\n' "$host"
+}
+
+resolve_forge_host_segment() {
+  local repo_root="${1:?repo_root}"
+  local remote_name="${2:?remote_name}"
+  local url=''
+
+  if url="$(git -C "$repo_root" remote get-url origin 2>/dev/null)"; then
+    extract_host_from_url "$url" && return 0
+  fi
+  if [[ "$remote_name" != origin ]] && url="$(git -C "$repo_root" remote get-url "$remote_name" 2>/dev/null)"; then
+    extract_host_from_url "$url" && return 0
+  fi
+
+  fail "could not derive forge host from git remote URL; configure 'origin' or '$remote_name' first" 2
+}
+
+json_escape() {
+  local value="${1-}"
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  printf '%s' "$value"
+}
+
+emit_result_json() {
+  local dry_run="${1:?dry_run}"
+  printf '{\n'
+  printf '  "version": "%s",\n' "$(json_escape "$GITCHECKOUT_VERSION")"
+  printf '  "dry_run": %s,\n' "$dry_run"
+  printf '  "repo": "%s",\n' "$(json_escape "$local_repo_root")"
+  printf '  "remote_name": "%s",\n' "$(json_escape "$REMOTE_NAME")"
+  printf '  "remote_url": "%s",\n' "$(json_escape "$remote_url")"
+  printf '  "push_ref": "%s",\n' "$(json_escape "$PUSH_REF")"
+  printf '  "remote_git_path": "%s",\n' "$(json_escape "$remote_git_path")"
+  printf '  "remote_latest_path": "%s",\n' "$(json_escape "$remote_latest_path")"
+  printf '  "remote_latest_sha_path": "%s",\n' "$(json_escape "$remote_latest_sha_path")"
+  printf '  "remote_runs_path": "%s",\n' "$(json_escape "$remote_runs_path")"
+  printf '  "keep_runs": %s,\n' "$KEEP_RUNS"
+  printf '  "max_run_age_days": %s\n' "$MAX_RUN_AGE_DAYS"
+  printf '}\n'
+}
+
+# Embedded remote bootstrap script.
+#
+# Streamed over ssh to run on the forge host. Creates the bare repo and writes
+# a post-receive hook that materializes each push into a fresh worktree under
+# runs/<UTC-timestamp>-<short-sha>/, updates the `latest` symlink, and prunes
+# old runs by count and age.
+#
+# Args (positional, set by emit_remote_setup_script's caller):
+#   $1 remote base path (root/<forge-host>)
+#   $2 repo name
+#   $3 force flag (0|1)
+#   $4 keep runs (non-negative integer)
+#   $5 max run age days (non-negative integer)
+emit_remote_setup_script() {
+  cat <<'REMOTE_SETUP_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() { printf 'error: remote bootstrap: %s\n' "$*" >&2; exit 1; }
+
+need_cmd() {
+  local cmd="${1:?cmd}"
+  command -v "$cmd" >/dev/null 2>&1 || fail "missing $cmd"
+}
+
+normalize_root() {
+  local root="${1:?root}"
+  case "$root" in
+    \~) printf '%s\n' "$HOME" ;;
+    \~/*) printf '%s/%s\n' "$HOME" "${root:2}" ;;
+    /*) printf '%s\n' "$root" ;;
+    *) printf '%s/%s\n' "$HOME" "$root" ;;
+  esac
+}
+
+remote_base_path="${1:?remote base path}"
+repo_name="${2:?repo name}"
+force="${3:?force}"
+keep_runs="${4:?keep runs}"
+max_run_age_days="${5:?max run age days}"
+marker='managed by git-checkouts'
+
+system="$(uname -s 2>/dev/null || true)"
+case "$system" in
+  Linux|Darwin|FreeBSD|OpenBSD|NetBSD) ;;
+  *) fail "expected a Unix-like remote host; got '${system:-unknown}'" ;;
+esac
+need_cmd bash
+need_cmd git
+case "${HOME:-}" in
+  /*) ;;
+  *) fail 'HOME must be an absolute Unix path' ;;
+esac
+
+remote_base_path="$(normalize_root "$remote_base_path")"
+remote_repo_root="${remote_base_path%/}/$repo_name"
+remote_git_dir="$remote_repo_root/.bare"
+runs_dir="$remote_repo_root/runs"
+hook_path="$remote_git_dir/hooks/post-receive"
+
+mkdir -p -- "$remote_base_path"
+if [[ -e "$remote_git_dir" ]]; then
+  git --git-dir="$remote_git_dir" rev-parse --git-dir >/dev/null 2>&1 \
+    || fail "remote path exists but is not a git repo: $remote_git_dir"
+else
+  git init --bare "$remote_git_dir" >/dev/null
+fi
+
+mkdir -p -- "$remote_repo_root" "$runs_dir"
+
+if [[ -e "$hook_path" ]] && ! grep -q "$marker" "$hook_path" && [[ "$force" -ne 1 ]]; then
+  printf 'error: remote hook already exists and is not managed by git-checkouts: %s\n' "$hook_path" >&2
+  printf 'error: re-run with --force to replace it.\n' >&2
+  exit 1
+fi
+
+repo_root_q="$(printf '%q' "$remote_repo_root")"
+
+# Write the post-receive hook with __PLACEHOLDER__ tokens, then substitute.
+# The quoted heredoc keeps $variables intact for the hook's runtime use; the
+# template tokens are replaced with the concrete config values via perl.
+cat > "$hook_path" <<'EOF_HOOK'
+#!/usr/bin/env bash
+# __MARKER__
+set -euo pipefail
+
+fail() { printf 'error: post-receive: %s\n' "$*" >&2; exit 1; }
+
+repo_git_dir="$(git rev-parse --absolute-git-dir)"
+repo_root=__REPO_ROOT_Q__
+runs_dir="$repo_root/runs"
+latest_link="$repo_root/latest"
+latest_sha_file="$repo_root/LATEST_SHA"
+deploy_log="$repo_root/deploy-log"
+keep_runs=__KEEP_RUNS__
+max_run_age_days=__MAX_RUN_AGE_DAYS__
+
+latest_target_realpath() {
+  local target=''
+
+  if command -v perl >/dev/null 2>&1; then
+    target="$(perl -MCwd=realpath -e 'print realpath(shift) // q{}' -- "$latest_link" 2>/dev/null || true)"
+  fi
+  if [[ -z "$target" ]] && command -v readlink >/dev/null 2>&1; then
+    target="$(readlink -f -- "$latest_link" 2>/dev/null || true)"
+  fi
+  if [[ -z "$target" ]] && command -v python3 >/dev/null 2>&1; then
+    target="$(python3 - "$latest_link" 2>/dev/null <<'PY'
+import os
+import sys
+print(os.path.realpath(sys.argv[1]))
+PY
+)"
+  fi
+
+  [[ -n "$target" ]] || return 1
+  printf '%s\n' "$target"
+}
+
+prune_runs() {
+  [[ -d "$runs_dir" ]] || return 0
+
+  local active_run=''
+  if [[ -L "$latest_link" ]]; then
+    active_run="$(latest_target_realpath)" || fail "cannot resolve active latest symlink target: $latest_link"
+  fi
+
+  mapfile -t old_runs < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -mtime +"$max_run_age_days" -print 2>/dev/null | sort)
+  if (( ${#old_runs[@]} > 0 )); then
+    for run_dir in "${old_runs[@]}"; do
+      if [[ -n "$active_run" && "$run_dir" == "$active_run" ]]; then
+        continue
+      fi
+      printf 'pruned old run %s\n' "$run_dir"
+      git --git-dir="$repo_git_dir" worktree remove --force "$run_dir" 2>/dev/null || rm -rf -- "$run_dir"
+    done
+  fi
+
+  # Run IDs are UTC ISO-8601 timestamps plus short SHA; reverse lexical sort keeps newest first.
+  mapfile -t run_dirs < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort -r)
+  local kept=0
+  for run_dir in "${run_dirs[@]}"; do
+    if [[ -n "$active_run" && "$run_dir" == "$active_run" ]]; then
+      continue
+    fi
+    if (( kept < keep_runs )); then
+      kept=$((kept + 1))
+      continue
+    fi
+    printf 'pruned excess run %s\n' "$run_dir"
+    git --git-dir="$repo_git_dir" worktree remove --force "$run_dir" 2>/dev/null || rm -rf -- "$run_dir"
+  done
+
+  git --git-dir="$repo_git_dir" worktree prune
+}
+
+mkdir -p -- "$repo_root" "$runs_dir"
+
+while read -r _oldrev newrev refname; do
+  if [[ -z "${newrev//0/}" ]]; then
+    continue
+  fi
+
+  sha="$(git --git-dir="$repo_git_dir" rev-parse --verify "$newrev^{commit}")"
+  short_sha="$(git --git-dir="$repo_git_dir" rev-parse --short=12 "$sha")"
+  timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  run_id="${timestamp}-${short_sha}"
+  run_dir="$runs_dir/$run_id"
+  run_sha_file="$run_dir/RUN_SHA"
+  run_ref_file="$run_dir/RUN_REF"
+
+  if [[ -e "$run_dir" ]]; then
+    git --git-dir="$repo_git_dir" worktree remove --force "$run_dir" 2>/dev/null || rm -rf -- "$run_dir"
+  fi
+
+  git --git-dir="$repo_git_dir" worktree prune
+  git --git-dir="$repo_git_dir" worktree add --detach "$run_dir" "$sha" >/dev/null
+  printf '%s\n' "$sha" > "$run_sha_file"
+  printf '%s\n' "$refname" > "$run_ref_file"
+  printf '%s\n' "$sha" > "$latest_sha_file"
+  printf '%s %s %s %s\n' "$timestamp" "$short_sha" "$sha" "$refname" >> "$deploy_log"
+  rm -rf -- "$latest_link"
+  ln -s "runs/$run_id" "$latest_link"
+  prune_runs
+  printf 'deployed %s to %s (latest -> runs/%s)\n' "$sha" "$run_dir" "$run_id"
+done
+EOF_HOOK
+
+MARKER="$marker" \
+REPO_ROOT_Q="$repo_root_q" \
+KEEP_RUNS="$keep_runs" \
+MAX_RUN_AGE_DAYS="$max_run_age_days" \
+  perl -0pi -e '
+    s/__MARKER__/$ENV{MARKER}/g;
+    s/__REPO_ROOT_Q__/$ENV{REPO_ROOT_Q}/g;
+    s/__KEEP_RUNS__/$ENV{KEEP_RUNS}/g;
+    s/__MAX_RUN_AGE_DAYS__/$ENV{MAX_RUN_AGE_DAYS}/g;
+  ' "$hook_path"
+
+chmod +x "$hook_path"
+
+git --git-dir="$remote_git_dir" rev-parse --git-dir >/dev/null 2>&1 \
+  || fail "remote bare repo was not created at '$remote_git_dir'"
+REMOTE_SETUP_EOF
+}
+
+HOST="${GIT_CHECKOUTS_HOST:-}"
+REPO="${GIT_CHECKOUTS_REPO:-.}"
+REPO_NAME="${GIT_CHECKOUTS_REPO_NAME:-}"
+REMOTE_NAME="${GIT_CHECKOUTS_REMOTE_NAME:-checkouts}"
+REMOTE_ROOT="${GIT_CHECKOUTS_REMOTE_ROOT:-git}"
+PUSH_REF="${GIT_CHECKOUTS_PUSH_REF:-+HEAD:refs/heads/checkouts/latest}"
+KEEP_RUNS="${GIT_CHECKOUTS_KEEP_RUNS:-5}"
+MAX_RUN_AGE_DAYS="${GIT_CHECKOUTS_MAX_RUN_AGE_DAYS:-3}"
+FORCE=0
+DRY_RUN=0
+OUTPUT_FORMAT="text"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --host) HOST="${2:?missing value for --host}"; shift 2 ;;
+    --repo) REPO="${2:?missing value for --repo}"; shift 2 ;;
+    --name|--repo-name) REPO_NAME="${2:?missing value for --name}"; shift 2 ;;
+    --remote|--remote-name) REMOTE_NAME="${2:?missing value for --remote}"; shift 2 ;;
+    --root|--remote-root) REMOTE_ROOT="${2:?missing value for --root}"; shift 2 ;;
+    --ref|--push-ref) PUSH_REF="${2:?missing value for --ref}"; shift 2 ;;
+    --keep-runs) KEEP_RUNS="${2:?missing value for --keep-runs}"; shift 2 ;;
+    --max-run-age) MAX_RUN_AGE_DAYS="${2:?missing value for --max-run-age}"; shift 2 ;;
+    --force) FORCE=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    --json) OUTPUT_FORMAT="json"; shift ;;
+    --version) printf 'git-checkouts %s\n' "$GITCHECKOUT_VERSION"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; fail "unknown argument: $1" 2 ;;
+  esac
+done
+
+require_value --host "$HOST"
+require_value --root "$REMOTE_ROOT"
+need_cmd git
+need_cmd ssh
+
+local_repo_root="$(git -C "$REPO" rev-parse --show-toplevel)"
+if [[ -z "$REPO_NAME" ]]; then
+  REPO_NAME="$(basename -- "$local_repo_root")"
+  REPO_NAME="${REPO_NAME%.git}"
+fi
+safe_name "$REPO_NAME" || fail "--name must contain only letters, numbers, dot, underscore, and dash: $REPO_NAME" 2
+safe_name "$REMOTE_NAME" || fail "--remote must contain only letters, numbers, dot, underscore, and dash: $REMOTE_NAME" 2
+safe_remote_root "$REMOTE_ROOT" || fail "--root must contain only letters, numbers, slash, dot, underscore, dash, and tilde (no '..'): $REMOTE_ROOT" 2
+forge_host_segment="$(resolve_forge_host_segment "$local_repo_root" "$REMOTE_NAME")"
+push_ref_check="${PUSH_REF#+}"
+push_ref_is_supported "$push_ref_check" || fail "--ref must target refs/heads/ or refs/tags/, optionally with leading + and HEAD:: $PUSH_REF" 2
+require_nonnegative_integer --keep-runs "$KEEP_RUNS"
+require_nonnegative_integer --max-run-age "$MAX_RUN_AGE_DAYS"
+
+remote_base_path="${REMOTE_ROOT%/}/$forge_host_segment"
+remote_repo_path="$remote_base_path/$REPO_NAME"
+remote_git_path="$remote_repo_path/.bare"
+remote_latest_path="$remote_repo_path/latest"
+remote_latest_sha_path="$remote_repo_path/LATEST_SHA"
+remote_deploy_log_path="$remote_repo_path/deploy-log"
+remote_runs_path="$remote_repo_path/runs"
+remote_url="$HOST:$remote_git_path"
+
+log "repo=$local_repo_root"
+log "remote=$REMOTE_NAME"
+log "remote_url=$remote_url"
+log "latest_checkout=$remote_latest_path"
+log "latest_sha=$remote_latest_sha_path"
+log "runs_dir=$remote_runs_path"
+log "push_default=$PUSH_REF"
+log "prune_policy=keep $KEEP_RUNS, max_age_days $MAX_RUN_AGE_DAYS"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  log "dry-run: would bootstrap remote bare repo and managed post-receive hook via ssh"
+  log "dry-run: would configure local remote '$REMOTE_NAME' and remote.$REMOTE_NAME.push='$PUSH_REF'"
+  if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+    emit_result_json true
+  else
+    printf 'dry-run: no changes applied\n'
+    printf 'dry-run: ssh %s bash -s -- %q %q %q %q %q\n' "$HOST" "$remote_base_path" "$REPO_NAME" "$FORCE" "$KEEP_RUNS" "$MAX_RUN_AGE_DAYS"
+    printf 'dry-run: git -C %q remote add|set-url %q %q\n' "$local_repo_root" "$REMOTE_NAME" "$remote_url"
+    printf 'dry-run: git -C %q config --replace-all %q %q\n' "$local_repo_root" "remote.$REMOTE_NAME.push" "$PUSH_REF"
+  fi
+  exit 0
+fi
+
+run_remote_setup() {
+  emit_remote_setup_script \
+    | ssh "$HOST" bash -s -- "$remote_base_path" "$REPO_NAME" "$FORCE" "$KEEP_RUNS" "$MAX_RUN_AGE_DAYS"
+}
+
+if ! run_remote_setup; then
+  show_recovery_hint
+  fail "remote bootstrap failed on host '$HOST'" 4
+fi
+
+set_or_add_remote() {
+  local repo_root="${1:?repo_root}"
+  local remote_name="${2:?remote_name}"
+  local expected_url="${3:?expected_url}"
+  local force_update="${4:?force_update}"
+
+  if git -C "$repo_root" remote get-url "$remote_name" >/dev/null 2>&1; then
+    local existing_url=''
+    existing_url="$(git -C "$repo_root" remote get-url "$remote_name")"
+    if [[ "$existing_url" != "$expected_url" && "$force_update" -ne 1 ]]; then
+      fail "remote '$remote_name' already points at '$existing_url'; re-run with --force to set '$expected_url'" 4
+    fi
+    git -C "$repo_root" remote set-url "$remote_name" "$expected_url"
+  else
+    git -C "$repo_root" remote add "$remote_name" "$expected_url"
+  fi
+}
+
+set_or_add_remote "$local_repo_root" "$REMOTE_NAME" "$remote_url" "$FORCE"
+
+git -C "$local_repo_root" config --replace-all "remote.$REMOTE_NAME.push" "$PUSH_REF"
+
+ok "remote bare repo: $remote_git_path"
+ok "remote hook: $remote_repo_path/.bare/hooks/post-receive"
+ok "runs dir: $remote_runs_path"
+ok "latest symlink: $remote_latest_path"
+ok "latest sha file: $remote_latest_sha_path"
+ok "deploy log: $remote_deploy_log_path"
+ok "configured: git push $REMOTE_NAME"
+ok "prune policy: keep $KEEP_RUNS, max_age_days $MAX_RUN_AGE_DAYS"
+
+if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+  emit_result_json false
+fi

@@ -1,0 +1,23 @@
+# macOS-specific Alacritty overrides.
+# Copy or symlink to ~/.config/alacritty/local.toml on Mac hosts.
+
+[window]
+# "Buttonless" = title bar + drag region, no traffic lights.
+# "none" loses the drag region; "Full" gives the standard window chrome.
+decorations = "Buttonless"
+option_as_alt = "Both"          # let Option act as Alt for Meta-bindings
+
+# Optional translucency. macOS honors `blur`.
+opacity = 1.0
+blur = false
+
+[hints]
+# Click hyperlinks with Cmd; default `[[hints.enabled]]` ships `xdg-open`.
+[[hints.enabled]]
+regex = "(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file:|git://|ssh:|ftp://)[^\u0000-\u001F\u007F-\u009F<>\"\\s{-}\\^⟨⟩`\\\\]+"
+hyperlinks = true
+post_processing = true
+persist = false
+mouse = { enabled = true, mods = "Command" }
+binding = { key = "O", mods = "Command|Shift" }
+command = "open"

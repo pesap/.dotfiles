@@ -15,11 +15,15 @@ cargo install fd-find --locked
 cargo install --locked yazi-fm yazi-cli
 
 
-# ZSH Plugins
-plugin_root="${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins"
-if [ ! -d "$plugin_root/zsh-syntax-highlighting" ]; then
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$plugin_root/zsh-syntax-highlighting"
-fi
-if [ ! -d "$plugin_root/zsh-autosuggestions" ]; then
-    git clone https://github.com/zsh-users/zsh-autosuggestions "$plugin_root/zsh-autosuggestions"
+# ZSH plugin manager (antidote)
+# Prefer brew on macOS, fall back to a git clone everywhere else.
+# Plugins themselves are declared in ~/.zsh_plugins.txt and fetched lazily by
+# antidote on first shell startup.
+if command -v brew >/dev/null 2>&1; then
+    brew list antidote >/dev/null 2>&1 || brew install antidote
+else
+    ANTIDOTE_HOME="${ANTIDOTE_HOME:-$HOME/.antidote}"
+    if [ ! -d "$ANTIDOTE_HOME" ]; then
+        git clone --depth=1 https://github.com/mattmc3/antidote.git "$ANTIDOTE_HOME"
+    fi
 fi

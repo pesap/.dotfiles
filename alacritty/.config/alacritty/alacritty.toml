@@ -1,33 +1,119 @@
+# Base Alacritty config (shared between macOS and Arch).
+# Per-host overrides live in ~/.config/alacritty/local.toml — copy one of:
+#   alacritty/.config/alacritty/local.macos.toml
+#   alacritty/.config/alacritty/local.linux.toml
+# Missing imports are silently skipped, so an absent local.toml is fine.
+
 [general]
-import = ["~/.config/alacritty/themes/themes/tokyo-night.toml"]
+import = [
+    "~/.config/alacritty/themes/tokyo-night.toml",
+    "~/.config/alacritty/local.toml",
+]
+live_config_reload = true
+working_directory = "None"
 
-[font]
-size = 16
-
-[font.normal]
-family = "0xProto Nerd Font"
+[env]
+# Requires `alacritty` terminfo on every host. macOS: shipped with the .app
+# (install with `tic`/copy to ~/.terminfo). Arch: pacman -S alacritty-terminfo.
+# SSH targets without it: set TERM=xterm-256color in your ssh wrapper.
+TERM = "alacritty"
 
 [window]
-decorations = "none"
 startup_mode = "Maximized"
-option_as_alt = "Both"
+dynamic_padding = true
+dynamic_title = true
+resize_increments = true        # snap window resize to cell boundaries
 
 [window.padding]
 x = 10
 y = 10
 
-[cursor.style]
-shape = "Underline"
-blinking = "On"
-
 [scrolling]
-history = 100000
+history = 10000                 # zellij owns scrollback; 10k is plenty for raw shells
+multiplier = 3
 
-[env]
-term = "xterm-256color"
+[font]
+size = 16
+builtin_box_drawing = true      # built-in box/powerline glyphs, pixel-perfect
+
+[font.normal]
+family = "0xProto Nerd Font"
+style  = "Regular"
+
+[font.bold]
+family = "0xProto Nerd Font"
+style  = "Bold"
+
+[font.italic]
+family = "0xProto Nerd Font"
+style  = "Italic"
+
+[font.bold_italic]
+family = "0xProto Nerd Font"
+style  = "Bold Italic"
+
+[font.offset]
+x = 0
+y = 0
+
+[cursor]
+unfocused_hollow = true         # visual cue when window loses focus
+blink_interval = 750
+blink_timeout = 5
+
+[cursor.style]
+shape = "Block"
+blinking = "Off"                # blinking competes with zellij status bar redraws
+
+[mouse]
+hide_when_typing = true
+
+[selection]
+save_to_clipboard = true
+
+[colors]
+draw_bold_text_with_bright_colors = false   # respect theme bold semantics
+
+[bell]
+animation = "EaseOutExpo"
+duration = 0                    # set to 100 if you want a brief visual flash
+color = "#ffffff"
+
+[terminal]
+osc52 = "OnlyCopy"              # remote shells can write to clipboard, not read
 
 [keyboard]
 bindings = [
-  { key = "Key1", mods = "Command", chars = "\u001b1" },
-  { key = "Key2", mods = "Command", chars = "\u001b2" },
+    # ── zellij tab switching from macOS ──────────────────────────────────────
+    # Cmd+1..4 -> ESC+1..4 (xterm Alt+N encoding). Zellij in Locked/Normal
+    # mode reads it as "GoToTab N". On Linux these never fire (no Command key);
+    # Ctrl+Alt+1..4 below covers Arch.
+    { key = "Key1", mods = "Command", chars = "\u001b1" },
+    { key = "Key2", mods = "Command", chars = "\u001b2" },
+    { key = "Key3", mods = "Command", chars = "\u001b3" },
+    { key = "Key4", mods = "Command", chars = "\u001b4" },
+
+    # Linux mirror.
+    { key = "Key1", mods = "Control|Alt", chars = "\u001b1" },
+    { key = "Key2", mods = "Control|Alt", chars = "\u001b2" },
+    { key = "Key3", mods = "Control|Alt", chars = "\u001b3" },
+    { key = "Key4", mods = "Control|Alt", chars = "\u001b4" },
+
+    # ── Font size (live) ─────────────────────────────────────────────────────
+    { key = "Equals", mods = "Command",       action = "IncreaseFontSize" },
+    { key = "Minus",  mods = "Command",       action = "DecreaseFontSize" },
+    { key = "Key0",   mods = "Command",       action = "ResetFontSize"   },
+    { key = "Equals", mods = "Control|Shift", action = "IncreaseFontSize" },
+    { key = "Minus",  mods = "Control|Shift", action = "DecreaseFontSize" },
+    { key = "Key0",   mods = "Control|Shift", action = "ResetFontSize"   },
+
+    # ── Scrollback search (Alacritty native, works outside zellij grab) ─────
+    { key = "F", mods = "Command",       action = "SearchForward"  },
+    { key = "B", mods = "Command",       action = "SearchBackward" },
+    { key = "F", mods = "Control|Shift", action = "SearchForward"  },
+    { key = "B", mods = "Control|Shift", action = "SearchBackward" },
+
+    # ── Disarm Cmd-Q rage-quit (macOS); Cmd-Shift-Q still quits ─────────────
+    { key = "Q", mods = "Command",       action = "ReceiveChar" },
+    { key = "Q", mods = "Command|Shift", action = "Quit"         },
 ]

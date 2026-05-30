@@ -1,0 +1,1131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# pil: start pi with a LiteLLM provider and a per-project API key.
+# Secrets are not stored here. Config files store only secret item names.
+# macOS uses Keychain (`security`), Linux can use Secret Service (`secret-tool`)
+# or pass (`pass show pil/KEY_NAME`).
+#
+# Recommended setup:
+#   pil init --provider nlr --base-url https://litellm.example.com/v1 --model gpt-5.4
+#   security add-generic-password -a "$USER" -s nlr-project-a -w '<api-key>' -U
+#   pil add --key nlr-project-a --local
+#
+# Precedence, highest first:
+#   1. CLI flags
+#   2. nearest project .pil  project overrides; PIL_KEY_NAME allowed
+#   3. ~/.pil                home defaults; PIL_KEY_NAME ignored
+#   4. ~/.config/pil/config  general defaults; PIL_KEY_NAME ignored
+#
+# Project setup writes:
+#   .pil                pil key/provider config
+#   .pi/settings.json   pi defaultProvider/defaultModel/enabledModels
+#
+# If no project key exists and --key is not passed, pil prompts from
+# ~/.config/pil/keys. Use `pil --key KEY_NAME` for a one-off key.
+
+usage() {
+  cat <<'EOF'
+Usage:
+  pil setup                           guided first-time setup
+  pil init [options]                  write ~/.config/pil/config and pi models.json provider
+  pil add --key KEY [--local]         write project .pil and .pi/settings.json in current directory
+  pil add --key KEY --global          add key name to ~/.config/pil/keys
+  pil add --key KEY --path PATH       write PATH/.pil and PATH/.pi/settings.json
+  pil key add KEY                     add key name to ~/.config/pil/keys
+  pil project use KEY                 use key in current project
+  pil config show [--json]            show effective config with secret values redacted
+  pil doctor [--json]                 check dependencies, config, secret, and optional /models access
+  pil sync                            refresh ~/.pi/agent/models.json from LiteLLM /models (requires curl + jq)
+  pil --sync-models                   refresh ~/.pi/agent/models.json from LiteLLM /models (requires curl + jq)
+  pil --key KEY_NAME                  start with a specific secret item
+  pil [pi args...]                    start pi; prompt for key if project has none
+
+Precedence, highest first:
+  1. CLI flags
+  2. nearest project .pil             project-specific overrides, including key
+  3. ~/.pil                           home defaults; PIL_KEY_NAME ignored
+  4. ~/.config/pil/config             general defaults; PIL_KEY_NAME ignored
+
+Options:
+  --provider NAME
+  --base-url URL
+  --key NAME                          secret item name for this launch/project
+  --select-key                        choose a key from ~/.config/pil/keys
+  --model MODEL                       default pi model
+  --scoped-models LIST                Ctrl+P model cycle list for pi
+  --sync-models
+  --dry-run, --print-command          print the pi command without executing it
+  --plain, --no-color                 disable styled output
+  --verbose                           show config files as they are loaded
+  --                                 pass remaining args directly to pi
+
+Pass-through:
+  Unknown command-like words are rejected. Use `pil -- ARG...` to pass them to pi.
+
+Help:
+  pil help init|add|config|secrets|doctor
+
+Examples:
+  pil setup
+  pil init --provider nlr --base-url https://litellm.example.com/v1 --model gpt-5.4
+  pil add --key nlr-project-a --local
+  pil add --key nlr-project-b --path ~/work/project-b
+  pil add --key nlr-sandbox --global
+  pil key add nlr-sandbox
+  pil project use nlr-project-a
+  pil config show
+  pil doctor
+  pil sync
+  pil --key nlr-project-a
+EOF
+}
+
+usage_init() {
+  cat <<'EOF'
+Usage:
+  pil init [--provider NAME] --base-url URL [--model MODEL] [--scoped-models LIST]
+
+Writes ~/.config/pil/config and registers the LiteLLM provider in pi models.json.
+EOF
+}
+
+usage_add() {
+  cat <<'EOF'
+Usage:
+  pil add --key KEY [--local]
+  pil add --key KEY --global
+  pil add --key KEY --path PATH
+
+Writes project .pil and .pi/settings.json, or registers KEY in ~/.config/pil/keys.
+EOF
+}
+
+usage_config() {
+  cat <<'EOF'
+Usage:
+  pil config show [--json]
+
+Shows effective pil configuration. Secret values are never printed.
+EOF
+}
+
+usage_key() {
+  cat <<'EOF'
+Usage:
+  pil key add KEY
+
+Registers KEY in ~/.config/pil/keys and prompts to store its API secret when interactive.
+EOF
+}
+
+usage_project() {
+  cat <<'EOF'
+Usage:
+  pil project use KEY
+
+Writes .pil and .pi/settings.json in the current project for KEY.
+EOF
+}
+
+usage_secrets() {
+  cat <<'EOF'
+Secret setup:
+  macOS Keychain:
+    security add-generic-password -a "$USER" -s KEY_NAME -w '<api-key>' -U
+  Linux Secret Service/libsecret:
+    printf '<api-key>' | secret-tool store --label='pil KEY_NAME' pil-key KEY_NAME
+  Linux pass:
+    pass insert pil/KEY_NAME
+EOF
+}
+
+usage_doctor() {
+  cat <<'EOF'
+Usage:
+  pil doctor [--json]
+
+Checks pi, jq, curl, config files, provider settings, key lookup, and LiteLLM /models when possible.
+EOF
+}
+
+usage_sync() {
+  cat <<'EOF'
+Usage:
+  pil sync [launch options]
+  pil --sync-models [launch options]
+
+Refreshes ~/.pi/agent/models.json from the LiteLLM /models endpoint.
+EOF
+}
+
+usage_help() {
+  case "${1-}" in
+    init) usage_init ;;
+    add) usage_add ;;
+    config) usage_config ;;
+    key|keys) usage_key ;;
+    project) usage_project ;;
+    secrets|secret) usage_secrets ;;
+    doctor) usage_doctor ;;
+    sync) usage_sync ;;
+    "") usage ;;
+    *) error "unknown help topic: ${1}"; exit 2 ;;
+  esac
+}
+
+if [[ -t 2 && -z "${NO_COLOR:-}" ]]; then
+  BOLD="$(printf '\033[1m')"
+  RED="$(printf '\033[31m')"
+  RESET="$(printf '\033[0m')"
+else
+  BOLD=""
+  RED=""
+  RESET=""
+fi
+
+PIL_VERBOSE="${PIL_VERBOSE:-false}"
+
+disable_color() {
+  BOLD=""
+  RED=""
+  RESET=""
+}
+
+section() {
+  printf '\n%s%s%s\n' "${BOLD}" "${1}" "${RESET}" >&2
+}
+
+kv() {
+  printf '  %-8s %s\n' "${1}" "${2}" >&2
+}
+
+info() {
+  printf '%s\n' "${1}" >&2
+}
+
+error() {
+  printf '%serror:%s %s\n' "${RED}" "${RESET}" "${1}" >&2
+}
+
+PIL_TMP_DIRS=()
+PIL_TMP_DIRS_INITIALIZED=true
+cleanup_tmp_dirs() {
+  local dir
+  [[ "${PIL_TMP_DIRS_INITIALIZED:-false}" == true ]] || return 0
+  for dir in "${PIL_TMP_DIRS[@]:-}"; do
+    [[ -n "${dir}" ]] && rm -rf -- "${dir}" 2>/dev/null || true
+  done
+}
+trap cleanup_tmp_dirs EXIT
+
+make_tmp_dir() {
+  PIL_TMP_DIR="$(mktemp -d)"
+  PIL_TMP_DIRS+=("${PIL_TMP_DIR}")
+}
+
+need_arg() {
+  local flag="${1}"
+  local value="${2-}"
+  [[ -n "${value}" ]] || { error "${flag} needs a value"; exit 2; }
+}
+
+require_command() {
+  local command_name="${1}"
+  local reason="${2}"
+  command -v "${command_name}" >/dev/null 2>&1 && return
+  error "${command_name} is required ${reason}"
+  case "${command_name}" in
+    pi)
+      printf '\nInstall:\n\n' >&2
+      printf 'npm install -g @earendil-works/pi-coding-agent\n' >&2
+      ;;
+    jq)
+      printf '\nInstall one of:\n\n' >&2
+      printf 'brew install jq\n' >&2
+      printf 'sudo apt install jq\n' >&2
+      printf 'sudo dnf install jq\n' >&2
+      ;;
+    curl)
+      printf '\nInstall one of:\n\n' >&2
+      printf 'brew install curl\n' >&2
+      printf 'sudo apt install curl\n' >&2
+      printf 'sudo dnf install curl\n' >&2
+      ;;
+  esac
+  exit 127
+}
+
+require_pi() {
+  require_command pi 'to launch pi'
+}
+
+prompt_value() {
+  local prompt="${1}"
+  local default="${2-}"
+  local value
+
+  if [[ -t 0 && -t 2 ]]; then
+    if [[ -n "${default}" ]]; then
+      printf '%s [%s]: ' "${prompt}" "${default}" >&2
+    else
+      printf '%s: ' "${prompt}" >&2
+    fi
+    read -r value
+    printf '%s\n' "${value:-${default}}"
+  else
+    printf '%s\n' "${default}"
+  fi
+}
+
+project_config_file() {
+  local dir="${PWD}"
+  while [[ "${dir}" != "/" ]]; do
+    [[ "${dir}" == "${HOME}" ]] && return 0
+    [[ -f "${dir}/.pil" ]] && { printf '%s\n' "${dir}/.pil"; return; }
+    dir="$(dirname "${dir}")"
+  done
+}
+
+quote_config_value() {
+  local value="${1}"
+  value="${value//\'/\'\\\'\'}"
+  printf "'%s'" "${value}"
+}
+
+parse_config_value() {
+  local value="${1}"
+
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+
+  case "${value}" in
+    *'$'*|*'`'*|*';'*|*'|'*|*'&'*|*'<'*|*'>'*|*'('*|*')'*|*'{'*|*'}'*)
+      return 1
+      ;;
+  esac
+
+  if [[ "${value}" == "'"*"'" && "${value}" == *"'" ]]; then
+    value="${value:1:${#value}-2}"
+    value="${value//"'\\''"/"'"}"
+  elif [[ "${value}" == '"'*'"' && "${value}" == *'"' ]]; then
+    value="${value:1:${#value}-2}"
+    value="${value//\\\"/\"}"
+    value="${value//\\\\/\\}"
+  else
+    value="${value//\\ / }"
+  fi
+
+  printf '%s\n' "${value}"
+}
+
+set_config_value() {
+  local key="${1}"
+  local value="${2}"
+  local allow_project="${3}"
+
+  case "${key}" in
+    PIL_PROVIDER) PIL_PROVIDER="${value}" ;;
+    PIL_BASE_URL) PIL_BASE_URL="${value}" ;;
+    PIL_KEY_NAME)
+      if [[ "${allow_project}" == true ]]; then
+        PIL_KEY_NAME="${value}"
+      fi
+      ;;
+    PIL_MODEL) PIL_MODEL="${value}" ;;
+    PIL_MODELS) PIL_MODELS="${value}" ;;
+    *) printf 'pil: ignoring unsupported config key %s\n' "${key}" >&2 ;;
+  esac
+}
+
+load_config_file() {
+  local file="${1}"
+  local allow_project="${2}"
+  local line key value
+
+  [[ -f "${file}" ]] || return 0
+  [[ "${PIL_VERBOSE}" == true ]] && info "loading config: ${file}"
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ "${line}" =~ ^[[:space:]]*($|#) ]] && continue
+    [[ "${line}" =~ ^[[:space:]]*(PIL_[A-Z_]+)=(.*)$ ]] || {
+      printf 'pil: invalid config line in %s: %s\n' "${file}" "${line}" >&2
+      exit 1
+    }
+
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    value="$(parse_config_value "${value}")" || {
+      printf 'pil: unsafe config value in %s for %s\n' "${file}" "${key}" >&2
+      exit 1
+    }
+    set_config_value "${key}" "${value}" "${allow_project}"
+  done < "${file}"
+}
+
+load_config() {
+  local project_config
+  load_config_file "${HOME}/.config/pil/config" false
+  load_config_file "${HOME}/.pil" false
+  project_config="$(project_config_file || true)"
+  [[ -n "${project_config}" ]] && load_config_file "${project_config}" true
+  true
+}
+
+select_key() {
+  local keys_file="${HOME}/.config/pil/keys"
+  local keys=()
+  local key choice index
+
+  [[ -s "${keys_file}" ]] || { error "add key names to ${keys_file}"; exit 1; }
+  while IFS= read -r key || [[ -n "${key}" ]]; do
+    [[ "${key}" =~ ^[[:space:]]*($|#) ]] && continue
+    keys+=("${key}")
+  done < "${keys_file}"
+  [[ "${#keys[@]}" -gt 0 ]] || { error "no keys found in ${keys_file}"; exit 1; }
+
+  if [[ -t 0 && -t 2 ]] && command -v fzf >/dev/null 2>&1; then
+    printf '%s\n' "${keys[@]}" | fzf --prompt='LiteLLM key> '
+    return
+  fi
+
+  if [[ -t 0 && -t 2 ]]; then
+    section 'LiteLLM key'
+    index=1
+    for key in "${keys[@]}"; do
+      printf '  %d) %s\n' "${index}" "${key}" >&2
+      index=$((index + 1))
+    done
+    printf 'Select key [1-%d]: ' "${#keys[@]}" >&2
+    read -r choice
+    [[ "${choice}" =~ ^[0-9]+$ ]] && [[ "${choice}" -ge 1 ]] && [[ "${choice}" -le "${#keys[@]}" ]] || {
+      error 'invalid key selection'
+      exit 1
+    }
+    printf '%s\n' "${keys[$((choice - 1))]}"
+    return
+  fi
+
+  error 'key selection requires a TTY; pass --key KEY_NAME or set PIL_KEY_NAME'
+  exit 2
+}
+
+add_global_key() {
+  local key_name="${1}"
+  local keys_file="${HOME}/.config/pil/keys"
+  mkdir -p "$(dirname "${keys_file}")"
+  touch "${keys_file}"
+  chmod 0600 "${keys_file}"
+
+  section 'Key'
+  kv 'name' "${key_name}"
+  kv 'list' "${keys_file}"
+  if grep -Fxq -- "${key_name}" "${keys_file}"; then
+    kv 'status' 'already registered'
+    return
+  fi
+  printf '%s\n' "${key_name}" >> "${keys_file}"
+  kv 'status' 'registered'
+}
+
+write_config_file() {
+  local file="${1}"
+  local include_key="${2}"
+  mkdir -p "$(dirname "${file}")"
+  (
+    umask 077
+    {
+      printf 'PIL_PROVIDER=%s\n' "$(quote_config_value "${PIL_PROVIDER}")"
+      printf 'PIL_BASE_URL=%s\n' "$(quote_config_value "${PIL_BASE_URL}")"
+      if [[ "${include_key}" == true ]]; then
+        printf 'PIL_KEY_NAME=%s\n' "$(quote_config_value "${PIL_KEY_NAME}")"
+      fi
+      printf 'PIL_MODEL=%s\n' "$(quote_config_value "${PIL_MODEL}")"
+      printf 'PIL_MODELS=%s\n' "$(quote_config_value "${PIL_MODELS}")"
+    } > "${file}"
+  )
+  section 'Wrote pil config'
+  kv 'file' "${file}"
+}
+
+target_pil_file() {
+  local target="${1}"
+  target="${target/#\~/${HOME}}"
+  if [[ "$(basename "${target}")" == ".pil" ]]; then
+    printf '%s\n' "${target}"
+  else
+    printf '%s/.pil\n' "${target}"
+  fi
+}
+
+models_json_path() {
+  printf '%s/models.json\n' "${PI_CODING_AGENT_DIR:-${HOME}/.pi/agent}"
+}
+
+validate_base_url() {
+  [[ -n "${PIL_BASE_URL}" ]] || { error 'set PIL_BASE_URL or pass --base-url'; exit 1; }
+  [[ "${PIL_BASE_URL}" =~ ^https?://[^[:space:]]+$ ]] || { error 'base URL must start with http:// or https://'; exit 2; }
+  PIL_BASE_URL="${PIL_BASE_URL%/}"
+}
+
+validate_scoped_models() {
+  local model trimmed count=0
+  local -a models
+  [[ -n "${PIL_MODELS}" ]] || return 0
+  IFS=',' read -r -a models <<< "${PIL_MODELS}"
+  for model in "${models[@]}"; do
+    trimmed="${model#"${model%%[![:space:]]*}"}"
+    trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+    [[ -n "${trimmed}" ]] && count=$((count + 1))
+  done
+  [[ "${count}" -gt 0 ]] || { error '--scoped-models must contain at least one model'; exit 2; }
+}
+
+ensure_provider() {
+  require_command jq 'to update pi models.json'
+
+  local models_json models_dir tmp_dir config_json output_json
+  models_json="$(models_json_path)"
+  models_dir="$(dirname "${models_json}")"
+  mkdir -p "${models_dir}"
+  make_tmp_dir
+  tmp_dir="${PIL_TMP_DIR}"
+  config_json="${tmp_dir}/config.json"
+  output_json="${tmp_dir}/models.json"
+
+  if [[ -f "${models_json}" ]]; then
+    cp "${models_json}" "${config_json}"
+  else
+    printf '{"providers":{}}\n' > "${config_json}"
+  fi
+
+  jq \
+    --arg provider "${PIL_PROVIDER}" \
+    --arg base_url "${PIL_BASE_URL%/}" '
+      .providers //= {}
+      | .providers[$provider] //= {}
+      | .providers[$provider].baseUrl = $base_url
+      | .providers[$provider].api = (.providers[$provider].api // "openai-completions")
+      | .providers[$provider].apiKey = "PIL_GATE"
+      | .providers[$provider].models = (.providers[$provider].models // [])
+    ' "${config_json}" > "${output_json}"
+
+  mv "${output_json}" "${models_json}"
+  chmod 0600 "${models_json}"
+  rm -rf -- "${tmp_dir}"
+  section 'Updated pi provider config'
+  kv 'provider' "${PIL_PROVIDER}"
+  kv 'file' "${models_json}"
+}
+
+write_project_pi_settings() {
+  require_command jq 'to update .pi/settings.json'
+
+  local project_dir="${1}"
+  local settings_json="${project_dir}/.pi/settings.json"
+  local tmp_dir config_json output_json enabled_models_json
+  mkdir -p "$(dirname "${settings_json}")"
+  make_tmp_dir
+  tmp_dir="${PIL_TMP_DIR}"
+  config_json="${tmp_dir}/settings.json"
+  output_json="${tmp_dir}/settings.out.json"
+
+  if [[ -f "${settings_json}" ]]; then
+    cp "${settings_json}" "${config_json}"
+  else
+    printf '{}\n' > "${config_json}"
+  fi
+
+  if [[ -n "${PIL_MODELS}" ]]; then
+    enabled_models_json="$(printf '%s\n' "${PIL_MODELS}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))')"
+  else
+    enabled_models_json="$(jq -n --arg provider "${PIL_PROVIDER}" '[($provider + "/*")]')"
+  fi
+
+  jq \
+    --arg provider "${PIL_PROVIDER}" \
+    --arg model "${PIL_MODEL}" \
+    --argjson enabled_models "${enabled_models_json}" '
+      .defaultProvider = $provider
+      | (if $model != "" then .defaultModel = $model else . end)
+      | .enabledModels = $enabled_models
+    ' "${config_json}" > "${output_json}"
+
+  mv "${output_json}" "${settings_json}"
+  chmod 0600 "${settings_json}"
+  rm -rf -- "${tmp_dir}"
+  section 'Wrote pi project settings'
+  kv 'file' "${settings_json}"
+}
+
+parse_init_args() {
+  while (($#)); do
+    case "${1}" in
+      --provider) need_arg "${1}" "${2-}"; PIL_PROVIDER="${2}"; shift 2 ;;
+      --base-url) need_arg "${1}" "${2-}"; PIL_BASE_URL="${2}"; shift 2 ;;
+      --model) need_arg "${1}" "${2-}"; PIL_MODEL="${2}"; shift 2 ;;
+      --scoped-models) need_arg "${1}" "${2-}"; PIL_MODELS="${2}"; shift 2 ;;
+      --plain|--no-color) disable_color; shift ;;
+      --verbose) PIL_VERBOSE=true; shift ;;
+      -h|--help) usage_init; exit 0 ;;
+      *) error "unknown pil init option: ${1}"; exit 2 ;;
+    esac
+  done
+}
+
+command_init() {
+  parse_init_args "$@"
+  mkdir -p "${HOME}/.config/pil"
+  PIL_PROVIDER="$(prompt_value 'Provider name' "${PIL_PROVIDER}")"
+  PIL_BASE_URL="$(prompt_value 'LiteLLM base URL' "${PIL_BASE_URL}")"
+  PIL_MODEL="$(prompt_value 'Default model' "${PIL_MODEL}")"
+  PIL_MODELS="$(prompt_value 'Scoped models for Ctrl+P' "${PIL_MODELS}")"
+
+  validate_base_url
+  validate_scoped_models
+  write_config_file "${HOME}/.config/pil/config" false
+  ensure_provider
+
+  local key_name
+  key_name="$(prompt_value 'Add a secret item name to ~/.config/pil/keys (optional)' '')"
+  if [[ -n "${key_name}" ]]; then
+    add_global_key "${key_name}"
+    print_secret_setup_hint "${key_name}"
+  fi
+}
+
+command_add() {
+  local target_mode="ask"
+  local target_path=""
+  local write_global=false
+
+  while (($#)); do
+    case "${1}" in
+      --global) write_global=true; target_mode="global"; shift ;;
+      --local) target_mode="local"; shift ;;
+      --path) need_arg "${1}" "${2-}"; target_path="${2}"; target_mode="path"; shift 2 ;;
+      --provider) need_arg "${1}" "${2-}"; PIL_PROVIDER="${2}"; shift 2 ;;
+      --base-url) need_arg "${1}" "${2-}"; PIL_BASE_URL="${2}"; shift 2 ;;
+      --key) need_arg "${1}" "${2-}"; PIL_KEY_NAME="${2}"; shift 2 ;;
+      --select-key) PIL_KEY_NAME="$(select_key)"; shift ;;
+      --model) need_arg "${1}" "${2-}"; PIL_MODEL="${2}"; shift 2 ;;
+      --scoped-models) need_arg "${1}" "${2-}"; PIL_MODELS="${2}"; shift 2 ;;
+      --plain|--no-color) disable_color; shift ;;
+      --verbose) PIL_VERBOSE=true; shift ;;
+      -h|--help) usage_add; exit 0 ;;
+      *) error "unknown pil add option: ${1}"; exit 2 ;;
+    esac
+  done
+
+  if [[ -z "${PIL_KEY_NAME}" ]]; then
+    PIL_KEY_NAME="$(prompt_value 'LiteLLM key name' '')"
+    [[ -n "${PIL_KEY_NAME}" ]] || PIL_KEY_NAME="$(select_key)"
+  fi
+
+  if [[ "${write_global}" == true ]]; then
+    add_global_key "${PIL_KEY_NAME}"
+    prompt_secret "${PIL_KEY_NAME}"
+    return
+  fi
+
+  if [[ "${target_mode}" == "ask" ]]; then
+    if [[ -t 0 && -t 2 ]]; then
+      section 'Key scope'
+      kv '[1]' "local   ${PWD}"
+      kv '[2]' 'global  ~/.config/pil/keys'
+      kv '[3]' 'path    choose another location'
+      printf '\nSelect [1]: ' >&2
+      local scope_choice
+      read -r scope_choice
+      case "${scope_choice:-1}" in
+        2|global)
+          add_global_key "${PIL_KEY_NAME}"
+          prompt_secret "${PIL_KEY_NAME}"
+          return
+          ;;
+        1|local)
+          target_path="${PWD}"
+          ;;
+        3|path)
+          target_path="$(prompt_value 'Project directory or .pil path' "${PWD}")"
+          ;;
+        *) error 'expected 1/local, 2/global, or 3/path'; exit 1 ;;
+      esac
+    else
+      target_path="${PWD}"
+    fi
+  elif [[ "${target_mode}" == "local" ]]; then
+    target_path="${PWD}"
+  fi
+
+  local pil_file project_dir
+  validate_base_url
+  validate_scoped_models
+  pil_file="$(target_pil_file "${target_path}")"
+  project_dir="$(dirname "${pil_file}")"
+  write_config_file "${pil_file}" true
+  write_project_pi_settings "${project_dir}"
+  prompt_secret "${PIL_KEY_NAME}"
+}
+
+command_setup() {
+  load_config
+  command_init "$@"
+  command_add --local
+}
+
+config_show() {
+  local format="plain"
+  while (($#)); do
+    case "${1}" in
+      --json) format="json"; shift ;;
+      --plain|--no-color) disable_color; shift ;;
+      -h|--help) usage_config; exit 0 ;;
+      *) error "unknown pil config option: ${1}"; exit 2 ;;
+    esac
+  done
+
+  load_config
+  if [[ "${format}" == "json" ]]; then
+    require_command jq 'to print JSON config'
+    jq -n \
+      --arg provider "${PIL_PROVIDER}" \
+      --arg base_url "${PIL_BASE_URL}" \
+      --arg key_name "${PIL_KEY_NAME}" \
+      --arg model "${PIL_MODEL}" \
+      --arg scoped_models "${PIL_MODELS}" \
+      --arg models_json "$(models_json_path)" \
+      '{provider:$provider,baseUrl:$base_url,keyName:$key_name,model:$model,scopedModels:$scoped_models,modelsJson:$models_json,apiKey:"redacted"}'
+    return
+  fi
+
+  section 'pil config'
+  kv 'provider' "${PIL_PROVIDER:-unset}"
+  kv 'baseUrl' "${PIL_BASE_URL:-unset}"
+  kv 'keyName' "${PIL_KEY_NAME:-unset}"
+  kv 'model' "${PIL_MODEL:-unset}"
+  kv 'models' "${PIL_MODELS:-unset}"
+  kv 'piCfg' "$(models_json_path)"
+}
+
+doctor_status='ok'
+doctor_fail() {
+  doctor_status='fail'
+  error "${1}"
+}
+
+doctor_check_command() {
+  local command_name="${1}"
+  if command -v "${command_name}" >/dev/null 2>&1; then
+    kv "${command_name}" 'ok'
+  else
+    kv "${command_name}" 'missing'
+    doctor_status='fail'
+  fi
+}
+
+unknown_command() {
+  local word="${1}"
+  error "unknown pil command: ${word}"
+  case "${word}" in
+    sync|synch|sync-models|models)
+      printf '\nDid you mean?\n' >&2
+      printf '  pil sync\n' >&2
+      printf '  pil --sync-models\n' >&2
+      ;;
+    doctor|doc|check)
+      printf '\nDid you mean?\n' >&2
+      printf '  pil doctor\n' >&2
+      ;;
+    config|conf)
+      printf '\nDid you mean?\n' >&2
+      printf '  pil config show\n' >&2
+      ;;
+    key|keys)
+      printf '\nDid you mean?\n' >&2
+      printf '  pil key add KEY\n' >&2
+      ;;
+    project|proj)
+      printf '\nDid you mean?\n' >&2
+      printf '  pil project use KEY\n' >&2
+      ;;
+    *)
+      printf '\nKnown commands:\n' >&2
+      printf '  setup, init, add, sync, doctor, config show, key add, project use\n' >&2
+      ;;
+  esac
+  printf '\nTip: use pil -- %s to pass %q through to pi.\n' "${word}" "${word}" >&2
+  exit 2
+}
+
+command_doctor() {
+  local format="plain" key_status='not checked' models_status='not checked'
+  doctor_status='ok'
+  while (($#)); do
+    case "${1}" in
+      --json) format="json"; shift ;;
+      --plain|--no-color) disable_color; shift ;;
+      -h|--help) usage_doctor; exit 0 ;;
+      *) error "unknown pil doctor option: ${1}"; exit 2 ;;
+    esac
+  done
+
+  load_config
+  if [[ "${format}" == "plain" ]]; then
+    section 'Dependencies'
+    doctor_check_command pi
+    doctor_check_command jq
+    doctor_check_command curl
+    if command -v security >/dev/null 2>&1 || command -v secret-tool >/dev/null 2>&1 || command -v pass >/dev/null 2>&1; then
+      kv 'secret' 'store available'
+    else
+      kv 'secret' 'no supported store'
+      doctor_status='fail'
+    fi
+
+    section 'Config'
+    kv 'provider' "${PIL_PROVIDER:-unset}"
+    kv 'baseUrl' "${PIL_BASE_URL:-unset}"
+    kv 'keyName' "${PIL_KEY_NAME:-unset}"
+  fi
+
+  if [[ -z "${PIL_BASE_URL}" ]]; then
+    doctor_fail 'PIL_BASE_URL is not set'
+  elif ! [[ "${PIL_BASE_URL}" =~ ^https?://[^[:space:]]+$ ]]; then
+    doctor_fail 'PIL_BASE_URL is not a valid http(s) URL'
+  fi
+
+  if [[ -n "${PIL_KEY_NAME}" ]] && read_key "${PIL_KEY_NAME}" >/dev/null; then
+    key_status='found'
+  else
+    key_status='missing'
+    doctor_status='fail'
+  fi
+  [[ "${format}" == "plain" ]] && kv 'apiKey' "${key_status}"
+
+  if [[ -n "${PIL_BASE_URL}" && -n "${PIL_KEY_NAME}" && "${key_status}" == 'found' ]]; then
+    if command -v curl >/dev/null 2>&1; then
+      PIL_GATE="${PIL_GATE:-$(read_key "${PIL_KEY_NAME}")}" || true
+      if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 --header "Authorization: Bearer ${PIL_GATE}" "${PIL_BASE_URL%/}/models" >/dev/null 2>&1; then
+        models_status='ok'
+      else
+        models_status='failed'
+        doctor_status='fail'
+      fi
+      [[ "${format}" == "plain" ]] && kv '/models' "${models_status}"
+    fi
+  fi
+
+  if [[ "${format}" == "json" ]]; then
+    require_command jq 'to print JSON doctor output'
+    jq -n \
+      --arg status "${doctor_status}" \
+      --arg key_status "${key_status}" \
+      --arg models_status "${models_status}" \
+      --arg provider "${PIL_PROVIDER}" \
+      --arg base_url "${PIL_BASE_URL}" \
+      '{status:$status,key:$key_status,models:$models_status,provider:$provider,baseUrl:$base_url}'
+  fi
+
+  [[ "${doctor_status}" == ok ]]
+}
+
+prompt_secret() {
+  local key_name="${1}"
+  local api_key answer
+
+  [[ -t 0 && -t 2 ]] || return 0
+  if read_key "${key_name}" >/dev/null; then
+    section 'Secret'
+    kv 'name' "${key_name}"
+    kv 'status' 'exists'
+    printf '\nOverwrite [y/N]: ' >&2
+    read -r answer
+    case "${answer}" in
+      y|Y|yes|YES) ;;
+      *) info 'Secret unchanged.'; return 0 ;;
+    esac
+  fi
+
+  section 'API key'
+  kv 'name' "${key_name}"
+  kv 'input' 'hidden'
+  printf '\nPaste API key, or press Enter to skip: ' >&2
+  IFS= read -rs api_key
+  printf '\n' >&2
+  if [[ -z "${api_key}" ]]; then
+    info 'Secret not stored.'
+    print_secret_setup_hint "${key_name}"
+    return 0
+  fi
+  store_key "${key_name}" "${api_key}"
+}
+
+store_key() {
+  local key_name="${1}"
+  local api_key="${2}"
+
+  if command -v security >/dev/null 2>&1; then
+    security add-generic-password -a "${USER}" -s "${key_name}" -w "${api_key}" -U >/dev/null
+    section 'Secret'
+    kv 'name' "${key_name}"
+    kv 'store' 'macOS Keychain'
+    kv 'status' 'stored'
+    return
+  fi
+
+  if command -v secret-tool >/dev/null 2>&1; then
+    printf '%s' "${api_key}" | secret-tool store --label="pil ${key_name}" pil-key "${key_name}"
+    section 'Secret'
+    kv 'name' "${key_name}"
+    kv 'store' 'Secret Service'
+    kv 'status' 'stored'
+    return
+  fi
+
+  if command -v pass >/dev/null 2>&1; then
+    printf '%s\n' "${api_key}" | pass insert --force --multiline "pil/${key_name}" >/dev/null
+    section 'Secret'
+    kv 'name' "${key_name}"
+    kv 'store' 'pass'
+    kv 'status' 'stored'
+    return
+  fi
+
+  error 'no supported secret store found'
+  print_secret_setup_hint "${key_name}"
+  return 1
+}
+
+print_secret_setup_hint() {
+  local key_name="${1}"
+  printf '\nStore the API key before using %q. Replace <api-key>, then run one command.\n\n' "${key_name}" >&2
+  printf 'macOS Keychain\n' >&2
+  # shellcheck disable=SC2016
+  printf 'security add-generic-password -a "$USER" -s %q -w '\''<api-key>'\'' -U\n\n' "${key_name}" >&2
+  printf 'Linux Secret Service\n' >&2
+  printf 'printf '\''<api-key>'\'' | secret-tool store --label=%q pil-key %q\n\n' "pil ${key_name}" "${key_name}" >&2
+  printf 'Linux pass\n' >&2
+  printf 'pass insert %q\n' "pil/${key_name}" >&2
+}
+
+read_key() {
+  local key_name="${1}"
+  local secret=""
+
+  if command -v security >/dev/null 2>&1; then
+    secret="$(security find-generic-password -a "${USER}" -s "${key_name}" -w 2>/dev/null || true)"
+    [[ -n "${secret}" ]] && { printf '%s\n' "${secret}"; return 0; }
+  fi
+
+  if command -v secret-tool >/dev/null 2>&1; then
+    secret="$(secret-tool lookup pil-key "${key_name}" 2>/dev/null || true)"
+    [[ -n "${secret}" ]] && { printf '%s\n' "${secret}"; return 0; }
+  fi
+
+  if command -v pass >/dev/null 2>&1; then
+    secret="$(pass show "pil/${key_name}" 2>/dev/null | head -n 1 || true)"
+    [[ -n "${secret}" ]] && { printf '%s\n' "${secret}"; return 0; }
+  fi
+
+  return 1
+}
+
+sync_models() {
+  require_command curl 'for --sync-models'
+  require_command jq 'for --sync-models'
+
+  local models_json models_dir tmp_dir response_json config_json output_json model_count
+  models_json="$(models_json_path)"
+  models_dir="$(dirname "${models_json}")"
+  mkdir -p "${models_dir}"
+  make_tmp_dir
+  tmp_dir="${PIL_TMP_DIR}"
+  response_json="${tmp_dir}/response.json"
+  config_json="${tmp_dir}/config.json"
+  output_json="${tmp_dir}/models.json"
+
+  curl --fail --silent --show-error \
+    --connect-timeout 10 \
+    --max-time 30 \
+    --header "Authorization: Bearer ${PIL_GATE}" \
+    "${PIL_BASE_URL%/}/models" > "${response_json}"
+
+  if [[ -f "${models_json}" ]]; then
+    cp "${models_json}" "${config_json}"
+  else
+    printf '{"providers":{}}\n' > "${config_json}"
+  fi
+
+  model_count="$(jq 'if type == "object" and has("data") then .data else . end | map(if type == "object" then .id else tostring end) | map(select(. != null and . != "")) | unique | length' "${response_json}")"
+  [[ "${model_count}" != "0" ]] || { error 'no models returned'; rm -rf -- "${tmp_dir}"; exit 1; }
+
+  jq --slurp \
+    --arg provider "${PIL_PROVIDER}" \
+    --arg base_url "${PIL_BASE_URL%/}" '
+      def discovered_ids:
+        (.[0] | if type == "object" and has("data") then .data else . end)
+        | map(if type == "object" then .id else tostring end)
+        | map(select(. != null and . != ""))
+        | unique
+        | sort;
+
+      discovered_ids as $ids
+      | .[1] as $config
+      | ($config.providers[$provider].models // [] | map(select(type == "object" and .id != null))) as $existing
+      | ($existing | map(.id)) as $existing_ids
+      | ($existing + ($ids | map(select(. as $id | ($existing_ids | index($id) | not)) | {id: ., name: .}))) as $models
+      | $config
+      | .providers //= {}
+      | .providers[$provider] //= {}
+      | .providers[$provider].baseUrl = $base_url
+      | .providers[$provider].api = (.providers[$provider].api // "openai-completions")
+      | .providers[$provider].apiKey = "PIL_GATE"
+      | .providers[$provider].models = $models
+    ' "${response_json}" "${config_json}" > "${output_json}"
+
+  mv "${output_json}" "${models_json}"
+  chmod 0600 "${models_json}"
+  rm -rf -- "${tmp_dir}"
+  section 'Synced models'
+  kv 'count' "${model_count}"
+  kv 'file' "${models_json}"
+}
+
+PIL_PROVIDER="${PIL_PROVIDER:-litellm}"
+PIL_BASE_URL="${PIL_BASE_URL:-}"
+PIL_KEY_NAME="${PIL_KEY_NAME:-}"
+PIL_MODEL="${PIL_MODEL:-}"
+PIL_MODELS="${PIL_MODELS:-}"
+PIL_GATE="${PIL_GATE:-}"
+
+early_arg=""
+for early_arg in "$@"; do
+  case "${early_arg}" in
+    --plain|--no-color) disable_color ;;
+    --verbose) PIL_VERBOSE=true ;;
+  esac
+done
+
+while (($#)); do
+  case "${1}" in
+    --plain|--no-color) disable_color; shift ;;
+    --verbose) PIL_VERBOSE=true; shift ;;
+    *) break ;;
+  esac
+done
+
+case "${1-}" in
+  -h|--help) usage; exit 0 ;;
+  help) shift; usage_help "${1-}"; exit 0 ;;
+  setup) shift; command_setup "$@"; exit 0 ;;
+  init)
+    shift
+    load_config
+    command_init "$@"
+    exit 0
+    ;;
+  add)
+    shift
+    load_config
+    command_add "$@"
+    exit 0
+    ;;
+  config)
+    shift
+    case "${1-}" in
+      show) shift; config_show "$@"; exit 0 ;;
+      -h|--help|"") usage_config; exit 0 ;;
+      *) error "unknown pil config command: ${1}"; exit 2 ;;
+    esac
+    ;;
+  key)
+    shift
+    case "${1-}" in
+      add) shift; need_arg 'pil key add' "${1-}"; load_config; command_add --global --key "${1}" "${@:2}"; exit 0 ;;
+      -h|--help|"") usage_key; exit 0 ;;
+      *) error "unknown pil key command: ${1}"; exit 2 ;;
+    esac
+    ;;
+  project)
+    shift
+    case "${1-}" in
+      use) shift; need_arg 'pil project use' "${1-}"; load_config; command_add --local --key "${1}" "${@:2}"; exit 0 ;;
+      -h|--help|"") usage_project; exit 0 ;;
+      *) error "unknown pil project command: ${1}"; exit 2 ;;
+    esac
+    ;;
+  doctor)
+    shift
+    command_doctor "$@"
+    exit $?
+    ;;
+esac
+
+sync=false
+dry_run=false
+pi_args=()
+case "${1-}" in
+  sync)
+    sync=true
+    shift
+    ;;
+  ""|--*) ;;
+  *) unknown_command "${1}" ;;
+esac
+
+load_config
+
+while (($#)); do
+  case "${1}" in
+    --provider) need_arg "${1}" "${2-}"; PIL_PROVIDER="${2}"; shift 2 ;;
+    --base-url) need_arg "${1}" "${2-}"; PIL_BASE_URL="${2}"; shift 2 ;;
+    --key) need_arg "${1}" "${2-}"; PIL_KEY_NAME="${2}"; shift 2 ;;
+    --select-key) PIL_KEY_NAME="$(select_key)"; shift ;;
+    --model) need_arg "${1}" "${2-}"; PIL_MODEL="${2}"; shift 2 ;;
+    --scoped-models) need_arg "${1}" "${2-}"; PIL_MODELS="${2}"; shift 2 ;;
+    --sync-models) sync=true; shift ;;
+    --dry-run|--print-command) dry_run=true; shift ;;
+    --plain|--no-color) disable_color; shift ;;
+    --verbose) PIL_VERBOSE=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; pi_args+=("$@"); break ;;
+    *) pi_args+=("${1}"); shift ;;
+  esac
+done
+
+validate_base_url
+validate_scoped_models
+[[ -n "${PIL_KEY_NAME}" || "${dry_run}" == true ]] || PIL_KEY_NAME="$(select_key)"
+if [[ -z "${PIL_KEY_NAME}" && "${sync}" == true ]]; then
+  PIL_KEY_NAME="$(select_key)"
+fi
+if [[ "${dry_run}" != true || "${sync}" == true ]]; then
+  [[ -n "${PIL_GATE}" ]] || PIL_GATE="$(read_key "${PIL_KEY_NAME}")" || {
+    error "key '${PIL_KEY_NAME}' not found in any supported secret store"
+    print_secret_setup_hint "${PIL_KEY_NAME}"
+    exit 1
+  }
+  export PIL_GATE
+fi
+
+[[ "${sync}" == true ]] && sync_models
+
+require_pi
+cmd=(pi --provider "${PIL_PROVIDER}")
+[[ -n "${PIL_MODEL}" ]] && cmd+=(--model "${PIL_MODEL}")
+[[ -n "${PIL_MODELS}" ]] && cmd+=(--models "${PIL_MODELS}")
+if [[ "${dry_run}" == true ]]; then
+  printf 'PIL_GATE=redacted '
+  if ((${#pi_args[@]})); then
+    printf '%q ' "${cmd[@]}" "${pi_args[@]}"
+  else
+    printf '%q ' "${cmd[@]}"
+  fi
+  printf '\n'
+  exit 0
+fi
+if ((${#pi_args[@]})); then
+  exec "${cmd[@]}" "${pi_args[@]}"
+else
+  exec "${cmd[@]}"
+fi

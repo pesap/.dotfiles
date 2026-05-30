@@ -1,0 +1,10 @@
+# antidote plugin list
+# Regenerate static bundle with: antidote bundle <~/.zsh_plugins.txt >~/.zsh_plugins.zsh
+# (handled automatically in ~/.config/zshrc/20-plugins.zsh when this file changes)
+
+# Suggestions + highlighting (highlighting MUST be last)
+zsh-users/zsh-autosuggestions
+zsh-users/zsh-syntax-highlighting
+
+# Note: gh + fzf integrations live in 30-tools.zsh as native `eval` hooks
+# (the OMZ wrappers depend on $ZSH_CACHE_DIR and add no value here).
