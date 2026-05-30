@@ -11,7 +11,6 @@ layout {
                 border_char "─"
                 border_format "#[fg=#6C7086]{char}"
                 border_position "top"
-                hide_frame_for_single_pane "true"
                 mode_normal       "#[bg=blue,fg=#000000,bold] {name} "
                 mode_locked       "#[bg=#FF5555,fg=#000000,bold]  {name} "
                 mode_resize       "#[bg=#D75F00,fg=#000000,bold] {name} "

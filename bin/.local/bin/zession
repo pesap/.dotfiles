@@ -193,10 +193,22 @@ attach_or_create_session() {
 
 if [[ "$pure_attach" -eq 1 ]]; then
   if [[ -n "${ZELLIJ:-}" ]]; then
-    zellij action switch-session "$session_name" && exit 0
+    if zellij action switch-session "$session_name"; then
+      # EXITED sessions may have no working terminal panes after resurrection.
+      if ! session_has_terminal_pane; then
+        zellij --session "$session_name" run -- "${SHELL:-zsh}" >/dev/null 2>&1 || true
+      fi
+      exit 0
+    fi
   fi
-  zellij attach "$session_name" && exit 0
-  exit 1
+  # External: background-resurrect first so we can add a terminal pane
+  # before foreground-attaching (which blocks), then attach.
+  zellij attach --create-background "$session_name" >/dev/null 2>&1 || true
+  if ! session_has_terminal_pane; then
+    zellij --session "$session_name" run -- "${SHELL:-zsh}" >/dev/null 2>&1 || true
+  fi
+  zellij attach "$session_name" || exit 1
+  exit 0
 fi
 
 if [[ -n "${ZELLIJ:-}" ]]; then
