@@ -3,6 +3,12 @@
 # Starship prompt
 command -v starship >/dev/null && eval "$(starship init zsh)"
 
+# fzf keybindings + completion (requires fzf >= 0.48)
+command -v fzf >/dev/null && eval "$(fzf --zsh)"
+
+# GitHub CLI completion
+command -v gh >/dev/null && eval "$(gh completion -s zsh)"
+
 # Cargo/Rust
 [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
