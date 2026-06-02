@@ -71,13 +71,47 @@ generate_display_list() {
         if      (index($0, "(current)")) chip = "[CUR]"
         else if (index($0, "(EXITED"))   chip = "[EXT]"
         else                             chip = "[ACT]"
-        print chip " " $1
+        print "S\t" chip "\t" $1
       }'
     zoxide query -l 2>/dev/null | awk -v roots="$ZESSION_ROOTS" -v home="$HOME" '
       BEGIN { n = split(roots, r, ":") }
-      { for (i=1; i<=n; i++) if (index($0, r[i]) == 1) { sub(home "/", "~/"); print; break } }
+      { for (i=1; i<=n; i++) if (index($0, r[i]) == 1) { sub(home "/", "~/"); print "P\t" $0; break } }
     '
-  } | awk '!seen[$0]++'
+  } | awk -F '\t' '
+    $1 == "S" {
+      chip[$3] = $2
+      sessions[++session_count] = $3
+      session_seen[$3] = 1
+      next
+    }
+    $1 == "P" {
+      path = $2
+      name = path
+      sub(/^.*\//, "", name)
+      gsub(/[^[:alnum:]._-]+/, "_", name)
+      gsub(/_+/, "_", name)
+      sub(/^_/, "", name)
+      sub(/_$/, "", name)
+      if (name == "") name = "root"
+
+      if (session_seen[name]) {
+        if (!(name in session_path)) session_path[name] = path
+      } else {
+        paths[++path_count] = path
+      }
+      next
+    }
+    END {
+      for (i = 1; i <= session_count; i++) {
+        name = sessions[i]
+        row = chip[name] " " name
+        if (name in session_path) row = row "  " session_path[name]
+        if (!seen[row]++) print row
+      }
+      for (i = 1; i <= path_count; i++) {
+        if (!seen[paths[i]]++) print paths[i]
+      }
+    }'
 }
 
 refresh_list_cache() {
@@ -131,8 +165,9 @@ ZESSION_HEADER=$'↵ switch   ⌃R refresh   ⌃D delete   ⌥↵ first match   
 
 # ctrl-d: row is either "[CHIP] name" (existing session) or a path (session
 # name = basename). Both reduce to a single session name.
+# shellcheck disable=SC2016 # fzf expands {} before this snippet runs.
 delete_bind='row={};
-if [[ "$row" == "["*"] "* ]]; then sess="${row#* }"; \
+if [[ "$row" == "["*"] "* ]]; then sess="${row#* }"; sess="${sess%% *}"; \
 else sess=$(basename "$row" | tr -c "[:alnum:]._-" "_"); fi
 printf "\n  delete session %s? [y/N] " "$sess"; read -r ans
 case "$ans" in [yY]*) '"$0"' --session-action delete "$sess" ;; esac'
@@ -144,6 +179,8 @@ selected=$(print_cached_or_fresh_list | fzf \
   --info=inline-right \
   --height=95% \
   --cycle \
+  --scheme=path \
+  --tiebreak=index \
   --bind="start:pos(1)+reload($0 --refresh-cache >/dev/null 2>&1 && cat \"$LIST_CACHE_FILE\")" \
   --bind="alt-enter:pos(1)+accept" \
   --bind="ctrl-r:reload($0 --refresh-cache >/dev/null 2>&1 && cat \"$LIST_CACHE_FILE\")" \
@@ -154,6 +191,7 @@ selected=$(print_cached_or_fresh_list | fzf \
 # Parse selection into (session_name, target_dir, pure_attach)
 if [[ "$selected" == "["*"] "* ]]; then
   session_name="${selected#* }"
+  session_name="${session_name%% *}"
   target_dir=""
   pure_attach=1
 else
