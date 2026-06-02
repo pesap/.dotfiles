@@ -13,14 +13,25 @@ cd = false
 # ----------------------------------------------------------------------------
 # Zellij integration — each worktree gets its own tab in the current session.
 # ----------------------------------------------------------------------------
-# All three hooks no-op when not inside Zellij ($ZELLIJ is set by the session).
+# Hooks no-op when not inside Zellij ($ZELLIJ is set by the session).
 # Tab name format: "<repo>/<branch>" so multiple repos don't collide.
 
 [pre-switch]
 zellij-focus = """
 [ -z "$ZELLIJ" ] && exit 0
-NAME='{{ repo | sanitize }}/{{ branch | sanitize }}'
+NAME='{{ repo }}/{{ branch | sanitize }}'
+zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME" || exit 0
+zellij action go-to-tab-name "$NAME"
+"""
+
+[post-switch]
+zellij-tab = """
+[ -z "$ZELLIJ" ] && exit 0
+NAME='{{ repo }}/{{ branch | sanitize }}'
 if zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME"; then
+  zellij action go-to-tab-name "$NAME"
+else
+  zellij action new-tab --layout default --name "$NAME" --cwd '{{ worktree_path }}'
   zellij action go-to-tab-name "$NAME"
 fi
 """
@@ -28,7 +39,7 @@ fi
 [pre-start]
 zellij-tab = """
 [ -z "$ZELLIJ" ] && exit 0
-NAME='{{ repo | sanitize }}/{{ branch | sanitize }}'
+NAME='{{ repo }}/{{ branch | sanitize }}'
 if zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME"; then
   zellij action go-to-tab-name "$NAME"
 else
@@ -40,7 +51,7 @@ fi
 [pre-remove]
 zellij-close = """
 [ -z "$ZELLIJ" ] && exit 0
-NAME='{{ repo | sanitize }}/{{ branch | sanitize }}'
+NAME='{{ repo }}/{{ branch | sanitize }}'
 zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME" || exit 0
 zellij action go-to-tab-name "$NAME" && zellij action close-tab
 """
@@ -50,6 +61,12 @@ zellij action go-to-tab-name "$NAME" && zellij action close-tab
 # ----------------------------------------------------------------------------
 
 [aliases]
+# wt nuke → restore tracked files + remove all untracked/ignored files
+nuke = """
+git reset --hard HEAD &&
+git clean -ffdx
+"""
+
 # wt bare git@github.com:owner/repo.git → ./repo/{.bare,.git} + origin refspec
 bare = """
 url='{{ args[0] }}' && name=$(basename "$url" .git) && \

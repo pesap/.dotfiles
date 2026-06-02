@@ -1,0 +1,19 @@
+# Atuin history search preferences
+# https://docs.atuin.sh/cli/guide/basic-usage/
+
+# Insert the selected command for editing instead of immediately executing it.
+enter_accept = false
+
+# Keep the search UI inline and compact.
+inline_height = 40
+style = "compact"
+
+# Preserve current local preferences.
+search_mode = "daemon-fuzzy"
+
+[sync]
+records = true
+
+[daemon]
+enabled = true
+autostart = true

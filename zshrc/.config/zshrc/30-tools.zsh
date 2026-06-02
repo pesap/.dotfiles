@@ -4,7 +4,12 @@
 command -v starship >/dev/null && eval "$(starship init zsh)"
 
 # fzf keybindings + completion (requires fzf >= 0.48)
-command -v fzf >/dev/null && eval "$(fzf --zsh)"
+# Leave Ctrl+R for Atuin history search.
+command -v fzf >/dev/null && FZF_CTRL_R_COMMAND= eval "$(fzf --zsh)"
+
+# Atuin shell history
+[[ -r "$HOME/.atuin/bin/env" ]] && source "$HOME/.atuin/bin/env"
+command -v atuin >/dev/null && eval "$(atuin init zsh --disable-up-arrow)"
 
 # GitHub CLI completion
 command -v gh >/dev/null && eval "$(gh completion -s zsh)"
