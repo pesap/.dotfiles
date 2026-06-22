@@ -8,8 +8,8 @@ command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v fzf >/dev/null && FZF_CTRL_R_COMMAND= eval "$(fzf --zsh)"
 
 # Atuin shell history
-[[ -r "$HOME/.atuin/bin/env" ]] && source "$HOME/.atuin/bin/env"
-command -v atuin >/dev/null && eval "$(atuin init zsh --disable-up-arrow)"
+. "$HOME/.atuin/bin/env"
+eval "$(atuin init zsh --disable-up-arrow)"
 
 # GitHub CLI completion
 command -v gh >/dev/null && eval "$(gh completion -s zsh)"
