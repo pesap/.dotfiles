@@ -33,9 +33,11 @@ Usage:
   pil add --key KEY --global          add key name to ~/.config/pil/keys
   pil add --key KEY --path PATH       write PATH/.pil and PATH/.pi/settings.json
   pil key add KEY                     add key name to ~/.config/pil/keys
+  pil key remove [KEY ...]            remove key names and delete stored secrets
+  pil remove key [KEY ...]            alias for pil key remove
   pil project use KEY                 use key in current project
   pil config show [--json]            show effective config with secret values redacted
-  pil doctor [--json]                 check dependencies, config, secret, and optional /models access
+  pil doctor [--key KEY] [--json]     check dependencies, config, secret, and optional /models access
   pil sync                            refresh ~/.pi/agent/models.json from LiteLLM /models (requires curl + jq)
   pil --sync-models                   refresh ~/.pi/agent/models.json from LiteLLM /models (requires curl + jq)
   pil --key KEY_NAME                  start with a specific secret item
@@ -64,7 +66,7 @@ Pass-through:
   Unknown command-like words are rejected. Use `pil -- ARG...` to pass them to pi.
 
 Help:
-  pil help init|add|config|secrets|doctor
+  pil help init|add|key|config|secrets|doctor
 
 Examples:
   pil setup
@@ -73,6 +75,8 @@ Examples:
   pil add --key nlr-project-b --path ~/work/project-b
   pil add --key nlr-sandbox --global
   pil key add nlr-sandbox
+  pil key remove
+  pil remove key nlr-sandbox --yes
   pil project use nlr-project-a
   pil config show
   pil doctor
@@ -114,8 +118,12 @@ usage_key() {
   cat <<'EOF'
 Usage:
   pil key add KEY
+  pil key remove [KEY ...] [--select-key] [--all] [--yes] [--dry-run]
+  pil remove key [KEY ...] [--select-key] [--all] [--yes] [--dry-run]
 
 Registers KEY in ~/.config/pil/keys and prompts to store its API secret when interactive.
+Remove deletes key names from ~/.config/pil/keys and deletes matching secrets from supported stores.
+With no KEY, remove opens an interactive selector. Use --yes for non-interactive removal.
 EOF
 }
 
@@ -143,7 +151,7 @@ EOF
 usage_doctor() {
   cat <<'EOF'
 Usage:
-  pil doctor [--json]
+  pil doctor [--key KEY] [--select-key] [--json]
 
 Checks pi, jq, curl, config files, provider settings, key lookup, and LiteLLM /models when possible.
 EOF
@@ -164,7 +172,7 @@ usage_help() {
     init) usage_init ;;
     add) usage_add ;;
     config) usage_config ;;
-    key|keys) usage_key ;;
+    key|keys|remove|rm) usage_key ;;
     project) usage_project ;;
     secrets|secret) usage_secrets ;;
     doctor) usage_doctor ;;
@@ -409,6 +417,151 @@ select_key() {
   exit 2
 }
 
+registered_keys() {
+  local keys_file="${HOME}/.config/pil/keys"
+  local key
+
+  [[ -s "${keys_file}" ]] || return 1
+  while IFS= read -r key || [[ -n "${key}" ]]; do
+    [[ "${key}" =~ ^[[:space:]]*($|#) ]] && continue
+    printf '%s\n' "${key}"
+  done < "${keys_file}"
+}
+
+select_keys() {
+  local keys_file="${HOME}/.config/pil/keys"
+  local keys=()
+  local selected=()
+  local tokens=()
+  local key choice index token selected_text
+
+  [[ -s "${keys_file}" ]] || { error "add key names to ${keys_file}"; exit 1; }
+  while IFS= read -r key || [[ -n "${key}" ]]; do
+    [[ "${key}" =~ ^[[:space:]]*($|#) ]] && continue
+    keys+=("${key}")
+  done < "${keys_file}"
+  [[ "${#keys[@]}" -gt 0 ]] || { error "no keys found in ${keys_file}"; exit 1; }
+
+  if [[ -t 0 && -t 2 ]] && command -v fzf >/dev/null 2>&1; then
+    selected_text="$(printf '%s\n' "${keys[@]}" | fzf --multi --prompt='Remove LiteLLM keys> ' || true)"
+    [[ -n "${selected_text}" ]] || { error 'no keys selected'; exit 1; }
+    printf '%s\n' "${selected_text}"
+    return
+  fi
+
+  if [[ -t 0 && -t 2 ]]; then
+    section 'Remove LiteLLM keys'
+    index=1
+    for key in "${keys[@]}"; do
+      printf '  %d) %s\n' "${index}" "${key}" >&2
+      index=$((index + 1))
+    done
+    printf 'Select keys (numbers separated by spaces/commas, or all): ' >&2
+    read -r choice
+    case "${choice}" in
+      all|ALL|a|A)
+        printf '%s\n' "${keys[@]}"
+        return
+        ;;
+    esac
+
+    IFS=' ' read -r -a tokens <<< "${choice//,/ }" || true
+    [[ "${#tokens[@]}" -gt 0 ]] || { error 'no keys selected'; exit 1; }
+    for token in "${tokens[@]}"; do
+      [[ "${token}" =~ ^[0-9]+$ ]] && [[ "${token}" -ge 1 ]] && [[ "${token}" -le "${#keys[@]}" ]] || {
+        error "invalid key selection: ${token}"
+        exit 1
+      }
+      selected+=("${keys[$((token - 1))]}")
+    done
+    [[ "${#selected[@]}" -gt 0 ]] || { error 'no keys selected'; exit 1; }
+    printf '%s\n' "${selected[@]}"
+    return
+  fi
+
+  error 'key selection requires a TTY; pass KEY_NAME or use --all --yes'
+  exit 2
+}
+
+confirm_key_removal() {
+  local yes="${1}"
+  local answer key
+  shift
+
+  [[ "${yes}" == true ]] && return 0
+  if [[ ! -t 0 || ! -t 2 ]]; then
+    error 'pass --yes to remove keys non-interactively'
+    exit 2
+  fi
+
+  section 'Remove pil keys'
+  for key in "$@"; do
+    printf '  - %s\n' "${key}" >&2
+  done
+  printf '\nDelete these key names and stored secrets [y/N]: ' >&2
+  read -r answer
+  case "${answer}" in
+    y|Y|yes|YES) ;;
+    *) info 'No keys removed.'; exit 0 ;;
+  esac
+}
+
+remove_registered_keys() {
+  local keys_file="${HOME}/.config/pil/keys"
+  local tmp_file line key skip
+
+  [[ -f "${keys_file}" ]] || return 0
+  make_tmp_dir
+  tmp_file="${PIL_TMP_DIR}/keys"
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    skip=false
+    for key in "$@"; do
+      if [[ "${line}" == "${key}" ]]; then
+        skip=true
+        break
+      fi
+    done
+    [[ "${skip}" == true ]] && continue
+    printf '%s\n' "${line}"
+  done < "${keys_file}" > "${tmp_file}"
+  mv "${tmp_file}" "${keys_file}"
+  chmod 0600 "${keys_file}"
+}
+
+delete_key_secret() {
+  local key_name="${1}"
+  local deleted=false checked=false
+
+  if command -v security >/dev/null 2>&1; then
+    checked=true
+    if security delete-generic-password -a "${USER:-}" -s "${key_name}" >/dev/null 2>&1; then
+      deleted=true
+    fi
+  fi
+
+  if command -v secret-tool >/dev/null 2>&1; then
+    checked=true
+    if secret-tool clear pil-key "${key_name}" >/dev/null 2>&1; then
+      deleted=true
+    fi
+  fi
+
+  if command -v pass >/dev/null 2>&1; then
+    checked=true
+    if pass rm -f "pil/${key_name}" >/dev/null 2>&1; then
+      deleted=true
+    fi
+  fi
+
+  if [[ "${deleted}" == true ]]; then
+    printf 'deleted\n'
+  elif [[ "${checked}" == true ]]; then
+    printf 'not found\n'
+  else
+    printf 'no supported store\n'
+  fi
+}
+
 add_global_key() {
   local key_name="${1}"
   local keys_file="${HOME}/.config/pil/keys"
@@ -505,7 +658,7 @@ ensure_provider() {
       | .providers[$provider] //= {}
       | .providers[$provider].baseUrl = $base_url
       | .providers[$provider].api = (.providers[$provider].api // "openai-completions")
-      | .providers[$provider].apiKey = "PIL_GATE"
+      | .providers[$provider].apiKey = "$PIL_GATE"
       | .providers[$provider].models = (.providers[$provider].models // [])
     ' "${config_json}" > "${output_json}"
 
@@ -667,6 +820,82 @@ command_add() {
   prompt_secret "${PIL_KEY_NAME}"
 }
 
+command_key_remove() {
+  local keys_file="${HOME}/.config/pil/keys"
+  local yes=false dry_run=false all_requested=false select_requested=false
+  local keys_to_remove=()
+  local key secret_status
+
+  while (($#)); do
+    case "${1}" in
+      --all) all_requested=true; shift ;;
+      --select-key|--select) select_requested=true; shift ;;
+      --yes|-y) yes=true; shift ;;
+      --dry-run) dry_run=true; shift ;;
+      --plain|--no-color) disable_color; shift ;;
+      -h|--help) usage_key; exit 0 ;;
+      --)
+        shift
+        while (($#)); do
+          keys_to_remove+=("${1}")
+          shift
+        done
+        break
+        ;;
+      --*) error "unknown pil key remove option: ${1}"; exit 2 ;;
+      *) keys_to_remove+=("${1}"); shift ;;
+    esac
+  done
+
+  if [[ "${all_requested}" == true ]]; then
+    if [[ "${select_requested}" == true ]] || [[ "${#keys_to_remove[@]}" -gt 0 ]]; then
+      error '--all cannot be combined with explicit keys or --select-key'
+      exit 2
+    fi
+    while IFS= read -r key || [[ -n "${key}" ]]; do
+      keys_to_remove+=("${key}")
+    done < <(registered_keys || true)
+  elif [[ "${select_requested}" == true ]]; then
+    if [[ "${#keys_to_remove[@]}" -gt 0 ]]; then
+      error '--select-key cannot be combined with explicit keys'
+      exit 2
+    fi
+    while IFS= read -r key || [[ -n "${key}" ]]; do
+      keys_to_remove+=("${key}")
+    done < <(select_keys)
+  elif [[ "${#keys_to_remove[@]}" -eq 0 ]]; then
+    while IFS= read -r key || [[ -n "${key}" ]]; do
+      keys_to_remove+=("${key}")
+    done < <(select_keys)
+  fi
+
+  [[ "${#keys_to_remove[@]}" -gt 0 ]] || { error 'no keys selected'; exit 1; }
+
+  if [[ "${dry_run}" == true ]]; then
+    section 'Would remove pil keys'
+    kv 'list' "${keys_file}"
+    for key in "${keys_to_remove[@]}"; do
+      kv 'key' "${key}"
+    done
+    return
+  fi
+
+  confirm_key_removal "${yes}" "${keys_to_remove[@]}"
+  remove_registered_keys "${keys_to_remove[@]}"
+
+  section 'Removed pil keys'
+  kv 'list' "${keys_file}"
+  for key in "${keys_to_remove[@]}"; do
+    kv 'key' "${key}"
+  done
+
+  section 'Deleted secrets'
+  for key in "${keys_to_remove[@]}"; do
+    secret_status="$(delete_key_secret "${key}")"
+    printf '  %-16s %s\n' "${key}" "${secret_status}" >&2
+  done
+}
+
 command_setup() {
   load_config
   command_init "$@"
@@ -743,6 +972,12 @@ unknown_command() {
     key|keys)
       printf '\nDid you mean?\n' >&2
       printf '  pil key add KEY\n' >&2
+      printf '  pil key remove [KEY ...]\n' >&2
+      ;;
+    remove|rm|delete)
+      printf '\nDid you mean?\n' >&2
+      printf '  pil remove key [KEY ...]\n' >&2
+      printf '  pil key remove [KEY ...]\n' >&2
       ;;
     project|proj)
       printf '\nDid you mean?\n' >&2
@@ -750,7 +985,7 @@ unknown_command() {
       ;;
     *)
       printf '\nKnown commands:\n' >&2
-      printf '  setup, init, add, sync, doctor, config show, key add, project use\n' >&2
+      printf '  setup, init, add, sync, doctor, config show, key add, key remove, project use\n' >&2
       ;;
   esac
   printf '\nTip: use pil -- %s to pass %q through to pi.\n' "${word}" "${word}" >&2
@@ -759,10 +994,13 @@ unknown_command() {
 
 command_doctor() {
   local format="plain" key_status='not checked' models_status='not checked'
+  local cli_key_name="" select_key_requested=false
   doctor_status='ok'
   while (($#)); do
     case "${1}" in
       --json) format="json"; shift ;;
+      --key) need_arg "${1}" "${2-}"; cli_key_name="${2}"; shift 2 ;;
+      --select-key) select_key_requested=true; shift ;;
       --plain|--no-color) disable_color; shift ;;
       -h|--help) usage_doctor; exit 0 ;;
       *) error "unknown pil doctor option: ${1}"; exit 2 ;;
@@ -770,6 +1008,8 @@ command_doctor() {
   done
 
   load_config
+  [[ -n "${cli_key_name}" ]] && PIL_KEY_NAME="${cli_key_name}"
+  [[ "${select_key_requested}" == true ]] && PIL_KEY_NAME="$(select_key)"
   if [[ "${format}" == "plain" ]]; then
     section 'Dependencies'
     doctor_check_command pi
@@ -979,7 +1219,7 @@ sync_models() {
       | .providers[$provider] //= {}
       | .providers[$provider].baseUrl = $base_url
       | .providers[$provider].api = (.providers[$provider].api // "openai-completions")
-      | .providers[$provider].apiKey = "PIL_GATE"
+      | .providers[$provider].apiKey = "$PIL_GATE"
       | .providers[$provider].models = $models
     ' "${response_json}" "${config_json}" > "${output_json}"
 
@@ -1042,8 +1282,17 @@ case "${1-}" in
     shift
     case "${1-}" in
       add) shift; need_arg 'pil key add' "${1-}"; load_config; command_add --global --key "${1}" "${@:2}"; exit 0 ;;
+      remove|rm|delete) shift; command_key_remove "$@"; exit 0 ;;
       -h|--help|"") usage_key; exit 0 ;;
       *) error "unknown pil key command: ${1}"; exit 2 ;;
+    esac
+    ;;
+  remove|rm)
+    shift
+    case "${1-}" in
+      key|keys) shift; command_key_remove "$@"; exit 0 ;;
+      -h|--help|"") usage_key; exit 0 ;;
+      *) error "unknown pil remove command: ${1}"; exit 2 ;;
     esac
     ;;
   project)

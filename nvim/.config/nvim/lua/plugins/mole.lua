@@ -2,8 +2,8 @@ return {
 	"zion-off/mole.nvim",
 	dependencies = { "MunifTanjim/nui.nvim" },
 	opts = {
-		-- Store sessions in data dir
-		session_dir = vim.fn.stdpath("data") .. "/mole",
+		-- Store sessions in Neovim's cache dir (~/.cache/nvim/mole by default)
+		session_dir = vim.fn.stdpath("cache") .. "/mole",
 
 		-- Include code snippets in annotations (change to "location" for just file:line)
 		capture_mode = "snippet",
@@ -14,8 +14,8 @@ return {
 		-- Show gutter signs on annotated lines
 		virtual_text = true,
 
-		-- Use your fzf-lua setup ("auto" picks telescope → snacks → vim.ui.select)
-		picker = "auto",
+		-- Resume via vim.ui.select; mole does not currently integrate with fzf-lua directly
+		picker = "select",
 
 		-- Keybindings
 		keys = {

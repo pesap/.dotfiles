@@ -42,12 +42,17 @@ return {
 			enabled = true,
 			db_path = vim.fn.stdpath("cache") .. "/fff_nvim",
 		},
+		history = {
+			enabled = true,
+			db_path = vim.fn.stdpath("cache") .. "/fff_queries",
+		},
 		git = {
 			status_text_color = false,
 		},
 		grep = {
 			smart_case = true,
 			modes = { "plain", "regex", "fuzzy" },
+			enable_filename_constraint = true,
 		},
 		debug = {
 			enabled = false,
@@ -74,9 +79,9 @@ return {
 			fff.find_files_in_dir(vim.fn.expand("~/.config/nvim"))
 		end, { desc = "[F]ind [N]eovim" })
 
-		vim.keymap.set("n", "<leader>fd", function()
+		vim.keymap.set("n", "<leader>fP", function()
 			fff.find_files_in_dir(vim.fn.expand("~/dev"))
-		end, { desc = "[F]ind [D]ev Project" })
+		end, { desc = "[F]ind Dev [P]roject" })
 
 		vim.keymap.set("n", "<leader>fp", function()
 			fff.find_files({ title = "Packages", query = "packages/" })
@@ -98,9 +103,9 @@ return {
 			fff.live_grep({ title = "Live Grep" })
 		end, { desc = "[G]rep native" })
 
-		vim.keymap.set("n", "<leader>gw", function()
-			fff.live_grep({ title = "Grep Word", query = vim.fn.expand("<cword>") })
-		end, { desc = "[G]rep current [w]ord" })
+		vim.keymap.set({ "n", "x" }, "<leader>gw", function()
+			fff.live_grep_under_cursor({ title = "Grep Word" })
+		end, { desc = "[G]rep current [w]ord/selection" })
 
 		vim.keymap.set("n", "<leader>gW", function()
 			fff.live_grep({ title = "Grep WORD", query = vim.fn.expand("<cWORD>") })

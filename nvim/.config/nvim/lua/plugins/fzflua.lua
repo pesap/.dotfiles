@@ -17,6 +17,21 @@ return {
 		fzf = {
 			["ctrl-q"] = "select-all+accept",
 		},
+		lsp = {
+			jump1 = true,
+			symbols = {
+				symbol_style = 2,
+			},
+			finder = {
+				prompt = "LSP❯ ",
+			},
+			code_actions = {
+				previewer = "codeaction",
+			},
+		},
+		diagnostics = {
+			multiline = 2,
+		},
 	},
 	config = function(_, opts)
 		local builtin = require("fzf-lua")
@@ -24,13 +39,21 @@ return {
 
 		vim.keymap.set("n", "<leader>fb", builtin.builtin, { desc = "[F]ind [B]uiltin" })
 		vim.keymap.set("n", "<leader>fk", builtin.keymaps, { desc = "[F]ind [K]eymaps" })
-		vim.keymap.set("n", "<leader>gr", builtin.lsp_references, { desc = "LSP: [G]o to [R]eferences" })
-		vim.keymap.set("n", "<leader>gd", builtin.lsp_definitions, { desc = "LSP: [G]o to [D]efinitions" })
 		vim.keymap.set("n", "<leader><leader>", builtin.buffers, { desc = "Buffers" })
 		vim.keymap.set("n", "<leader>fm", builtin.marks, { desc = "[F]ind [M]ark" })
 		vim.keymap.set("n", "<leader>sb", builtin.git_branches, { desc = "[S]witch [B]ranch" })
-		vim.keymap.set("n", "<leader>fs", builtin.lsp_document_symbols, { desc = "[F]ind [S]ymbol" })
-		vim.keymap.set("n", "<leader>ws", builtin.lsp_live_workspace_symbols, { desc = "[W]orkspace [S]ymbols" })
+
+		vim.keymap.set("n", "<leader>fl", builtin.lsp_finder, { desc = "[F]ind [L]SP locations" })
+		vim.keymap.set("n", "<leader>fd", builtin.lsp_definitions, { desc = "[F]ind [D]efinitions" })
+		vim.keymap.set("n", "<leader>fD", builtin.lsp_declarations, { desc = "[F]ind [D]eclarations" })
+		vim.keymap.set("n", "<leader>fr", builtin.lsp_references, { desc = "[F]ind [R]eferences" })
+		vim.keymap.set("n", "<leader>fi", builtin.lsp_implementations, { desc = "[F]ind [I]mplementations" })
+		vim.keymap.set("n", "<leader>fT", builtin.lsp_typedefs, { desc = "[F]ind [T]ype definitions" })
+		vim.keymap.set({ "n", "x" }, "<leader>fa", builtin.lsp_code_actions, { desc = "[F]ind code [A]ctions" })
+		vim.keymap.set("n", "<leader>fs", builtin.lsp_document_symbols, { desc = "[F]ind document [S]ymbols" })
+		vim.keymap.set("n", "<leader>fS", builtin.lsp_live_workspace_symbols, { desc = "[F]ind workspace [S]ymbols" })
+		vim.keymap.set("n", "<leader>fe", builtin.diagnostics_document, { desc = "[F]ind document diagnostics" })
+		vim.keymap.set("n", "<leader>fE", builtin.diagnostics_workspace, { desc = "[F]ind workspace diagnostics" })
 		-- PR Review functionality
 		local pr_review = { base = nil, reviewed = {}, files = {} }
 		local function pr_open_picker()
@@ -73,7 +96,7 @@ return {
 			})
 		end
 
-		vim.keymap.set("n", "<leader>rp", function()
+		vim.keymap.set("n", "<leader>rf", function()
 			if pr_review.base then
 				pr_open_picker()
 				return
@@ -86,7 +109,7 @@ return {
 			pr_review.reviewed = {}
 			pr_review.files = vim.fn.systemlist("git diff --name-only " .. vim.fn.shellescape(base) .. "...HEAD")
 			pr_open_picker()
-		end, { desc = "[R]eview [P]R files" })
+		end, { desc = "[R]eview [F]iles" })
 
 		vim.keymap.set("n", "<leader>rr", function()
 			pr_review.base = nil

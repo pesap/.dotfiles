@@ -27,6 +27,9 @@ yabai -m config auto_balance off
 # Floating windows stay on top
 yabai -m config window_topmost off
 
+# App placement
+yabai -m rule --add app="^Ghostty$" space=1
+
 # Disable management for system apps
 yabai -m rule --add app="^System Preferences$" manage=off
 yabai -m rule --add app="^System Settings$" manage=off

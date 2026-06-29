@@ -44,7 +44,6 @@ _auto_venv() {
         local venv_root=${VIRTUAL_ENV:h}
         if [[ "$PWD" != "$venv_root" && "$PWD" != "$venv_root"/* ]]; then
             if typeset -f deactivate >/dev/null; then
-                echo "Deactivating virtualenv: $VIRTUAL_ENV"
                 deactivate
             else
                 # Safe fallback: scrub the venv's bin from PATH without

@@ -1,6 +1,6 @@
 # Keymaps by Program
 
-Last updated: 2026-05-18
+Last updated: 2026-06-29
 
 This is a central index of keymaps configured in this dotfiles repo, grouped by program.
 
@@ -10,8 +10,10 @@ This is a central index of keymaps configured in this dotfiles repo, grouped by 
 
 Sources:
 - `nvim/.config/nvim/lua/keymaps.lua`
+- `nvim/.config/nvim/lua/plugins/fff.lua`
 - `nvim/.config/nvim/lua/plugins/fzflua.lua`
 - `nvim/.config/nvim/lua/plugins/harpoon.lua`
+- `nvim/.config/nvim/lua/plugins/mole.lua`
 - `nvim/.config/nvim/lua/plugins/tpope.lua`
 - `nvim/.config/nvim/lua/plugins/gitsigns.lua`
 - `nvim/.config/nvim/lua/plugins/vim-maximizer.lua`
@@ -27,7 +29,7 @@ Leader is `<Space>`.
 - `<leader>o` → save + source current file
 - `<leader>pv` → open netrw explorer
 - `<leader>qq` → close current buffer
-- `<leader>qo` → quickfix open (overrides earlier "close other buffers" mapping)
+- `<leader>qo` → close all buffers but current
 - `j` / `k` → wrapped-line aware movement
 - `J` / `K` (visual) → move selected lines down/up
 - `<C-d>` / `<C-u>` → half page jump, centered
@@ -36,6 +38,7 @@ Leader is `<Space>`.
 - `<leader>sr` → substitute word under cursor in file
 - `<leader>sp` → grep word under cursor project-wide
 - `<leader>srp` → project-wide replace via quickfix
+- `<leader>qf` → quickfix open
 - `<leader>qc` → quickfix close
 - `<leader>qj` / `<leader>qk` → quickfix next/prev + center
 - `<leader>qh` / `<leader>ql` → quickfix first/last
@@ -45,43 +48,62 @@ Leader is `<Space>`.
 - `*` / `#` → search word without jumping
 - `<Esc>` → clear search highlight
 - `//` (visual) → search selection
+- `<leader>sd` → see diagnostic under cursor/current line
 - Arrow keys → warn to use hjkl
 - `<leader>-` / `<leader>_` → horizontal/vertical split
 - `zz` → scroll current line near top (+ offset)
 - `<leader>ww` → switch window
 - `<leader>gF` (n,v) → go to file (+line) helper
 
-### FZF-Lua (`plugins/fzflua.lua`)
+### FFF / FZF-Lua (`plugins/fff.lua`, `plugins/fzflua.lua`)
 
 - `<leader>ff` files
 - `<leader>fb` builtins
 - `<leader>fk` keymaps
-- `<leader>gr` LSP references
-- `<leader>gd` LSP definitions
 - `<leader>gp` grep project
 - `<leader>gg` live grep native
-- `<leader>gw` / `<leader>gW` grep current word/WORD
+- `<leader>gw` (n,x) grep current word/selection
+- `<leader>gW` grep current WORD
 - `<leader>/` grep current buffer
 - `<leader><leader>` buffers
 - `<leader>fm` marks
 - `<leader>gf` git files
 - `<leader>sb` git branches
 - `<leader>fn` files in `~/.config/nvim`
-- `<leader>fs` document symbols
-- `<leader>ws` workspace symbols
-- `<leader>fd` files in `~/dev/`
+- `<leader>fP` files in `~/dev/`
 - `<leader>fp` files in `./packages/`
 - `<leader>ft` files in `tests/`
-- `<leader>rp` PR review picker workflow
+- `<leader>fl` LSP finder
+- `<leader>fd` LSP definitions
+- `<leader>fD` LSP declarations
+- `<leader>fr` LSP references
+- `<leader>fi` LSP implementations
+- `<leader>fT` LSP type definitions
+- `<leader>fa` LSP code actions
+- `<leader>fs` LSP document symbols
+- `<leader>fS` LSP workspace symbols
+- `<leader>fe` document diagnostics
+- `<leader>fE` workspace diagnostics
+- `<leader>rf` PR review picker workflow
 - `<leader>rr` PR review reset
 
 ### Harpoon (`plugins/harpoon.lua`)
 
-- `<leader>t` add file
-- `<leader>mm` toggle Harpoon menu
+- `<leader>ha` add file
+- `<leader>hm` toggle Harpoon menu
 - `<leader>1..5` jump to Harpoon slots
-- `<leader>n` next Harpoon entry
-- `<leader>p` previous Harpoon entry
+- `<leader>hn` next Harpoon entry
+- `<leader>hp` previous Harpoon entry
+
+### Mole (`plugins/mole.lua`)
+
+- `<leader>ma` annotate visual selection
+- `<leader>ms` start annotation session
+- `<leader>mq` stop annotation session
+- `<leader>mr` resume annotation session
+- `<leader>mw` toggle annotation window
+- `<CR>` / `gd` jump to annotation location in Mole side panel
+- `]a` / `[a` next/previous annotation in Mole side panel
 
 ### Git / Fugitive (`plugins/tpope.lua`)
 
@@ -92,8 +114,8 @@ Leader is `<Space>`.
 
 ### Gitsigns (`plugins/gitsigns.lua`)
 
-- `<leader>hn` next hunk
-- `<leader>hp` previous hunk
+- `]h` next hunk
+- `[h` previous hunk
 
 ### Theme picker (`plugins/colorscheme.lua`)
 
@@ -109,9 +131,7 @@ Leader is `<Space>`.
 
 ### Neovim mapping collisions to be aware of
 
-- `<leader>rp`: defined in both `fzflua.lua` and `after/plugin/reviewer.lua`
-- `<leader>gd`: defined in both `fzflua.lua` and `tpope.lua`
-- `<leader>qo`: defined twice in `keymaps.lua`; final mapping is quickfix open
+- No known duplicate mappings in the edited Neovim files.
 
 ---
 
@@ -360,7 +380,7 @@ Keyboard handling:
 - `Cmd+1..4` in Alacritty sends `Alt+1..4` escape sequences to Zellij.
 - `Super+1..4` does the same on Linux when the window manager does not intercept it.
 - Zellij binds `Alt+1..4` directly in locked and normal modes.
-- Physical `Alt+1/2/3/9/0` on macOS belongs to skhd app/space switching, not Zellij.
+- Physical `Alt+1/2/3/9/0` and `` Alt+` `` on macOS belong to skhd app/space switching, not Zellij.
 
 Other Alacritty workflow settings:
 - `live_config_reload = true`
@@ -375,7 +395,7 @@ Source:
 - `skhd/.config/skhd/skhdrc`
 
 Configured hotkeys include:
-- App/space switching: `alt-1/2/3/9/0`
+- App/space switching: `alt-1/2/3/9/0` and `` alt-` `` (Ghostty)
 - Private Safari: `cmd-return`
 - Yabai fullscreen zoom toggle: `alt+shift-f`
 - Space layout cycle: `alt-space` (bsp → stack → float)

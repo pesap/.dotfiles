@@ -57,14 +57,24 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 | `<Space>` | Leader key |
 | `<leader>ff` | Find files (FFF) |
 | `<leader>gg` | Live grep (FFF) |
-| `<leader>gd` | Go to definition (fzf) |
-| `<leader>gr` | Go to references (fzf) |
-| `<leader>t` | Harpoon: add file |
-| `<leader>tc` | Theme picker (colorschemes) |
-| `<leader>mm` | Harpoon: toggle menu |
+| `<leader>gw` | Grep word/selection (FFF) |
+| `<leader>/` | Grep current buffer (FFF) |
+| `<leader>fl` | Find LSP locations (fzf) |
+| `<leader>fd` / `<leader>fr` | Find LSP definitions/references (fzf) |
+| `<leader>fs` / `<leader>fS` | Find LSP document/workspace symbols (fzf) |
+| `<leader>fa` | Find LSP code actions (fzf) |
+| `<leader>fe` / `<leader>fE` | Find LSP document/workspace diagnostics (fzf) |
+| `<leader>sd` | See diagnostic under cursor/current line |
+| `<leader>qo` | Close other buffers |
+| `<leader>qf` | Quickfix open |
+| `<leader>ha` | Harpoon: add file |
+| `<leader>hm` | Harpoon: toggle menu |
 | `<leader>1-5` | Harpoon: jump to file 1-5 |
+| `<leader>hn` / `<leader>hp` | Harpoon: next/previous file |
+| `<leader>tc` | Theme picker (colorschemes) |
 | `<leader>gs` | Git status (Fugitive) |
-| `<leader>rp` | PR Review workflow |
+| `<leader>rp` | Review panel toggle |
+| `<leader>rf` | PR review file picker |
 | `gd` | Go to definition (native) |
 | `K` | Hover docs |
 | `gra` | Code action |

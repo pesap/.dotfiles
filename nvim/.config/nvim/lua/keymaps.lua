@@ -9,7 +9,7 @@ vim.keymap.set("n", "<leader>pv", vim.cmd.Ex)
 
 -- Close buffer
 vim.keymap.set("n", "<leader>qq", ":bd<CR>", { desc = "Close current buffer" })
-vim.keymap.set("n", "<leader>qo", ":%bd|e#<CR>", { desc = "Close all bufers but the one i am on" })
+vim.keymap.set("n", "<leader>qo", ":%bd|e#<CR>", { desc = "Close all buffers but the one I am on" })
 
 -- Remap for dealing with word wrap
 vim.keymap.set("n", "k", "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true })
@@ -51,7 +51,7 @@ vim.keymap.set(
 	{ desc = "[S]earch [R]eplace [P]roject-wide word under cursor" }
 )
 
-vim.keymap.set("n", "<leader>qo", ":copen<CR>", { desc = "[Q]uickfix [o]pen" })
+vim.keymap.set("n", "<leader>qf", ":copen<CR>", { desc = "[Q]uick[f]ix open" })
 vim.keymap.set("n", "<leader>qc", ":cclose<CR>", { desc = "[Q]uickfix [c]lose" })
 vim.keymap.set("n", "<leader>qj", ":cnext<CR>zz", { desc = "[Q]uickfix [j]next (centered)" })
 vim.keymap.set("n", "<leader>qk", ":cprev<CR>zz", { desc = "[Q]uickfix [k]prev (centered)" })
@@ -72,6 +72,9 @@ vim.keymap.set("n", "#", "#N", { desc = "Search word backward (no jump)" })
 vim.keymap.set("n", "<Esc>", ":noh<CR>", { desc = "Clear search highlight" })
 -- Visual mode search for selection
 vim.keymap.set("v", "//", 'y/<C-R>"<CR>', { desc = "Search for selection" })
+vim.keymap.set("n", "<leader>sd", function()
+	vim.diagnostic.open_float()
+end, { desc = "[S]ee [D]iagnostic" })
 
 -- Force to use hjkl
 vim.keymap.set("n", "<left>", '<cmd>echo "Use h to move!!"<CR>')
