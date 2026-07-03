@@ -2,10 +2,10 @@
 # zession — zellij project/session picker.
 #
 # Two row types in the picker:
-#   [CUR|ACT|EXT] <session>   live zellij sessions
-#   <path>                     directories from zoxide + SPECIFIC_PATHS
-# Selection attaches/switches to the session, creating it from <path> if
-# needed. Session name = basename of the path, sanitised. Two dirs with the
+#   ◆/●/○ session rows   live zellij sessions
+#   ◇ project rows       directories from zoxide + ZESSION_ROOTS
+# Selection attaches/switches to the session, creating it from a project path
+# if needed. Session name = basename of the path, sanitised. Two dirs with the
 # same basename map to the same session by design (rename one if it bites).
 
 set -uo pipefail
@@ -19,30 +19,28 @@ IFS=':' read -r -a _ROOTS <<< "$ZESSION_ROOTS"
 XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 STATE_DIR="${XDG_STATE_HOME}/zession"
 mkdir -p "$STATE_DIR" 2>/dev/null || true
-LIST_CACHE_FILE="${STATE_DIR}/list"
+LIST_CACHE_FILE="${STATE_DIR}/picker-rows-v2"
 
 usage() {
   cat <<'EOF'
 Usage: zession [--help|--generate-list|--refresh-cache|--session-action delete <name>]
 
+Interactive picker:
+  enter                  switch/attach selected project or session
+  ctrl-r                 refresh the project/session list
+  ctrl-d                 delete the selected zellij session
+  ctrl-/                 toggle preview
+  alt-enter              accept the first match
+
 Discovery:
   - directories: zoxide query -l filtered to ZESSION_ROOTS
   - roots are seeded into zoxide so they always appear
-  - live zellij sessions are listed at the top with [CUR]/[ACT]/[EXT] chips
+  - live zellij sessions are listed at the top with current/active/exited chips
 
 Environment:
   ZESSION_ROOTS          colon-separated root dirs (default: ~/dev:~/sandbox:~/work:~/.dotfiles)
   ZESSION_SWITCH_PLUGIN  optional zellij plugin url for switch-session
 EOF
-}
-
-# ---------- session naming ----------
-# Just the basename, sanitised. No hash, no path mangling.
-session_name_for_path() {
-  local p="${1%/}"
-  local n="${p##*/}"
-  [[ -z "$n" || "$n" == "." ]] && n="root"
-  printf '%s\n' "$n" | tr -c '[:alnum:]._-' '_' | sed 's/__*/_/g; s/^_//; s/_$//'
 }
 
 # ---------- discovery ----------
@@ -57,7 +55,7 @@ seed_zoxide() {
   done
 }
 
-generate_display_list() {
+generate_picker_rows() {
   if ! command -v zoxide >/dev/null 2>&1; then
     echo "zession: zoxide is required" >&2
     return 1
@@ -68,55 +66,149 @@ generate_display_list() {
   {
     zellij list-sessions --no-formatting 2>/dev/null | awk '
       NF {
-        if      (index($0, "(current)")) chip = "[CUR]"
-        else if (index($0, "(EXITED"))   chip = "[EXT]"
-        else                             chip = "[ACT]"
-        print "S\t" chip "\t" $1
+        if      (index($0, "(current)")) state = "current"
+        else if (index($0, "(EXITED"))   state = "exited"
+        else                             state = "active"
+        print "S\t" state "\t" $1
       }'
-    zoxide query -l 2>/dev/null | awk -v roots="$ZESSION_ROOTS" -v home="$HOME" '
+    zoxide query -l 2>/dev/null | awk -v roots="$ZESSION_ROOTS" '
       BEGIN { n = split(roots, r, ":") }
-      { for (i=1; i<=n; i++) if (index($0, r[i]) == 1) { sub(home "/", "~/"); print "P\t" $0; break } }
-    '
-  } | awk -F '\t' '
-    $1 == "S" {
-      chip[$3] = $2
-      sessions[++session_count] = $3
-      session_seen[$3] = 1
-      next
-    }
-    $1 == "P" {
-      path = $2
+      {
+        for (i=1; i<=n; i++) {
+          if (r[i] != "" && ($0 == r[i] || index($0, r[i] "/") == 1)) {
+            print "P\t" $0
+            break
+          }
+        }
+      }'
+  } | awk -F '\t' -v home="$HOME" '
+    function session_name(path, name) {
       name = path
+      sub(/\/+$/, "", name)
       sub(/^.*\//, "", name)
       gsub(/[^[:alnum:]._-]+/, "_", name)
       gsub(/_+/, "_", name)
       sub(/^_/, "", name)
       sub(/_$/, "", name)
       if (name == "") name = "root"
+      return name
+    }
+    function display_path(path) {
+      if (home != "" && path == home) return "~"
+      if (home != "" && index(path, home "/") == 1) return "~" substr(path, length(home) + 1)
+      return path
+    }
+    function emit(kind, name, path, state, display) {
+      gsub(/\t/, " ", kind)
+      gsub(/\t/, " ", name)
+      gsub(/\t/, " ", path)
+      gsub(/\t/, " ", state)
+      gsub(/\t/, " ", display)
+      print kind "\t" name "\t" path "\t" state "\t" display
+    }
+    BEGIN {
+      symbol["current"] = "◆"; label["current"] = "current"
+      symbol["active"]  = "●"; label["active"]  = "active"
+      symbol["exited"]  = "○"; label["exited"]  = "exited"
+    }
+    $1 == "S" {
+      state[$3] = $2
+      sessions[++session_count] = $3
+      session_seen[$3] = 1
+      next
+    }
+    $1 == "P" {
+      path = $2
+      name = session_name(path)
 
       if (session_seen[name]) {
         if (!(name in session_path)) session_path[name] = path
       } else {
         paths[++path_count] = path
+        path_name[path_count] = name
       }
       next
     }
     END {
       for (i = 1; i <= session_count; i++) {
         name = sessions[i]
-        row = chip[name] " " name
-        if (name in session_path) row = row "  " session_path[name]
-        if (!seen[row]++) print row
+        path = (name in session_path) ? session_path[name] : ""
+        display = sprintf("%s %-7s %-28s", symbol[state[name]], label[state[name]], name)
+        if (path != "") display = display " " display_path(path)
+        emit("session", name, path, state[name], display)
       }
       for (i = 1; i <= path_count; i++) {
-        if (!seen[paths[i]]++) print paths[i]
+        path = paths[i]
+        name = path_name[i]
+        display = sprintf("◇ %-7s %-28s %s", "project", name, display_path(path))
+        emit("path", name, path, "project", display)
       }
     }'
 }
 
+generate_display_list() {
+  generate_picker_rows | awk -F '\t' '{ print $5 }'
+}
+
+parse_picker_row() {
+  local row="${1:-}"
+  row_kind=""
+  row_session=""
+  row_path=""
+  row_state=""
+  local _row_display=""
+
+  IFS=$'\t' read -r row_kind row_session row_path row_state _row_display <<< "$row"
+  [[ "$row_kind" == "session" || "$row_kind" == "path" ]] && [[ -n "$row_session" ]]
+}
+
+preview_picker_row() {
+  parse_picker_row "${1:-}" || {
+    printf 'Invalid zession selection\n'
+    return 1
+  }
+
+  printf 'zession\n'
+  printf '───────\n\n'
+  printf 'kind     %s\n' "$row_kind"
+  printf 'session  %s\n' "$row_session"
+  printf 'state    %s\n' "$row_state"
+  if [[ -n "$row_path" ]]; then
+    printf 'path     %s\n' "$row_path"
+  fi
+
+  if [[ "$row_kind" == "session" ]] && command -v zellij >/dev/null 2>&1; then
+    local clients
+    clients=$(zellij -s "$row_session" action list-clients 2>/dev/null \
+      | awk 'NR > 1 {c++} END {print c+0}' || true)
+    printf 'clients  %s\n' "${clients:-0}"
+  fi
+
+  if [[ -n "$row_path" && -d "$row_path" ]] && command -v git >/dev/null 2>&1 \
+    && git -C "$row_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local branch changes
+    branch=$(git -C "$row_path" branch --show-current 2>/dev/null || true)
+    [[ -n "$branch" ]] || branch=$(git -C "$row_path" rev-parse --short HEAD 2>/dev/null || true)
+    changes=$(git -C "$row_path" status --short 2>/dev/null | wc -l | tr -d '[:space:]')
+
+    printf '\ngit\n'
+    printf '───\n'
+    printf 'branch   %s\n' "${branch:-detached}"
+    printf 'changes  %s\n' "${changes:-0}"
+    git -C "$row_path" status --short 2>/dev/null | sed -n '1,12p'
+  fi
+
+  printf '\nkeys\n'
+  printf '────\n'
+  printf 'enter    switch / attach\n'
+  printf 'ctrl-r   refresh list\n'
+  printf 'ctrl-d   delete zellij session\n'
+  printf 'ctrl-/   toggle preview\n'
+}
+
 refresh_list_cache() {
   local tmp="${LIST_CACHE_FILE}.tmp.$$"
-  if generate_display_list > "$tmp"; then
+  if generate_picker_rows > "$tmp"; then
     mv "$tmp" "$LIST_CACHE_FILE"
   else
     rm -f "$tmp"
@@ -128,7 +220,7 @@ print_cached_or_fresh_list() {
   if [[ -s "$LIST_CACHE_FILE" ]]; then
     cat "$LIST_CACHE_FILE"
   else
-    generate_display_list
+    generate_picker_rows
   fi
 }
 
@@ -139,10 +231,28 @@ delete_session_by_name() {
   zellij delete-session --force -- "$name" 2>/dev/null || true
 }
 
+delete_picker_row() {
+  parse_picker_row "${1:-}" || {
+    printf 'zession: invalid selection\n' >&2
+    return 1
+  }
+
+  local name="$row_session"
+  local ans=""
+  printf '\nDelete zellij session "%s"? [y/N] ' "$name" >/dev/tty
+  IFS= read -r ans </dev/tty || return 1
+  case "$ans" in
+    [yY]|[yY][eE][sS]) delete_session_by_name "$name" ;;
+  esac
+}
+
 # ---------- CLI dispatch ----------
 case "${1:-}" in
   -h|--help)        usage; exit 0 ;;
   --generate-list)  generate_display_list; exit $? ;;
+  --picker-rows)    generate_picker_rows; exit $? ;;
+  --preview-row)    preview_picker_row "${2:-}"; exit $? ;;
+  --delete-row)     delete_picker_row "${2:-}"; exit $? ;;
   --refresh-cache)  refresh_list_cache; exit $? ;;
   --session-action)
     case "${2:-}" in
@@ -161,44 +271,63 @@ done
 
 [[ -s "$LIST_CACHE_FILE" ]] || refresh_list_cache >/dev/null 2>&1 || true
 
-ZESSION_HEADER=$'↵ switch   ⌃R refresh   ⌃D delete   ⌥↵ first match   esc close'
+ZESSION_HEADER=$'enter switch  ·  ctrl-r refresh  ·  ctrl-d delete  ·  ctrl-/ preview  ·  alt-enter first match  ·  esc close'
 
-# ctrl-d: row is either "[CHIP] name" (existing session) or a path (session
-# name = basename). Both reduce to a single session name.
-# shellcheck disable=SC2016 # fzf expands {} before this snippet runs.
-delete_bind='row={};
-if [[ "$row" == "["*"] "* ]]; then sess="${row#* }"; sess="${sess%% *}"; \
-else sess=$(basename "$row" | tr -c "[:alnum:]._-" "_"); fi
-printf "\n  delete session %s? [y/N] " "$sess"; read -r ans
-case "$ans" in [yY]*) '"$0"' --session-action delete "$sess" ;; esac'
+script_path="${BASH_SOURCE[0]}"
+if command -v realpath >/dev/null 2>&1; then
+  script_path=$(realpath "$script_path" 2>/dev/null || printf '%s\n' "$script_path")
+fi
+printf -v script_cmd '%q' "$script_path"
+printf -v cache_cmd '%q' "$LIST_CACHE_FILE"
+reload_cmd="$script_cmd --refresh-cache >/dev/null 2>&1 && cat $cache_cmd"
+fresh_cmd="$script_cmd --picker-rows"
+preview_cmd="$script_cmd --preview-row {}"
+delete_cmd="$script_cmd --delete-row {}"
 
 selected=$(print_cached_or_fresh_list | fzf \
-  --prompt="project > " \
+  --prompt="zession › " \
   --header="$ZESSION_HEADER" \
+  --border=rounded \
+  --border-label=" zession " \
+  --highlight-line \
+  --pointer='▌' \
+  --marker='▌' \
+  --delimiter=$'\t' \
+  --with-nth=5 \
+  --preview="$preview_cmd" \
+  --preview-window="right,45%,border-left,wrap" \
   --layout=reverse \
   --info=inline-right \
   --height=95% \
   --cycle \
   --scheme=path \
   --tiebreak=index \
-  --bind="start:pos(1)+reload($0 --refresh-cache >/dev/null 2>&1 && cat \"$LIST_CACHE_FILE\")" \
+  --bind="start:pos(1)+reload($reload_cmd)" \
   --bind="alt-enter:pos(1)+accept" \
-  --bind="ctrl-r:reload($0 --refresh-cache >/dev/null 2>&1 && cat \"$LIST_CACHE_FILE\")" \
-  --bind="ctrl-d:execute($delete_bind)+reload($0 --generate-list)")
+  --bind="ctrl-/:toggle-preview" \
+  --bind="ctrl-r:reload($reload_cmd)" \
+  --bind="ctrl-d:execute($delete_cmd)+reload($fresh_cmd)")
 
 [[ -z "$selected" ]] && exit 0
 
 # Parse selection into (session_name, target_dir, pure_attach)
-if [[ "$selected" == "["*"] "* ]]; then
-  session_name="${selected#* }"
-  session_name="${session_name%% *}"
-  target_dir=""
-  pure_attach=1
-else
-  target_dir="${selected/#\~/$HOME}"
-  session_name=$(session_name_for_path "$target_dir")
-  pure_attach=0
+if ! parse_picker_row "$selected"; then
+  printf 'zession: invalid selection: %s\n' "$selected" >&2
+  exit 1
 fi
+
+case "$row_kind" in
+  session)
+    session_name="$row_session"
+    target_dir=""
+    pure_attach=1
+    ;;
+  path)
+    session_name="$row_session"
+    target_dir="$row_path"
+    pure_attach=0
+    ;;
+esac
 
 printf 'switching: %s\n' "$session_name" >&2
 
