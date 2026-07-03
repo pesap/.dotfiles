@@ -1,0 +1,31 @@
+{
+  "lastChangelogVersion": "0.80.3",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "xhigh",
+  "packages": [
+    "https://github.com/crustyhacker/pi-thinking-steps",
+    "git:github.com/pesap/khala"
+  ],
+  "subagents": {
+    "agentOverrides": {
+      "planner": {
+        "model": "gpt-5.4"
+      },
+      "scout": {
+        "model": "ollama/local-scout:4b",
+        "thinking": "low"
+      },
+      "worker": {
+        "model": "gpt-5.4",
+        "thinking": "medium"
+      },
+      "reviewer": {
+        "model": "gpt-5.4",
+        "thinking": "medium"
+      }
+    }
+  },
+  "theme": "dark",
+  "enableInstallTelemetry": false
+}
