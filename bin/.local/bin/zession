@@ -342,6 +342,7 @@ session_has_terminal_pane() {
 ensure_background_session() {
   if ! session_exists; then
     (cd "$target_dir" && zellij attach "$session_name" --create-background) || return 1
+    return 0
   fi
   if ! session_has_terminal_pane; then
     zellij --session "$session_name" run --cwd "$target_dir" -- "${SHELL:-zsh}" >/dev/null || return 1
