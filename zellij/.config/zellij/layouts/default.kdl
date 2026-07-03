@@ -46,7 +46,7 @@ layout {
                     max_name_length 14
                 }
             }
-            pane borderless=false
+            pane borderless=false focus=true
         }
     }
 }
