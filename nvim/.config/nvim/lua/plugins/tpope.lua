@@ -2,7 +2,8 @@
 return {
 	{ "tpope/vim-fugitive", config = function()
 		vim.keymap.set("n", "<leader>gb", vim.cmd.GBrowse, { desc = "[G]it [B]rowse" })
-		vim.keymap.set("n", "<leader>gd", vim.cmd.Gdiff, { desc = "[G]it [D]iff" })
+		vim.keymap.set("n", "<leader>gd", vim.lsp.buf.definition, { desc = "[G]o to [D]efinition" })
+		vim.keymap.set("n", "<leader>gD", vim.cmd.Gdiff, { desc = "[G]it [D]iff" })
 
 		local gitlog_buf = nil
 		vim.keymap.set("n", "<leader>gl", function()

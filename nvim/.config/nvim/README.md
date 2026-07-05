@@ -73,9 +73,10 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 | `<leader>hn` / `<leader>hp` | Harpoon: next/previous file |
 | `<leader>tc` | Theme picker (colorschemes) |
 | `<leader>gs` | Git status (Fugitive) |
+| `<leader>gD` | Git diff (Fugitive) |
 | `<leader>rp` | Review panel toggle |
 | `<leader>rf` | PR review file picker |
-| `gd` | Go to definition (native) |
+| `gd` / `<leader>gd` | Go to definition (native LSP) |
 | `K` | Hover docs |
 | `gra` | Code action |
 | `grn` | Rename |
