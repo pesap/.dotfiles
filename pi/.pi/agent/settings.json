@@ -5,7 +5,8 @@
   "defaultThinkingLevel": "xhigh",
   "packages": [
     "https://github.com/crustyhacker/pi-thinking-steps",
-    "git:github.com/pesap/khala"
+    "https://github.com/pesap/khala",
+    "npm:pi-web-access"
   ],
   "subagents": {
     "agentOverrides": {
