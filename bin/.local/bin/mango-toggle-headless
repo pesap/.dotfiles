@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+HEADLESS="HEADLESS-1"
+HDMI="HDMI-A-1"
+DP="DP-1"
+LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/mango"
+mkdir -p "$LOG_DIR"
+
+output_enabled() {
+    /usr/bin/wlr-randr 2>/dev/null |
+        awk -v output="$1" '
+            $0 ~ "^" output " " { in_output=1; next }
+            in_output && /^[[:space:]]+Enabled: / { print $2; exit }
+            in_output && /^[^[:space:]]/ { exit }
+        '
+}
+
+if [ "$(output_enabled "$HDMI")" = yes ] || [ "$(output_enabled "$DP")" = yes ]; then
+    # Desk mode -> headless-only mode.
+    /usr/bin/wlr-randr --output "$HDMI" --off >/dev/null 2>&1 || true
+    /usr/bin/wlr-randr --output "$DP" --off >/dev/null 2>&1 || true
+    /usr/bin/wlr-randr --output "$HEADLESS" --pos 0,0 >/dev/null 2>&1 || true
+    mode=headless-only
+else
+    # Headless-only mode -> desk mode.
+    /usr/bin/wlr-randr --output "$DP" --on --mode 1920x1080@143.855 --pos 0,0 --transform 90 >/dev/null 2>&1 || true
+    /usr/bin/wlr-randr --output "$HDMI" --on --mode 2560x1440@119.998 --pos 1080,0 >/dev/null 2>&1 || true
+    /usr/bin/wlr-randr --output "$HEADLESS" --pos 3640,0 >/dev/null 2>&1 || true
+    # Mango may auto-place a newly enabled output; apply the desk layout last.
+    /usr/bin/wlr-randr --output "$DP" --pos 0,0 >/dev/null 2>&1 || true
+    mode=desk
+fi
+
+printf '%s %s\n' "$(date '+%F %T')" "$mode" >>"$LOG_DIR/output-profile.log"
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -t 1500 'Mango outputs' "$mode" >/dev/null 2>&1 || true
+fi
