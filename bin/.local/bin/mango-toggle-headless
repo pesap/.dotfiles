@@ -16,10 +16,22 @@ output_enabled() {
         '
 }
 
+route_games() {
+    monitor="$1"
+    if [ -x /usr/bin/jq ]; then
+        /usr/bin/mmsg get all-clients 2>/dev/null |
+            /usr/bin/jq -r '.clients[] | select(.appid | test("^steam_app_")) | .id' |
+            while IFS= read -r id; do
+                [ -n "$id" ] && /usr/bin/mmsg dispatch "tagmon,$monitor" "client,$id" >/dev/null 2>&1 || true
+            done
+    fi
+}
+
 headless_only() {
     /usr/bin/wlr-randr --output "$HDMI" --off >/dev/null 2>&1 || true
     /usr/bin/wlr-randr --output "$DP" --off >/dev/null 2>&1 || true
     /usr/bin/wlr-randr --output "$HEADLESS" --pos 0,0 >/dev/null 2>&1 || true
+    route_games "$HEADLESS"
     mode=headless-only
 }
 
@@ -29,6 +41,7 @@ desk() {
     /usr/bin/wlr-randr --output "$HEADLESS" --pos 3640,0 >/dev/null 2>&1 || true
     # Mango may auto-place a newly enabled output; apply the desk layout last.
     /usr/bin/wlr-randr --output "$DP" --pos 0,0 >/dev/null 2>&1 || true
+    route_games "$HDMI"
     mode=desk
 }
 

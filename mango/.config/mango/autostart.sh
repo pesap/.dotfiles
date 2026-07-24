@@ -45,10 +45,10 @@ VIRTUAL_LOG="$LOG_DIR/virtual-output.log"
 	else
 		log_msg "$VIRTUAL_LOG" "wlr-randr is not installed; install the wlr-randr package"
 	fi
-	# Boot into Steam Link mode: Palworld is placed on HEADLESS-1 and
-	# physical outputs remain disabled until the desk toggle is used.
+	# Boot in the normal desk layout. The toggle switches to headless-only
+	# mode and routes any running Steam games to HEADLESS-1 when requested.
 	if [ -x "$HOME/.local/bin/mango-toggle-headless" ]; then
-		"$HOME/.local/bin/mango-toggle-headless" headless-only >>"$VIRTUAL_LOG" 2>&1 || true
+		"$HOME/.local/bin/mango-toggle-headless" desk >>"$VIRTUAL_LOG" 2>&1 || true
 	fi
 ) &
 
