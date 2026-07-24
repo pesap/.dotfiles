@@ -16,21 +16,37 @@ output_enabled() {
         '
 }
 
-if [ "$(output_enabled "$HDMI")" = yes ] || [ "$(output_enabled "$DP")" = yes ]; then
-    # Desk mode -> headless-only mode.
+headless_only() {
     /usr/bin/wlr-randr --output "$HDMI" --off >/dev/null 2>&1 || true
     /usr/bin/wlr-randr --output "$DP" --off >/dev/null 2>&1 || true
     /usr/bin/wlr-randr --output "$HEADLESS" --pos 0,0 >/dev/null 2>&1 || true
     mode=headless-only
-else
-    # Headless-only mode -> desk mode.
+}
+
+desk() {
     /usr/bin/wlr-randr --output "$DP" --on --mode 1920x1080@143.855 --pos 0,0 --transform 90 >/dev/null 2>&1 || true
     /usr/bin/wlr-randr --output "$HDMI" --on --mode 2560x1440@119.998 --pos 1080,0 >/dev/null 2>&1 || true
     /usr/bin/wlr-randr --output "$HEADLESS" --pos 3640,0 >/dev/null 2>&1 || true
     # Mango may auto-place a newly enabled output; apply the desk layout last.
     /usr/bin/wlr-randr --output "$DP" --pos 0,0 >/dev/null 2>&1 || true
     mode=desk
-fi
+}
+
+case "${1:-toggle}" in
+    headless-only) headless_only ;;
+    desk) desk ;;
+    toggle)
+        if [ "$(output_enabled "$HDMI")" = yes ] || [ "$(output_enabled "$DP")" = yes ]; then
+            headless_only
+        else
+            desk
+        fi
+        ;;
+    *)
+        echo "usage: $0 [toggle|headless-only|desk]" >&2
+        exit 2
+        ;;
+esac
 
 printf '%s %s\n' "$(date '+%F %T')" "$mode" >>"$LOG_DIR/output-profile.log"
 if command -v notify-send >/dev/null 2>&1; then

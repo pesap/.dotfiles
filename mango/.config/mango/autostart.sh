@@ -31,6 +31,27 @@ if command -v systemctl >/dev/null 2>&1; then
 	systemctl --user import-environment XDG_DATA_DIRS >/dev/null 2>&1 || true
 fi
 
+# Create a persistent 1080p virtual output for Steam Link capture.
+# Mango 0.15+ exposes this through the new mmsg IPC.
+VIRTUAL_LOG="$LOG_DIR/virtual-output.log"
+(
+	sleep 1
+	if ! /usr/bin/mmsg get all-monitors 2>/dev/null | grep -q 'HEADLESS-'; then
+		/usr/bin/mmsg dispatch create_virtual_output >>"$VIRTUAL_LOG" 2>&1 || true
+		sleep 1
+	fi
+	if [ -x /usr/bin/wlr-randr ]; then
+		/usr/bin/wlr-randr --output HEADLESS-1 --pos 3640,0 --scale 1 --custom-mode 1920x1080@60Hz >>"$VIRTUAL_LOG" 2>&1 || true
+	else
+		log_msg "$VIRTUAL_LOG" "wlr-randr is not installed; install the wlr-randr package"
+	fi
+	# Boot into Steam Link mode: Palworld is placed on HEADLESS-1 and
+	# physical outputs remain disabled until the desk toggle is used.
+	if [ -x "$HOME/.local/bin/mango-toggle-headless" ]; then
+		"$HOME/.local/bin/mango-toggle-headless" headless-only >>"$VIRTUAL_LOG" 2>&1 || true
+	fi
+) &
+
 WAYBAR_LOG="$LOG_DIR/waybar.log"
 if command -v waybar >/dev/null 2>&1; then
 	pkill -x waybar >/dev/null 2>&1 || true
