@@ -1,6 +1,15 @@
 -- Plugin responsable of making sure that we use correct tabs or spaces
 return {
 	{ "tpope/vim-fugitive", config = function()
+		-- Fugitive versions that predate Neovim 0.12 call the old two-argument
+		-- netrw#BrowseX(). Provide the modern browser hook so :GBrowse does not
+		-- depend on netrw's removed argument.
+		if vim.fn.exists(":Browse") ~= 2 then
+			vim.api.nvim_create_user_command("Browse", function(opts)
+				vim.ui.open(opts.args)
+			end, { nargs = 1, complete = "file", desc = "Open a URL with the system browser" })
+		end
+
 		vim.keymap.set("n", "<leader>gb", vim.cmd.GBrowse, { desc = "[G]it [B]rowse" })
 		vim.keymap.set("n", "<leader>gd", vim.lsp.buf.definition, { desc = "[G]o to [D]efinition" })
 		vim.keymap.set("n", "<leader>gD", vim.cmd.Gdiff, { desc = "[G]it [D]iff" })
