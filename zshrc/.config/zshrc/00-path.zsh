@@ -4,7 +4,6 @@ typeset -U path  # Keep duplicates out
 
 path=(
     "$HOME/.local/bin"
-    "$HOME/.cargo/bin"
     /usr/local/bin
     /usr/bin
     /bin
@@ -12,6 +11,8 @@ path=(
     /sbin
     $path
 )
+
+[[ -d "$HOME/.cargo/bin" ]] && path=("$HOME/.cargo/bin" $path)
 
 # Homebrew (macOS)
 [[ -d /opt/homebrew/bin ]] && path=(/opt/homebrew/bin $path)

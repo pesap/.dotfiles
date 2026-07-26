@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
 THEMES_DIR="$HOME/.config/waybar/themes"
 THEME="${1:-}"
-TARGET_CONFIG="$HOME/.config/waybar/config"
+TARGET_CONFIG="$HOME/.config/waybar/config.jsonc"
 TARGET_STYLE="$HOME/.config/waybar/style.css"
 
 if [ -z "$THEME" ]; then
@@ -50,6 +51,6 @@ if [ -n "$THEME" ] && [ -d "$THEMES_DIR/$THEME" ]; then
   fi
 
   # Restart Waybar
-  killall -q waybar
-  waybar &
+  killall -q waybar || true
+  waybar -c "$TARGET_CONFIG" -s "$TARGET_STYLE" &
 fi

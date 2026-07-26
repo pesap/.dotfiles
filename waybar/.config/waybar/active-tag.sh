@@ -2,16 +2,15 @@
 
 output="${WAYBAR_OUTPUT_NAME:-}"
 if [ -n "$output" ]; then
-  tags="$(mmsg -o "$output" -g -t 2>/dev/null)"
+  tags="$(/usr/bin/mmsg get tags "$output" 2>/dev/null)"
 else
-  tags="$(mmsg -g -t 2>/dev/null)"
+  tags="$(/usr/bin/mmsg get tags HDMI-A-1 2>/dev/null)"
 fi
 
-active_tag="$(printf '%s\n' "$tags" | awk '$1=="tag" && $3==1 { print $2; exit }')"
+active_tag="$(printf '%s\n' "$tags" | /usr/bin/jq -r '.active_tags[0] // empty' 2>/dev/null)"
 
 if [ -z "$active_tag" ]; then
   printf '{"text":"-","class":"inactive"}\n'
-  exit 0
+else
+  printf '{"text":"%s","class":"active"}\n' "$active_tag"
 fi
-
-printf '{"text":"%s","class":"active"}\n' "$active_tag"

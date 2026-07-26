@@ -1,4 +1,5 @@
 # Tool integrations and hooks
+if command -v mise >/dev/null 2>&1; then eval "$(mise activate zsh)"; fi
 
 # Starship prompt
 command -v starship >/dev/null && eval "$(starship init zsh)"
@@ -8,8 +9,10 @@ command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v fzf >/dev/null && FZF_CTRL_R_COMMAND= eval "$(fzf --zsh)"
 
 # Atuin shell history
-. "$HOME/.atuin/bin/env"
-eval "$(atuin init zsh --disable-up-arrow)"
+if command -v atuin >/dev/null 2>&1; then
+    [[ -f "$HOME/.atuin/bin/env" ]] && . "$HOME/.atuin/bin/env"
+    eval "$(atuin init zsh --disable-up-arrow)"
+fi
 
 # GitHub CLI completion
 command -v gh >/dev/null && eval "$(gh completion -s zsh)"

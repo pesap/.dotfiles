@@ -1,10 +1,4 @@
-[submodule "work"]
-	path = work
-	url = git@github.com:pesap/.dotfiles-work.git
 [submodule "personal"]
 	path = personal
 	url = git@github.com:pesap/.dotfiles-personal.git
 	branch = main
-[submodule "opencode/.config/opencode/superpowers"]
-	path = opencode/.config/opencode/superpowers
-	url = https://github.com/obra/superpowers.git

@@ -78,19 +78,19 @@ return {
 					["default"] = function(selected)
 						local file = strip_prefix(selected[1])
 						reviewed[file] = true
-						vim.cmd("edit " .. file)
+						vim.cmd("edit " .. vim.fn.fnameescape(file))
 					end,
 					["ctrl-d"] = function(selected)
 						local file = strip_prefix(selected[1])
 						reviewed[file] = true
-						vim.cmd("edit " .. file)
-						vim.cmd("Gvdiffsplit " .. base)
+						vim.cmd("edit " .. vim.fn.fnameescape(file))
+						vim.cmd("Gvdiffsplit " .. vim.fn.fnameescape(base))
 					end,
 				},
 				previewer = false,
 				fzf_opts = {
 					["--no-sort"] = "",
-					["--preview"] = [[f="$(echo {} | sed 's/^\[.\] //')"; bat --style=numbers --color=always -- "$f" 2>/dev/null || cat -n "$f"]],
+					["--preview"] = [[f=$(printf '%s\n' {} | sed 's/^\[.\] //'); bat --style=numbers --color=always -- "$f" 2>/dev/null || cat -n -- "$f"]],
 					["--preview-window"] = "right",
 				},
 			})

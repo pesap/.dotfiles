@@ -108,6 +108,6 @@ Auto-format on save is enabled.
 ## Maintenance Notes
 
 - All plugin configuration lives in `lua/plugins/` with `config()` functions
-- No `after/plugin/` directory (migrated to lazy.nvim config)
+- `after/plugin/` contains small runtime integrations; formatter setup lives in `lua/plugins/lsp/conform.lua`
 - LSP configs are in `lsp/` using native 0.11+ format
 - Keymaps are either in `keymaps.lua` (general) or plugin `config()` functions

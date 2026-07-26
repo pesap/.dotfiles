@@ -9,7 +9,7 @@ inline_height = 40
 style = "compact"
 
 # Preserve current local preferences.
-search_mode = "daemon-fuzzy"
+search_mode = "fuzzy"
 
 [sync]
 records = true

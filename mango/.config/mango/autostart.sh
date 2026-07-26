@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
+set -eu
+MMSG_CMD="$(command -v mmsg || true)"
+WLR_RANDR_CMD="$(command -v wlr-randr || true)"
 
 LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/mango"
 mkdir -p "$LOG_DIR"
@@ -36,12 +39,12 @@ fi
 VIRTUAL_LOG="$LOG_DIR/virtual-output.log"
 (
 	sleep 1
-	if ! /usr/bin/mmsg get all-monitors 2>/dev/null | grep -q 'HEADLESS-'; then
-		/usr/bin/mmsg dispatch create_virtual_output >>"$VIRTUAL_LOG" 2>&1 || true
+	if [ -n "$MMSG_CMD" ] && ! "$MMSG_CMD" get all-monitors 2>/dev/null | grep -q 'HEADLESS-'; then
+		"$MMSG_CMD" dispatch create_virtual_output >>"$VIRTUAL_LOG" 2>&1 || true
 		sleep 1
 	fi
-	if [ -x /usr/bin/wlr-randr ]; then
-		/usr/bin/wlr-randr --output HEADLESS-1 --pos 3640,0 --scale 1 --custom-mode 1920x1080@60Hz >>"$VIRTUAL_LOG" 2>&1 || true
+	if [ -n "$WLR_RANDR_CMD" ]; then
+		"$WLR_RANDR_CMD" --output HEADLESS-1 --pos 3640,0 --scale 1 --custom-mode 1920x1080@60Hz >>"$VIRTUAL_LOG" 2>&1 || true
 	else
 		log_msg "$VIRTUAL_LOG" "wlr-randr is not installed; install the wlr-randr package"
 	fi

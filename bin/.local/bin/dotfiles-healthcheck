@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -u
+set -eu
 
 say() {
     echo "$1"
@@ -15,11 +15,11 @@ check() {
     return 1
 }
 
+check_optional() {
+    if command -v "$1" >/dev/null 2>&1; then say "ok: $1 (optional)"; else say "missing: $1 (optional)"; fi
+}
 say "Dotfiles health check"
-check stow
-check git
-check curl
-check rsync
-check nvim
-check rg
-check cargo
+status=0
+for tool in stow git curl rsync mise; do check "$tool" || status=1; done
+for tool in nvim rg cargo zsh fzf zoxide atuin uv; do check_optional "$tool"; done
+exit "$status"

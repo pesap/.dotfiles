@@ -4,7 +4,6 @@ return {
 	filetypes = { "lua" },
 	root_markers = { ".luarc.json", ".luarc.jsonc" },
 	telemetry = { enabled = false },
-	completitions = { lsp = { enabled = true } },
 	settings = {
 		Lua = {
 			runtime = {

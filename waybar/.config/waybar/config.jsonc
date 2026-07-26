@@ -1,1 +1,101 @@
-config
+{
+    "layer": "top",
+    "position": "top",
+    "mod": "dock",
+    "exclusive": true,
+    "passthrough": false,
+    "gtk-layer-shell": true,
+    "height": 25,
+    "modules-left": ["custom/active-tag"],
+    "modules-center": ["mpris"],
+    "modules-right": ["cpu", "memory", "wireplumber", "wireplumber#microphone", "battery", "network", "clock", "tray"],
+
+    "custom/active-tag": {
+        "return-type": "json",
+        "exec": "~/.config/waybar/active-tag.sh",
+        "interval": 1,
+        "format": "{text}"
+    },
+
+    "tray": {
+        "icon-size": 18,
+        "spacing": 10
+    },
+
+    "cpu": {
+        "interval": 2,
+        "format": "   {}%"
+    },
+
+    "memory": {
+        "interval": 2,
+        "format": "   {}%"
+    },
+
+    "clock": {
+        "format": "󰃰  {:%a, %b %e %H:%M }",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+    },
+
+    "battery": {
+        "states": {
+            "good": 95,
+            "warning": 30,
+            "critical": 20
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": " {capacity}%",
+        "format-plugged": " {capacity}%",
+        "format-alt": "{time} {icon}",
+        "format-icons": ["", "", "", "", "", "", "", "", "", "", ""]
+    },
+
+    "wireplumber": {
+        "format": " {volume}%",
+        "format-muted": " Muted",
+        "tooltip": false,
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-right-click": "pavucontrol",
+        "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
+        "scroll-step": 5
+    },
+
+    "wireplumber#microphone": {
+        "node-type": "Audio/Source",
+        "format": "󰍮 {volume}%",
+        "format-muted": "󰍮 Muted",
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
+        "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 5%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 5%-",
+        "scroll-step": 5
+    },
+
+    "network": {
+        "format-wifi": "  {signalStrength}%",
+        "format-ethernet": "{ipaddr}/{cidr}  ",
+        "tooltip-format": "{essid} - {ifname} via {gwaddr} ",
+        "format-linked": "{ifname} (No IP) ",
+        "format-disconnected": "Disconnected ⚠",
+        "format-alt": "{ifname}:{essid} {ipaddr}/{cidr}"
+    },
+
+    "mpris": {
+        "title-len": 40,
+        "interval": 1,
+        "album-len": 0,
+        "max-len": 60,
+        "format": "{player_icon} {artist} - {title}",
+        "format-paused": "{player_icon} {artist} - {title}",
+        "player-icons": {
+            "default": "▶",
+            "mpv": "🎵",
+            "spotify": " ",
+            "firefox": ""
+        },
+        "status-icons": {
+            "paused": ""
+        },
+        "ignored-players": ["vlc", "firefox", "brave"]
+    }
+}

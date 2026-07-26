@@ -1,9 +1,9 @@
 #!/bin/sh
 # POSIX bootstrap for prerequisites + installer.
 
-set -u
+set -eu
 
-VERSION="${INSTALLER_VERSION:-0.0.1}"
+VERSION="${INSTALLER_VERSION:-0.0.2}"
 REPO_RAW_BASE="https://raw.githubusercontent.com/pesap/.dotfiles"
 INSTALLER_URL="${REPO_RAW_BASE}/${VERSION}/install.sh"
 
@@ -49,23 +49,28 @@ maybe_sudo() {
 install_packages() {
     pkgs="$*"
     if check_cmd brew; then
+        # shellcheck disable=SC2086
         brew install $pkgs
         return 0
     fi
     if check_cmd apt-get; then
         maybe_sudo apt-get update
+        # shellcheck disable=SC2086
         maybe_sudo apt-get install -y $pkgs
         return 0
     fi
     if check_cmd dnf; then
+        # shellcheck disable=SC2086
         maybe_sudo dnf install -y $pkgs
         return 0
     fi
     if check_cmd pacman; then
+        # shellcheck disable=SC2086
         maybe_sudo pacman -Syu --noconfirm $pkgs
         return 0
     fi
     if check_cmd zypper; then
+        # shellcheck disable=SC2086
         maybe_sudo zypper install -y $pkgs
         return 0
     fi
@@ -75,7 +80,7 @@ install_packages() {
 
 ensure_prereqs() {
     missing=""
-    for tool in git curl rsync stow tar unzip; do
+    for tool in git curl rsync stow tar unzip mise; do
         if ! check_cmd "$tool"; then
             missing="$missing $tool"
         fi
@@ -83,17 +88,18 @@ ensure_prereqs() {
 
     if [ -n "$missing" ]; then
         say "Installing prerequisites:$missing"
-        install_packages $missing
+        install_packages "$missing"
     fi
 }
 
 run_installer() {
     need_cmd mktemp
     tmp_dir="$(mktemp -d)"
+    cleanup() { status=$?; rm -rf "$tmp_dir"; trap - EXIT; exit "$status"; }
+    trap cleanup EXIT
     installer="$tmp_dir/install.sh"
     download "$INSTALLER_URL" "$installer"
     sh "$installer" "$@"
-    rm -rf "$tmp_dir"
 }
 
 ensure_prereqs

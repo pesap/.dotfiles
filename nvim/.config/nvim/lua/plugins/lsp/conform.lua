@@ -10,6 +10,7 @@ return {
 			lua = { "stylua" },
 			python = { "ruff_organize_imports", "ruff_fix", "ruff_format" },
 			sh = { "shfmt" },
+			kdl = { "kdlfmt" },
 		},
 		stop_after_first = false,
 		format_on_save = {

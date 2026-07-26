@@ -6,7 +6,7 @@
 # option. This file may not be copied, modified, or distributed
 # except according to those terms.
 #
-VERSION="0.0.1"
+VERSION="${INSTALLER_VERSION:-0.0.2}"
 RECEIPT_HOME="${HOME}/.dotfiles"
 BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
 DOTFILES_REMOTE=""
@@ -20,8 +20,13 @@ FORCE_INSTALL=${INSTALLER_FORCE_INSTALL:-0}
 DRY_RUN=${INSTALLER_DRY_RUN:-0}
 BACKUP=${INSTALLER_BACKUP:-1}
 BACKUP_DIR=""
+PROFILE="${DOTFILES_PROFILE:-common}"
+PROFILE_PACKAGES=""
 
-set -u
+set -eu
+_temp_dir=""
+cleanup() { status=$?; [ -z "${_temp_dir:-}" ] || rm -rf -- "$_temp_dir"; trap - EXIT; exit "$status"; }
+trap cleanup EXIT HUP INT TERM
 
 set_dotfiles_remote() {
     os="$(uname -s 2>/dev/null || echo unknown)"
@@ -61,15 +66,58 @@ OPTIONS:
             Show actions without making changes
     --no-backup
             Do not move existing files aside
+    --profile PROFILE
+            Select common, linux-desktop, or macos configuration
+    --list-profiles
+            List supported profiles and exit
     -h, --help
             Print help information
 EOF
 }
 
+list_profiles() { printf '%s\n' common linux-desktop macos; }
+select_profile() {
+    case "$PROFILE" in
+        common) PROFILE_PACKAGES="alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise" ;;
+        linux-desktop) [ "$(uname -s)" = Linux ] || err 'linux-desktop profile requires Linux'; PROFILE_PACKAGES="alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise linux mango waybar" ;;
+        macos) [ "$(uname -s)" = Darwin ] || err 'macos profile requires macOS'; PROFILE_PACKAGES="alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise sketchybar skhd yabai personal" ;;
+        *) err "unknown profile '$PROFILE'" ;;
+    esac
+}
+parse_args() {
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --help|-h) usage; exit 0;; --list-profiles) list_profiles; exit 0;;
+            --profile) [ "$#" -gt 1 ] || err '--profile requires a value'; PROFILE="$2"; shift;;
+            --profile=*) PROFILE="${1#--profile=}";; --local|-l) LOCAL_INSTALL=1;;
+            --verbose|-v) PRINT_VERBOSE=1;; --yes|--force|-y) FORCE_INSTALL=1;;
+            --dry-run|-n) DRY_RUN=1;; --no-backup) BACKUP=0;;
+        esac; shift
+    done
+}
+install_selected_packages() {
+    base="$1"
+    for folder in $PROFILE_PACKAGES; do
+        if [ -d "$base/$folder/.local/share" ] || [ -d "$base/$folder/.cargo" ] || [ -d "$base/$folder/.rustup" ]; then
+            err "refusing to stow runtime state from package: $folder"
+        fi
+        if [ -d "$base/$folder" ]; then link_files "$base" "$folder"
+        elif [ "$folder" = work ] || [ "$folder" = personal ]; then say "skipping optional package unavailable: $folder"
+        else err "profile package missing: $folder"; fi
+    done
+}
+select_alacritty_overlay() {
+    base="$1"; overlay=local.linux.toml; [ "$PROFILE" = macos ] && overlay=local.macos.toml
+    source="$base/alacritty/.config/alacritty/$overlay"; target="$HOME/.config/alacritty/local.toml"
+    [ -f "$source" ] || err "missing Alacritty overlay: $source"
+    if [ "$DRY_RUN" = 1 ]; then say "dry-run: ln -sfn $source $target"
+    else [ "$BACKUP" = 1 ] && init_backup_dir && backup_target .config/alacritty/local.toml; mkdir -p "$(dirname "$target")"; ln -sfn "$source" "$target"; fi
+}
 download_link_dotfiles(){
+    parse_args "$@"; select_profile
     for arg in "$@"; do
         case "$arg" in
-                
+
             --help)
                 usage
                 exit 0
@@ -106,7 +154,11 @@ download_link_dotfiles(){
         say_verbose "stow command found in ~/.local/bin."
         STOW_CMD="$HOME/.local/bin/stow"
     else
-        install_stow
+        if [ "$DRY_RUN" = 1 ]; then
+            STOW_CMD=:
+        else
+            install_stow
+        fi
     fi
 
     _temp_dir="$(ensure mktemp -d)" || return 1
@@ -120,27 +172,16 @@ download_link_dotfiles(){
         else
             local_source=$(cd "$(dirname "$0")" && pwd) || err "failed to resolve local source dir"
         fi
-        for folder in "$local_source"/*/; do
-            folder="${folder%/}"
-            [ "$folder" = ".git" ] && continue
-            folder="${folder##*/}"
-            [ "$folder" = "docs" ] && continue
-            [ "$folder" = "opencode" ] && continue
-            link_files "$local_source" "$folder"
-        done
+        install_selected_packages "$local_source"
+        select_alacritty_overlay "$local_source"
+        [ "$DRY_RUN" = 1 ] || verify_tools
         exit 0
     fi
 
     if [ "$DRY_RUN" = "1" ]; then
         if [ -d "$RECEIPT_HOME" ]; then
-            for folder in "$RECEIPT_HOME"/*; do
-                [ -d "$folder" ] || continue
-                folder="${folder##*/}"
-                [ "$folder" = ".git" ] && continue
-                [ "$folder" = "docs" ] && continue
-                [ "$folder" = "opencode" ] && continue
-                link_files "$RECEIPT_HOME" "$folder"
-            done
+            install_selected_packages "$RECEIPT_HOME"
+            select_alacritty_overlay "$RECEIPT_HOME"
             exit 0
         fi
         err "dry-run requires --local or existing $RECEIPT_HOME"
@@ -196,15 +237,8 @@ download_link_dotfiles(){
         rsync -ahq "$_extract_dir/" "$RECEIPT_HOME"
     fi
 
-    for folder in "$RECEIPT_HOME"/*; do
-        [ -d "$folder" ] || continue
-        folder="${folder##*/}"
-        [ "$folder" = ".git" ] && continue
-        [ "$folder" = "docs" ] && continue
-        [ "$folder" = "opencode" ] && continue
-        link_files "$RECEIPT_HOME" "$folder"
-    done
-    rm -rf "$_temp_dir"
+    install_selected_packages "$RECEIPT_HOME"
+    select_alacritty_overlay "$RECEIPT_HOME"
 
     if [ -d "$HOME/.config/nvim" ]; then
         mkdir -p "$HOME/.vim/undodir"
@@ -224,9 +258,11 @@ install_stow(){
     _temp_dir=$(mktemp -d)
     (
         cd "$_temp_dir" || err "failed to enter temp dir"
-        curl -O https://ftp.gnu.org/gnu/stow/stow-latest.tar.gz
+        downloader https://ftp.gnu.org/gnu/stow/stow-latest.tar.gz stow-latest.tar.gz
         tar xf stow-latest.tar.gz
-        release=$(ls -Avr | grep -m1 -axEe 'stow-[0-9.]+')
+        release=""
+        for candidate in stow-[0-9.]*; do [ -d "$candidate" ] || continue; release="$candidate"; break; done
+        [ -n "$release" ] || err 'failed to find extracted Stow release'
         cd "$release" || err "failed to enter stow release dir"
         mkdir -p "$HOME/.local/bin"
         ./configure --prefix "$HOME/.local"
@@ -240,7 +276,7 @@ install_stow(){
 ensure_parent_dirs() {
     # Ensure common parent directories exist as real directories
     # to prevent stow from symlinking entire trees
-    for dir in ".config" ".local" ".local/bin"; do
+    for dir in ".config" ".config/alacritty" ".local" ".local/bin" ".local/share"; do
         target="$HOME/$dir"
         if [ ! -d "$target" ]; then
             if [ "$DRY_RUN" = "1" ]; then
@@ -261,16 +297,16 @@ link_files(){
         [ -d "$folder" ] || continue
         if [ "$DRY_RUN" = "1" ]; then
             say "dry-run: $STOW_CMD -D $folder"
-            "$STOW_CMD" -n -D $STOW_IGNORE "$folder"
+            "$STOW_CMD" -n -D -t "$HOME" "$STOW_IGNORE" "$folder" || true
             say "dry-run: $STOW_CMD $folder"
-            "$STOW_CMD" -n $STOW_IGNORE "$folder"
+            "$STOW_CMD" -n -t "$HOME" "$STOW_IGNORE" "$folder" || true
             continue
         fi
 
         overwrite=0
         conflict_out="$(mktemp)"
         conflict_list="$(mktemp)"
-        if ! "$STOW_CMD" -n $STOW_IGNORE "$folder" >"$conflict_out" 2>&1; then
+        if ! "$STOW_CMD" -n -t "$HOME" "$STOW_IGNORE" "$folder" >"$conflict_out" 2>&1; then
             cat "$conflict_out"
             extract_stow_conflicts "$conflict_out" >"$conflict_list"
         fi
@@ -307,10 +343,10 @@ link_files(){
         fi
 
         say_verbose "$STOW_CMD $folder"
-        "$STOW_CMD" -D $STOW_IGNORE "$folder"
-        if ! "$STOW_CMD" $STOW_IGNORE "$folder"; then
+        "$STOW_CMD" -D -t "$HOME" "$STOW_IGNORE" "$folder"
+        if ! "$STOW_CMD" -t "$HOME" "$STOW_IGNORE" "$folder"; then
             say "stow failed for $folder; reverting changes"
-            "$STOW_CMD" -D $STOW_IGNORE "$folder" >/dev/null 2>&1 || true
+            "$STOW_CMD" -D -t "$HOME" "$STOW_IGNORE" "$folder" >/dev/null 2>&1 || true
             restore_backups "$backup_list"
             rm -f "$conflict_out" "$conflict_list" "$backup_list"
             err "stow failed for $folder; changes reverted"
@@ -337,7 +373,15 @@ init_backup_dir() {
 backup_target() {
     rel="$1"
     list_file="${2:-}"
+    case "$rel" in
+        .cargo/*|.rustup/*|.local/share/*)
+            err "refusing to manage mutable tool state: $rel"
+            ;;
+    esac
     target="$HOME/$rel"
+    if path_reaches_symlink "$target"; then
+        return 0
+    fi
     if [ -e "$target" ] || [ -L "$target" ]; then
         backup_path="$BACKUP_DIR/$rel"
         if [ "$DRY_RUN" = "1" ]; then
@@ -353,6 +397,17 @@ backup_target() {
     fi
 }
 
+path_reaches_symlink() {
+    path="$1"
+    while [ "$path" != "/" ] && [ "$path" != "$HOME" ]; do
+        if [ -L "$path" ]; then
+            return 0
+        fi
+        path="$(dirname "$path")"
+    done
+    return 1
+}
+
 backup_files() {
     [ "$BACKUP" = "1" ] || return 0
     pkg_dir="$1"
@@ -361,9 +416,15 @@ backup_files() {
     init_backup_dir
 
     find "$pkg_dir" \( -type f -o -type l \) -print | while IFS= read -r src; do
-        rel="${src#$pkg_dir/}"
+        rel="${src#"$pkg_dir"/}"
         target="$HOME/$rel"
         if [ -e "$target" ] || [ -L "$target" ]; then
+            # A stowed parent (for example ~/.config/zshrc) can make the
+            # target resolve back into the checkout. Never move source files
+            # while backing up a target reached through such a symlink.
+            if path_reaches_symlink "$target"; then
+                continue
+            fi
             if [ -L "$target" ] && check_cmd readlink; then
                 link_target="$(readlink "$target" 2>/dev/null || echo '')"
                 if [ "$link_target" = "$src" ]; then
@@ -392,6 +453,9 @@ restore_backups() {
         backup_path="$BACKUP_DIR/$rel"
         target="$HOME/$rel"
         [ -e "$backup_path" ] || continue
+        if path_reaches_symlink "$target"; then
+            err "refusing to restore through symlinked path: $target"
+        fi
         if [ -e "$target" ] || [ -L "$target" ]; then
             rm -rf "$target"
         fi
@@ -421,11 +485,13 @@ extract_stow_conflicts() {
 }
 
 verify_tools() {
-    for tool in stow git curl rsync; do
+    status=0
+    for tool in stow git curl rsync mise; do
         if check_cmd "$tool"; then
             say_verbose "ok: $tool"
         else
-            say "missing: $tool"
+            say "missing: $tool (required)"
+            status=1
         fi
     done
 
@@ -436,6 +502,7 @@ verify_tools() {
             say "missing: $tool (optional)"
         fi
     done
+    return "$status"
 }
 
 ensure() {
@@ -481,8 +548,8 @@ say_verbose() {
 }
 err() {
     if [ "0" = "$PRINT_QUIET" ]; then
-        local red
-        local reset
+        red=""
+        reset=""
         red=$(tput setaf 1 2>/dev/null || echo '')
         reset=$(tput sgr0 2>/dev/null || echo '')
         say "${red}ERROR${reset}: $1" >&2

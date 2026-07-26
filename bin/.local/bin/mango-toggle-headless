@@ -1,5 +1,10 @@
 #!/bin/sh
 set -eu
+MMSG_CMD="$(command -v mmsg || true)"
+WLR_RANDR_CMD="$(command -v wlr-randr || true)"
+JQ_CMD="$(command -v jq || true)"
+[ -n "$MMSG_CMD" ] || { echo "mmsg is required" >&2; exit 1; }
+[ -n "$WLR_RANDR_CMD" ] || { echo "wlr-randr is required" >&2; exit 1; }
 
 HEADLESS="HEADLESS-1"
 HDMI="HDMI-A-1"
@@ -8,7 +13,7 @@ LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/mango"
 mkdir -p "$LOG_DIR"
 
 output_enabled() {
-    /usr/bin/wlr-randr 2>/dev/null |
+    "$WLR_RANDR_CMD" 2>/dev/null |
         awk -v output="$1" '
             $0 ~ "^" output " " { in_output=1; next }
             in_output && /^[[:space:]]+Enabled: / { print $2; exit }
@@ -18,29 +23,29 @@ output_enabled() {
 
 route_games() {
     monitor="$1"
-    if [ -x /usr/bin/jq ]; then
-        /usr/bin/mmsg get all-clients 2>/dev/null |
-            /usr/bin/jq -r '.clients[] | select(.appid | test("^steam_app_")) | .id' |
+    if [ -n "$JQ_CMD" ]; then
+        "$MMSG_CMD" get all-clients 2>/dev/null |
+            "$JQ_CMD" -r '.clients[] | select(.appid | test("^steam_app_")) | .id' |
             while IFS= read -r id; do
-                [ -n "$id" ] && /usr/bin/mmsg dispatch "tagmon,$monitor" "client,$id" >/dev/null 2>&1 || true
+                [ -n "$id" ] && "$MMSG_CMD" dispatch "tagmon,$monitor" "client,$id" >/dev/null 2>&1 || true
             done
     fi
 }
 
 headless_only() {
-    /usr/bin/wlr-randr --output "$HDMI" --off >/dev/null 2>&1 || true
-    /usr/bin/wlr-randr --output "$DP" --off >/dev/null 2>&1 || true
-    /usr/bin/wlr-randr --output "$HEADLESS" --pos 0,0 >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$HDMI" --off >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$DP" --off >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$HEADLESS" --pos 0,0 >/dev/null 2>&1 || true
     route_games "$HEADLESS"
     mode=headless-only
 }
 
 desk() {
-    /usr/bin/wlr-randr --output "$DP" --on --mode 1920x1080@143.855 --pos 0,0 --transform 90 >/dev/null 2>&1 || true
-    /usr/bin/wlr-randr --output "$HDMI" --on --mode 2560x1440@119.998 --pos 1080,0 >/dev/null 2>&1 || true
-    /usr/bin/wlr-randr --output "$HEADLESS" --pos 3640,0 >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$DP" --on --mode 1920x1080@143.855 --pos 0,0 --transform 90 >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$HDMI" --on --mode 2560x1440@119.998 --pos 1080,0 >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$HEADLESS" --pos 3640,0 >/dev/null 2>&1 || true
     # Mango may auto-place a newly enabled output; apply the desk layout last.
-    /usr/bin/wlr-randr --output "$DP" --pos 0,0 >/dev/null 2>&1 || true
+    "$WLR_RANDR_CMD" --output "$DP" --pos 0,0 >/dev/null 2>&1 || true
     route_games "$HDMI"
     mode=desk
 }

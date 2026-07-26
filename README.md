@@ -1,37 +1,31 @@
 # Dotfiles
 
-Cross-platform dotfiles for Linux and macOS with a POSIX sh installer.
+Cross-platform Linux/macOS dotfiles using GNU Stow and mise.
 
-Install (recommended):
 ```sh
-curl -sSfL https://raw.githubusercontent.com/pesap/.dotfiles/0.0.1/bootstrap.sh | sh
+curl -sSfL https://raw.githubusercontent.com/pesap/.dotfiles/0.0.2/bootstrap.sh | sh
+./install.sh --local --profile common
 ```
 
-Install with flags:
-```sh
-curl -sSfL https://raw.githubusercontent.com/pesap/.dotfiles/0.0.1/bootstrap.sh | sh -s -- --dry-run
-curl -sSfL https://raw.githubusercontent.com/pesap/.dotfiles/0.0.1/bootstrap.sh | sh -s -- --yes
-curl -sSfL https://raw.githubusercontent.com/pesap/.dotfiles/0.0.1/bootstrap.sh | sh -s -- --no-backup
-```
+Profiles are `common`, `linux-desktop` (common + Linux/Mango/Waybar), and
+`macos` (common + Sketchybar/skhd/yabai and optional personal configuration).
+Use `./install.sh --list-profiles` or `--profile NAME`; common is the safe
+noninteractive default. Private submodules are optional.
 
-Local install (from a cloned repo):
-```sh
-./install.sh --local
-```
+The OS package manager provides system dependencies and mise; mise installs
+user CLI tools from `mise/.config/mise/config.toml`; Stow installs config
+packages. Rustup/Cargo state (`~/.rustup`, `~/.cargo`) and mise's installed
+artifacts (`~/.local/share/mise`) are mutable runtime state and are never
+stored in or traversed by Stow. The CLI tools previously installed with Cargo
+are now reproducibly managed by mise. Run `mise install` and then:
 
-Health check:
 ```sh
 dotfiles-healthcheck
+prek run --all-files
+shellcheck -x bootstrap.sh install.sh programs.sh bin/.local/bin/dotfiles-healthcheck bin/.local/bin/restow
 ```
 
-Safe WM apply (Linux/macOS):
-```sh
-dotcfg run
-# non-interactive
-DOTFILES_SKIP_SMOKE=1 dotcfg run --yes   # testing only
-```
-
-Notes:
-- The bootstrap script installs prerequisites via your package manager.
-- The installer defaults to non-interactive behavior for `curl | sh`.
-- Existing files are moved to `~/.dotfiles-backup/` before stowing (disable with `--no-backup`).
+The health check prints all missing tools and exits nonzero on required
+failures. Dry runs do not modify the home directory or invoke package managers.
+The installer also refuses to back up or move Cargo, Rustup, or mise runtime
+state.
