@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+gpu="$(waybar-gpu | jq -r '.text' 2>/dev/null || printf '󰢮 ?')"
+disk="$(waybar-disk | jq -r '.text' 2>/dev/null || printf '󰋊 ?')"
+weather="$(waybar-weather | jq -r '.text' 2>/dev/null | sed 's/^󰖐 //' || true)"
+gpu_short="$(printf '%s\n' "$gpu" | awk '{print $1, $2}')"
+disk_short="$(printf '%s\n' "$disk" | awk '{print $1, $2}')"
+text="$gpu_short  $disk_short"
+tooltip="GPU: $gpu\nDisk: $disk\nWeather: ${weather:-unavailable}"
+jq -cn --arg text "$text" --arg tooltip "$tooltip" '{text:$text,tooltip:$tooltip}'

@@ -1,92 +1,62 @@
 * {
-    font-family: "JetBrains Mono", "Font Awesome 6 Free";
-    font-size: 13px;
+    font-family: "JetBrainsMono Nerd Font Mono";
+    font-size: 14px;
     color: #edf2f4;
 }
 
 window#waybar {
-    background: rgba(39, 53, 61, 0.92);
+    background: rgba(39, 53, 61, 0.94);
     border: 1px solid rgba(80, 132, 207, 0.45);
-    border-radius: 8px;
-    padding: 3px 5px;
-    margin: 5px;
+    border-radius: 7px;
+    padding: 2px 4px;
+    margin: 4px;
 }
 
 #waybar > * {
-    padding: 0 7px;
-    margin-top: 2px;
+    padding: 0 4px;
+    margin: 0;
 }
 
 #custom-mango-tags {
     color: #f8ae3b;
-    min-width: 5em;
+    min-width: 4em;
 }
 
 #custom-mango-layout,
-#custom-mango-keymode {
+#custom-power,
+#custom-wallpaper {
     color: #f8ae3b;
+    padding: 0 7px;
+    margin-right: 5px;
+    border-right: 1px solid rgba(237, 242, 244, 0.25);
 }
 
 #custom-mango-window {
     color: #c7d8de;
-    min-width: 12em;
+    min-width: 10em;
 }
 
-#custom-cava {
-    color: #f8ae3b;
-    min-width: 100px;
-}
-
-#custom-wallpaper,
-#custom-power,
-#custom-notifications {
-    color: #f8ae3b;
-}
-
-#custom-gpu,
-#custom-disk,
-#network {
+#custom-system {
     color: #80cbc4;
+    font-size: 12px;
+    padding: 0 7px;
+    margin-right: 5px;
+    border-right: 1px solid rgba(237, 242, 244, 0.25);
 }
 
-#custom-weather {
-    color: #8fb9e8;
-}
-
-#mpris {
+#wireplumber,
+#network {
     color: #c7d8de;
+    padding: 0 7px;
 }
 
 #clock {
     color: #80cbc4;
-}
-
-#cpu {
-    color: #f8ae3b;
-}
-
-#memory {
-    color: #b9a1d9;
-}
-
-#battery {
-    color: #90d7a3;
-}
-
-#battery.warning {
-    color: #f8ae3b;
-}
-
-#battery.critical {
-    color: #d95d5d;
-}
-
-#wireplumber,
-#wireplumber.microphone {
-    color: #c7d8de;
+    padding: 0 7px;
+    margin-right: 4px;
 }
 
 #tray {
     background: transparent;
-    padding: 0 5px;
+    padding: 0 2px;
 }

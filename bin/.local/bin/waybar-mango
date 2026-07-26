@@ -22,8 +22,9 @@ case "${1:-tags}" in
 		;;
 	window)
 		printf '%s\n' "$state" | jq -c '
+			def markup: gsub("&";"&amp;") | gsub("<";"&lt;") | gsub(">";"&gt;");
 			.active_client // {title:"Desktop",appid:""} |
-			{text:(.title // .appid // "Desktop"),tooltip:(.appid // "Desktop")}'
+			{text:((.title // .appid // "Desktop") | markup),tooltip:((.appid // "Desktop") | markup)}'
 		;;
 	keymode)
 		printf '%s\n' "$state" | jq -c '{text:.keymode,tooltip:("Key mode: " + .keymode)}'

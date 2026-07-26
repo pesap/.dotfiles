@@ -34,8 +34,8 @@ dotfiles validate
 ```
 
 `dotfiles validate` checks shell, Zsh, JSON, TOML, Neovim Lua, Mango, Zellij,
-the reproducible Zellij plugin artifact, isolated installer/CLI regressions,
-and whitespace. It disables mise auto-install so validation cannot install
+the Zellij plugin build and checked-in artifact, isolated installer/CLI
+regressions, and whitespace. It disables mise auto-install so validation cannot install
 missing tools as a side effect. `prek run --all-files` remains the formatting,
 ShellCheck, and secret-scanning gate and may fix files.
 
