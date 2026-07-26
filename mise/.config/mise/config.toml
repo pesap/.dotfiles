@@ -11,5 +11,6 @@ yazi = "25.5.31"
 uv = "0.11.32"
 prek = "0.4.11"
 gh = "2.96.0"
+"github:vicinaehq/vicinae" = { version = "0.23.2", os = ["linux"], asset_pattern = "vicinae-linux-x86_64-v{{version}}.tar.gz" }
 "cargo:cargo-edit" = "0.13.13"
 "cargo:stylua" = "2.5.2"
