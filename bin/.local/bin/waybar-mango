@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+output="${WAYBAR_OUTPUT_NAME:-HDMI-A-1}"
+state="$(mmsg get monitor "$output" 2>/dev/null || true)"
+
+if [ -z "$state" ]; then
+	printf '{"text":"-","class":"inactive","tooltip":"Mango unavailable"}\n'
+	exit 0
+fi
+
+case "${1:-tags}" in
+	tags)
+		printf '%s\n' "$state" | jq -c --arg output "$output" '
+			[.tags[] | select(.client_count > 0 or .is_active) |
+				(if .is_active then "[\(.index)]" else " \(.index) " end)] |
+			{ text: join(" "), tooltip: ("Monitor: " + $output) }
+		'
+		;;
+	layout)
+		printf '%s\n' "$state" | jq -c '{text:.layout_symbol,tooltip:("Layout: " + .layout_symbol)}'
+		;;
+	window)
+		printf '%s\n' "$state" | jq -c '
+			.active_client // {title:"Desktop",appid:""} |
+			{text:(.title // .appid // "Desktop"),tooltip:(.appid // "Desktop")}'
+		;;
+	keymode)
+		printf '%s\n' "$state" | jq -c '{text:.keymode,tooltip:("Key mode: " + .keymode)}'
+		;;
+	*)
+		exit 2
+		;;
+esac

@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+if ! command -v cava >/dev/null 2>&1; then
+	printf '{"text":"♫","tooltip":"Install cava for the audio visualizer"}\n'
+	exit 0
+fi
+
+config="${XDG_RUNTIME_DIR:-/tmp}/waybar-cava.conf"
+cat >"$config" <<'EOF'
+[general]
+framerate = 10
+bars = 12
+[input]
+method = pulse
+[output]
+method = raw
+raw_target = /dev/stdout
+data_format = ascii
+ascii_max_range = 7
+EOF
+
+bars="$(timeout --foreground -k 0.1s 0.2s cava -p "$config" 2>/dev/null | head -n 1 | awk -F';' '
+	BEGIN { blocks[0]=" "; blocks[1]="▁"; blocks[2]="▂"; blocks[3]="▃"; blocks[4]="▄"; blocks[5]="▅"; blocks[6]="▆"; blocks[7]="█" }
+	{ for (i = 1; i <= NF; i++) out = out blocks[$i + 0]; print out }
+' || true)"
+[ -n "$bars" ] || bars='♫'
+jq -cn --arg text "$bars" --arg tooltip 'Audio visualizer' '{text:$text,tooltip:$tooltip}'

@@ -18,8 +18,42 @@ check() {
 check_optional() {
     if command -v "$1" >/dev/null 2>&1; then say "ok: $1 (optional)"; else say "missing: $1 (optional)"; fi
 }
+
+check_profile_packages() {
+    dotfiles_dir="${DOTFILES_DIR:-$HOME/.dotfiles}"
+    manifest="$dotfiles_dir/packages.conf"
+    profile="${DOTFILES_PROFILE:-common}"
+    if [ ! -f "$manifest" ]; then
+        say "missing: $manifest"
+        return 1
+    fi
+
+    packages="$(awk -v profile="$profile" '
+        /^[[:space:]]*#/ || NF == 0 { next }
+        $1 == profile { $1 = ""; sub(/^[[:space:]]+/, ""); print; found = 1; exit }
+        END { if (!found) exit 1 }
+    ' "$manifest")" || {
+        say "missing: profile '$profile' in $manifest"
+        return 1
+    }
+
+    package_status=0
+    for package in $packages; do
+        if [ -d "$dotfiles_dir/$package" ]; then
+            say "ok: package $package"
+        elif [ "$package" = personal ]; then
+            say "missing: package $package (optional)"
+        else
+            say "missing: package $package"
+            package_status=1
+        fi
+    done
+    return "$package_status"
+}
+
 say "Dotfiles health check"
 status=0
-for tool in stow git curl rsync mise; do check "$tool" || status=1; done
+for tool in stow git curl rsync mise pi dotfiles; do check "$tool" || status=1; done
 for tool in nvim rg cargo zsh fzf zoxide atuin uv; do check_optional "$tool"; done
+check_profile_packages || status=1
 exit "$status"

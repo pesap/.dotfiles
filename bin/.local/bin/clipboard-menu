@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+if ! command -v cliphist >/dev/null 2>&1; then
+	notify-send 'Clipboard history' 'Install cliphist to enable clipboard history.' 2>/dev/null || true
+	exit 0
+fi
+
+selection="$(cliphist list | rofi -dmenu -i -p 'Clipboard' || true)"
+[ -n "$selection" ] || exit 0
+printf '%s' "$selection" | cliphist decode | wl-copy

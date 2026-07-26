@@ -3,4 +3,3 @@
 # Open Safari and then open a new Private Browsing window
 osascript -e 'tell application "Safari" to activate' \
           -e 'tell application "System Events" to keystroke "n" using {shift down, command down}'
-

@@ -1,56 +1,110 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-THEMES_DIR="$HOME/.config/waybar/themes"
+CONFIG_DIR="${WAYBAR_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/waybar}"
+THEMES_DIR="${WAYBAR_THEMES_DIR:-$CONFIG_DIR/themes}"
+MANIFEST="$THEMES_DIR/manifest.tsv"
+runtime_base="${XDG_RUNTIME_DIR:-/var/tmp}"
+runtime_uid=$(id -u)
+RUNTIME_DIR="${WAYBAR_RUNTIME_DIR:-$runtime_base/waybar-$runtime_uid}"
 THEME="${1:-}"
-TARGET_CONFIG="$HOME/.config/waybar/config.jsonc"
-TARGET_STYLE="$HOME/.config/waybar/style.css"
+TARGET_CONFIG="$RUNTIME_DIR/config.jsonc"
+TARGET_STYLE="$RUNTIME_DIR/style.css"
+TARGET_MANGO_SUPPORT="$RUNTIME_DIR/.mango-support"
+
+fail() {
+    printf 'theme-switcher: %s\n' "$*" >&2
+    exit 1
+}
+
+safe_theme_name() {
+    local safe_name_re='^[A-Za-z0-9][A-Za-z0-9._ -]*$'
+    [[ "$1" =~ $safe_name_re ]]
+}
+
+mango_support() {
+    awk -F '\t' -v theme="$1" '
+    $0 !~ /^#/ && $1 == theme { support = $3 }
+    $0 !~ /^#/ && $1 == "*" && support == "" { support = $3 }
+    END { print support == "" ? "unsupported" : support }
+  ' "$MANIFEST"
+}
 
 if [ -z "$THEME" ]; then
-  if ! command -v vicinae >/dev/null 2>&1; then
-    echo "vicinae is not installed." >&2
-    exit 1
-  fi
+    if ! command -v vicinae >/dev/null 2>&1; then
+        echo "vicinae is not installed." >&2
+        exit 1
+    fi
 
-  THEME=$(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-    | sort \
-    | vicinae dmenu --navigation-title "Waybar Theme" --placeholder "Type to filter themes")
+    THEME=$(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
+        sort |
+        vicinae dmenu --navigation-title "Waybar Theme" --placeholder "Type to filter themes")
 fi
 
-if [ -n "$THEME" ] && [ -d "$THEMES_DIR/$THEME" ]; then
-  THEME_CONFIG="$THEMES_DIR/$THEME/config"
-  THEME_STYLE="$THEMES_DIR/$THEME/style.css"
+safe_theme_name "$THEME" || fail "refusing path-like theme name"
+THEME_DIR="$THEMES_DIR/$THEME"
+THEME_CONFIG="$THEME_DIR/config"
+THEME_STYLE="$THEME_DIR/style.css"
 
-  # MangoWC compatibility path:
-  # - map Hyprland modules to Mango-supported modules
-  # - strip modules that rely on other compositors
-  # - normalize GTK CSS properties that are deprecated in current GTK
-  if pgrep -x mango >/dev/null 2>&1; then
-    rm -f "$TARGET_CONFIG" "$TARGET_STYLE"
+[[ -d "$THEME_DIR" && ! -L "$THEME_DIR" ]] || fail "unknown or linked theme: $THEME"
+[[ -f "$THEME_CONFIG" && -r "$THEME_CONFIG" ]] || fail "theme has no readable config: $THEME"
+[[ -f "$THEME_STYLE" && -r "$THEME_STYLE" ]] || fail "theme has no readable style.css: $THEME"
+[[ -f "$MANIFEST" && -r "$MANIFEST" ]] || fail "missing theme support manifest: $MANIFEST"
+support=$(mango_support "$THEME")
+
+config_dir_resolved=$(realpath -m -- "$CONFIG_DIR")
+runtime_dir_resolved=$(realpath -m -- "$RUNTIME_DIR")
+case "$runtime_dir_resolved/" in
+"$config_dir_resolved/"*) fail "runtime directory must be outside the tracked config tree" ;;
+esac
+
+if [[ -L "$RUNTIME_DIR" || (-e "$RUNTIME_DIR" && ! -d "$RUNTIME_DIR") ]]; then
+    fail "runtime path must be a real directory: $RUNTIME_DIR"
+fi
+mkdir -p -- "$RUNTIME_DIR"
+[[ -O "$RUNTIME_DIR" ]] || fail "runtime directory is not owned by the current user: $RUNTIME_DIR"
+chmod 0700 -- "$RUNTIME_DIR"
+config_stage=$(mktemp "$RUNTIME_DIR/.config.jsonc.XXXXXX")
+style_stage=$(mktemp "$RUNTIME_DIR/.style.css.XXXXXX")
+support_stage=$(mktemp "$RUNTIME_DIR/.mango-support.XXXXXX")
+trap 'rm -f -- "${config_stage:-}" "${style_stage:-}" "${support_stage:-}"' EXIT
+
+if pgrep -x mango >/dev/null 2>&1; then
+    [[ "$support" == "mango-adapted" ]] || fail "theme '$THEME' is $support for Mango; use a marked mango-adapted theme"
 
     sed -E \
-      -e '/^[[:space:]]*"hyprland\/mode",[[:space:]]*$/d' \
-      -e '/^[[:space:]]*"sway\/language",[[:space:]]*$/d' \
-      -e 's/"hyprland\/workspaces"/"ext\/workspaces"/g' \
-      -e 's/"hyprland\/window"/"dwl\/window"/g' \
-      -e 's/"sort-by-number"/"sort-by-id"/g' \
-      -e '/hyprctl[[:space:]]+dispatch[[:space:]]+workspace/d' \
-      "$THEME_CONFIG" > "$TARGET_CONFIG"
+        -e '/^[[:space:]]*"hyprland\/mode",[[:space:]]*$/d' \
+        -e '/^[[:space:]]*"sway\/language",[[:space:]]*$/d' \
+        -e 's/"hyprland\/workspaces"/"ext\/workspaces"/g' \
+        -e 's/"hyprland\/window"/"dwl\/window"/g' \
+        -e 's/"sort-by-number"/"sort-by-id"/g' \
+        -e '/hyprctl[[:space:]]+dispatch[[:space:]]+workspace/d' \
+        "$THEME_CONFIG" >"$config_stage"
 
-    if ! ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
-      sed -i -E '/^[[:space:]]*"battery",[[:space:]]*$/d' "$TARGET_CONFIG"
+    if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
+        sed -i -E '/^[[:space:]]*"battery",[[:space:]]*$/d' "$config_stage"
     fi
 
     sed -E \
-      -e 's/\bicon-shadow[[:space:]]*:/-gtk-icon-shadow:/g' \
-      -e 's/([[:space:]]margin-(top|right|bottom|left)[[:space:]]*:[[:space:]]*)([0-9]+)([[:space:]]*;)/\1\3px\4/g' \
-      "$THEME_STYLE" > "$TARGET_STYLE"
-  else
-    ln -sf "$THEME_CONFIG" "$TARGET_CONFIG"
-    ln -sf "$THEME_STYLE" "$TARGET_STYLE"
-  fi
+        -e 's/\bicon-shadow[[:space:]]*:/-gtk-icon-shadow:/g' \
+        -e 's/([[:space:]]margin-(top|right|bottom|left)[[:space:]]*:[[:space:]]*)([0-9]+)([[:space:]]*;)/\1\3px\4/g' \
+        "$THEME_STYLE" >"$style_stage"
+else
+    cp -- "$THEME_CONFIG" "$config_stage"
+    cp -- "$THEME_STYLE" "$style_stage"
+fi
+printf '%s\n' "$support" >"$support_stage"
 
-  # Restart Waybar
-  killall -q waybar || true
-  waybar -c "$TARGET_CONFIG" -s "$TARGET_STYLE" &
+[[ -s "$config_stage" && -s "$style_stage" && -s "$support_stage" ]] ||
+    fail "theme generated an empty runtime file"
+mv -f -- "$config_stage" "$TARGET_CONFIG"
+config_stage=''
+mv -f -- "$style_stage" "$TARGET_STYLE"
+style_stage=''
+mv -f -- "$support_stage" "$TARGET_MANGO_SUPPORT"
+support_stage=''
+
+if [[ "${WAYBAR_RESTART:-1}" == "1" ]]; then
+    killall -q waybar || true
+    waybar -c "$TARGET_CONFIG" -s "$TARGET_STYLE" &
 fi

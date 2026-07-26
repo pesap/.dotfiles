@@ -1,0 +1,8 @@
+[zellij]
+host_version = "0.44.3"
+
+[plugin]
+crate = "zellij-tile"
+crate_version = "0.44.3"
+target = "wasm32-wasip1"
+artifact = "../../plugins/zellij-layout-picker.wasm"

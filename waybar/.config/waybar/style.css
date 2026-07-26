@@ -1,74 +1,92 @@
-/* style.css */
 * {
-    font-family: "JetBrains Mono", "Font Awesome 6 Free"; /* Choose your fonts */
-    font-size: 14px;
-    color: #f0f0f0; /* Light text color */
+    font-family: "JetBrains Mono", "Font Awesome 6 Free";
+    font-size: 13px;
+    color: #edf2f4;
 }
 
 window#waybar {
-    background-color: rgba(20, 20, 20, 0.8); /* Semi-transparent dark background */
-    border-radius: 10px; /* Rounded corners */
-    padding: 5px;
+    background: rgba(39, 53, 61, 0.92);
+    border: 1px solid rgba(80, 132, 207, 0.45);
+    border-radius: 8px;
+    padding: 3px 5px;
     margin: 5px;
 }
 
 #waybar > * {
-    padding: 0px 10px; /* Spacing between modules */
-    margin-top: 5px;
+    padding: 0 7px;
+    margin-top: 2px;
 }
 
+#custom-mango-tags {
+    color: #f8ae3b;
+    min-width: 5em;
+}
+
+#custom-mango-layout,
+#custom-mango-keymode {
+    color: #f8ae3b;
+}
+
+#custom-mango-window {
+    color: #c7d8de;
+    min-width: 12em;
+}
+
+#custom-cava {
+    color: #f8ae3b;
+    min-width: 100px;
+}
+
+#custom-wallpaper,
+#custom-power,
+#custom-notifications {
+    color: #f8ae3b;
+}
+
+#custom-gpu,
+#custom-disk,
+#network {
+    color: #80cbc4;
+}
+
+#custom-weather {
+    color: #8fb9e8;
+}
+
+#mpris {
+    color: #c7d8de;
+}
 
 #clock {
-    color: #80CBC4; /* Teal color for clock */
-    padding: 0px 7px;
-}
-
-#pulseaudio {
-    color: #F0C674; /* Yellow for volume */
-    padding: 0px 7px;
-}
-
-#network {
-    color: #A0BFFF;  /* Blue for network */
-    padding: 0px 7px;
-}
-
-#battery {
-    color: #90EE90; /* Light green for battery */
-    padding: 0px 7px;
-}
-
-#temperature {
-    color: #FF6B6B; /* Red for temperature */
-    padding: 0px 7px;
+    color: #80cbc4;
 }
 
 #cpu {
-    color: #FFA500; /* Orange for CPU */
-    padding: 0px 7px;
+    color: #f8ae3b;
 }
 
 #memory {
-    color: #8A2BE2; /* Purple for memory */
-    padding: 0px 7px;
+    color: #b9a1d9;
+}
+
+#battery {
+    color: #90d7a3;
+}
+
+#battery.warning {
+    color: #f8ae3b;
+}
+
+#battery.critical {
+    color: #d95d5d;
+}
+
+#wireplumber,
+#wireplumber.microphone {
+    color: #c7d8de;
 }
 
 #tray {
-    background-color: rgba(0,0,0,0); /* Transparent tray background */
-    padding: 0px 7px;
-}
-
-/* Example of styling a specific module */
-#window {
-    color: #FFB347; /* Example orange color */
-}
-
-#custom-active-tag {
-    color: #00FF00;
-    min-width: 1.4em;
-    padding: 0px 7px;
-}
-
-#mode {
-    color: #FF69B4; /* Pink for mode */
+    background: transparent;
+    padding: 0 5px;
 }

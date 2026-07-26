@@ -7,4 +7,3 @@ done
 # Machine-specific local overrides (not in git)
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 [[ -f ~/.zshrc_local ]] && source ~/.zshrc_local
-

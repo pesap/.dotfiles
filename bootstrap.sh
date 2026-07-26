@@ -6,6 +6,7 @@ set -eu
 VERSION="${INSTALLER_VERSION:-0.0.2}"
 REPO_RAW_BASE="https://raw.githubusercontent.com/pesap/.dotfiles"
 INSTALLER_URL="${REPO_RAW_BASE}/${VERSION}/install.sh"
+INSTALLER_SHA256="${INSTALLER_SHA256:-}"
 
 say() {
     echo "$1"
@@ -34,6 +35,34 @@ download() {
     else
         err "Neither curl nor wget found"
     fi
+}
+
+expected_installer_sha256() {
+    if [ -n "$INSTALLER_SHA256" ]; then
+        printf '%s\n' "$INSTALLER_SHA256"
+        return
+    fi
+
+    case "$VERSION" in
+    0.0.2) printf '%s\n' '4044124e65bacb5f0edcc8b49ea44c3358b64016ac3cbbe6a4722533a73f992e' ;;
+    *) err "no installer checksum recorded for version '$VERSION'; set INSTALLER_SHA256 explicitly" ;;
+    esac
+}
+
+verify_sha256() {
+    file="$1"
+    expected="$2"
+
+    if check_cmd sha256sum; then
+        actual="$(sha256sum "$file" | awk '{print $1}')"
+    elif check_cmd shasum; then
+        actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+    else
+        err "need 'sha256sum' or 'shasum' to verify the installer"
+    fi
+
+    [ "$actual" = "$expected" ] ||
+        err "installer checksum mismatch for version '$VERSION'"
 }
 
 maybe_sudo() {
@@ -94,11 +123,31 @@ ensure_prereqs() {
 
 run_installer() {
     need_cmd mktemp
-    tmp_dir="$(mktemp -d)"
-    cleanup() { status=$?; rm -rf "$tmp_dir"; trap - EXIT; exit "$status"; }
-    trap cleanup EXIT
-    installer="$tmp_dir/install.sh"
+    bootstrap_temp_dir="$(mktemp -d /var/tmp/dotfiles-test.bootstrap.XXXXXX)"
+    cleanup() {
+        status=$?
+        trap - 0 HUP INT TERM
+        resolved_bootstrap_temp_dir="$(cd "$bootstrap_temp_dir" 2>/dev/null && pwd -P)" || resolved_bootstrap_temp_dir=""
+        case "$resolved_bootstrap_temp_dir" in
+        /var/tmp/dotfiles-test.bootstrap.*)
+            if [ -n "$resolved_bootstrap_temp_dir" ] && [ -d "$resolved_bootstrap_temp_dir" ] && [ ! -L "$bootstrap_temp_dir" ]; then
+                rm -rf -- "$resolved_bootstrap_temp_dir"
+            else
+                printf '%s\n' "ERROR: refusing to clean unexpected temporary path: $resolved_bootstrap_temp_dir" >&2
+                status=1
+            fi
+            ;;
+        *)
+            printf '%s\n' "ERROR: refusing to clean unexpected temporary path: $resolved_bootstrap_temp_dir" >&2
+            status=1
+            ;;
+        esac
+        exit "$status"
+    }
+    trap cleanup 0 HUP INT TERM
+    installer="$bootstrap_temp_dir/install.sh"
     download "$INSTALLER_URL" "$installer"
+    verify_sha256 "$installer" "$(expected_installer_sha256)"
     sh "$installer" "$@"
 }
 

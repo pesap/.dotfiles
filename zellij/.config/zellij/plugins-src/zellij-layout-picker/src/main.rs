@@ -220,7 +220,7 @@ fn matching_layouts(layouts: &[LayoutEntry], query: &str) -> Vec<LayoutEntry> {
 }
 
 fn layout_info_for_selection(selected_layout: &LayoutEntry) -> LayoutInfo {
-    LayoutInfo::File(selected_layout.path.clone())
+    LayoutInfo::File(selected_layout.path.clone(), LayoutMetadata::default())
 }
 
 fn active_tab_index(tab_infos: &[TabInfo]) -> Option<usize> {
@@ -307,7 +307,10 @@ mod tests {
         let info = layout_info_for_selection(&selected);
         assert_eq!(
             info,
-            zellij_tile::prelude::LayoutInfo::File("/tmp/rust.kdl".to_string())
+            zellij_tile::prelude::LayoutInfo::File(
+                "/tmp/rust.kdl".to_string(),
+                zellij_tile::prelude::LayoutMetadata::default(),
+            )
         );
     }
 
@@ -358,7 +361,13 @@ mod tests {
         let action = enter_actions(Some(&selected), Some(2));
         assert_eq!(
             action,
-            Some((LayoutInfo::File("/tmp/rust.kdl".to_string()), 2))
+            Some((
+                LayoutInfo::File(
+                    "/tmp/rust.kdl".to_string(),
+                    zellij_tile::prelude::LayoutMetadata::default(),
+                ),
+                2,
+            ))
         );
     }
 }

@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+usage="$(df -P "$HOME" 2>/dev/null | awk 'NR==2 {print $5}')"
+usage="${usage:-?}"
+jq -cn --arg text "󰋊 $usage" --arg tooltip "Home filesystem usage" '{text:$text,tooltip:$tooltip}'

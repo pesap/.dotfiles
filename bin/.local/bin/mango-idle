@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+command -v swayidle >/dev/null 2>&1 || exit 0
+lock_command="$HOME/.local/bin/mango-lock"
+[ -x "$lock_command" ] || exit 0
+
+exec swayidle -w \
+	timeout 900 "$lock_command" \
+	before-sleep "$lock_command"

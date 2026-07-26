@@ -12,6 +12,10 @@ path=(
     $path
 )
 
+# Make mise-managed tools available to login, SSH, IDE, and non-interactive
+# Zsh shells. This file is sourced from .zshenv and is safe to repeat.
+[[ -d "$HOME/.local/share/mise/shims" ]] && path=("$HOME/.local/share/mise/shims" $path)
+
 [[ -d "$HOME/.cargo/bin" ]] && path=("$HOME/.cargo/bin" $path)
 
 # Homebrew (macOS)

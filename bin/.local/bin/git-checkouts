@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GITCHECKOUT_VERSION="0.3.0"
+GITCHECKOUT_VERSION="0.3.1"
 
 NONNEGATIVE_INTEGER_RE='^[0-9]+$'
 SAFE_NAME_RE='^[A-Za-z0-9._-]+$'
 SAFE_REMOTE_ROOT_RE='^[A-Za-z0-9._~/-]+$'
+SAFE_SSH_HOST_RE='^([A-Za-z0-9._-]+@)?(\[[0-9A-Fa-f:.%]+\]|[A-Za-z0-9][A-Za-z0-9._:-]*)$'
 
 usage() {
-  cat <<'EOF'
+    cat <<'EOF'
 Usage: git-checkouts --host user@host [options]
        git checkouts --host user@host [options]
 
@@ -45,7 +46,8 @@ Options:
                          GIT_CHECKOUTS_KEEP_RUNS. Default: 5
   --max-run-age DAYS     Delete deploy runs older than DAYS. Env:
                          GIT_CHECKOUTS_MAX_RUN_AGE_DAYS. Default: 3
-  --force                Replace an existing different local remote URL or managed hook
+  --force                Replace an existing different local remote URL or managed hook.
+                         Never replaces an unmanaged remote `latest` path.
   --dry-run              Print planned actions and exit without changing local/remote state
   --json                 Emit machine-readable JSON result on stdout
   --version              Show script version
@@ -72,117 +74,127 @@ EOF
 log() { printf 'info: %s\n' "$*" >&2; }
 ok() { printf 'ok: %s\n' "$*" >&2; }
 fail() {
-  local message="${1:?message}"
-  local exit_code="${2:-1}"
-  printf 'error: %s\n' "$message" >&2
-  exit "$exit_code"
+    local message="${1:?message}"
+    local exit_code="${2:-1}"
+    printf 'error: %s\n' "$message" >&2
+    exit "$exit_code"
 }
 
 show_recovery_hint() {
-  local host="${HOST:-<user@host>}"
-  local remote_root="${REMOTE_ROOT:-<remote-root>}"
-  local remote_name="${REMOTE_NAME:-<remote-name>}"
-  printf 'hint: re-run git-checkouts to bootstrap or recreate the remote repo:\n' >&2
-  printf 'hint:   git-checkouts --host %s --root %s --force\n' "$host" "$remote_root" >&2
-  printf 'hint: then push again with: git push %s\n' "$remote_name" >&2
+    local host="${HOST:-<user@host>}"
+    local remote_root="${REMOTE_ROOT:-<remote-root>}"
+    local remote_name="${REMOTE_NAME:-<remote-name>}"
+    printf 'hint: re-run git-checkouts to bootstrap or recreate the remote repo:\n' >&2
+    printf 'hint:   git-checkouts --host %s --root %s --force\n' "$host" "$remote_root" >&2
+    printf 'hint: then push again with: git push %s\n' "$remote_name" >&2
 }
 
 need_cmd() {
-  local cmd="${1:?cmd}"
-  command -v "$cmd" >/dev/null 2>&1 || fail "missing required command: $cmd" 3
+    local cmd="${1:?cmd}"
+    command -v "$cmd" >/dev/null 2>&1 || fail "missing required command: $cmd" 3
 }
 
 require_value() {
-  local name="${1:?name}"
-  local value="${2-}"
-  [[ -n "$value" ]] || fail "missing required argument: $name" 2
+    local name="${1:?name}"
+    local value="${2-}"
+    [[ -n "$value" ]] || fail "missing required argument: $name" 2
 }
 
 matches_regex() {
-  local value="${1:?value}"
-  local pattern="${2:?pattern}"
-  [[ "$value" =~ $pattern ]]
+    local value="${1:?value}"
+    local pattern="${2:?pattern}"
+    [[ "$value" =~ $pattern ]]
 }
 
 require_nonnegative_integer() {
-  local flag_name="${1:?flag_name}"
-  local value="${2:?value}"
-  matches_regex "$value" "$NONNEGATIVE_INTEGER_RE" || fail "$flag_name must be a non-negative integer: $value" 2
+    local flag_name="${1:?flag_name}"
+    local value="${2:?value}"
+    matches_regex "$value" "$NONNEGATIVE_INTEGER_RE" || fail "$flag_name must be a non-negative integer: $value" 2
 }
 
 safe_name() {
-  local value="${1:?value}"
-  matches_regex "$value" "$SAFE_NAME_RE" && [[ "$value" != .* && "$value" != *..* ]]
+    local value="${1:?value}"
+    matches_regex "$value" "$SAFE_NAME_RE" && [[ "$value" != .* && "$value" != *..* ]]
 }
 
 safe_remote_root() {
-  local value="${1:?value}"
-  matches_regex "$value" "$SAFE_REMOTE_ROOT_RE" && [[ "$value" != *..* ]]
+    local value="${1:?value}"
+    matches_regex "$value" "$SAFE_REMOTE_ROOT_RE" && [[ "$value" != *..* ]]
+}
+
+safe_ssh_host() {
+    local value="${1:?value}"
+    matches_regex "$value" "$SAFE_SSH_HOST_RE"
+}
+
+safe_option_name() {
+    local value="${1:?value}"
+    safe_name "$value" && [[ "$value" != -* ]]
 }
 
 push_ref_is_supported() {
-  local value="${1:?value}"
-  [[ "$value" == HEAD:refs/heads/* || "$value" == HEAD:refs/tags/* || "$value" == refs/heads/* || "$value" == refs/tags/* ]]
+    local value="${1:?value}"
+    [[ "$value" == HEAD:refs/heads/* || "$value" == HEAD:refs/tags/* || "$value" == refs/heads/* || "$value" == refs/tags/* ]]
 }
 
 extract_host_from_url() {
-  local url="${1:?url}"
-  local host=''
+    local url="${1:?url}"
+    local host=''
 
-  if [[ "$url" =~ ^ssh://([^@/]+@)?([^/:]+)(:[0-9]+)?/ ]]; then
-    host="${BASH_REMATCH[2]}"
-  elif [[ "$url" =~ ^https?://([^/:]+) ]]; then
-    host="${BASH_REMATCH[1]}"
-  elif [[ "$url" =~ ^([^@/]+@)?([^:]+):[^/].*$ ]]; then
-    host="${BASH_REMATCH[2]}"
-  fi
+    if [[ "$url" =~ ^ssh://([^@/]+@)?([^/:]+)(:[0-9]+)?/ ]]; then
+        host="${BASH_REMATCH[2]}"
+    elif [[ "$url" =~ ^https?://([^/:]+) ]]; then
+        host="${BASH_REMATCH[1]}"
+    elif [[ "$url" =~ ^([^@/]+@)?([^:]+):[^/].*$ ]]; then
+        host="${BASH_REMATCH[2]}"
+    fi
 
-  [[ -n "$host" ]] || return 1
-  safe_name "$host" || fail "derived forge host path segment is unsafe: $host" 2
-  printf '%s\n' "$host"
+    [[ -n "$host" ]] || return 1
+    safe_name "$host" || fail "derived forge host path segment is unsafe: $host" 2
+    printf '%s\n' "$host"
 }
 
 resolve_forge_host_segment() {
-  local repo_root="${1:?repo_root}"
-  local remote_name="${2:?remote_name}"
-  local url=''
+    local repo_root="${1:?repo_root}"
+    local remote_name="${2:?remote_name}"
+    local url=''
 
-  if url="$(git -C "$repo_root" remote get-url origin 2>/dev/null)"; then
-    extract_host_from_url "$url" && return 0
-  fi
-  if [[ "$remote_name" != origin ]] && url="$(git -C "$repo_root" remote get-url "$remote_name" 2>/dev/null)"; then
-    extract_host_from_url "$url" && return 0
-  fi
+    if url="$(git -C "$repo_root" remote get-url origin 2>/dev/null)"; then
+        extract_host_from_url "$url" && return 0
+    fi
+    if [[ "$remote_name" != origin ]] && url="$(git -C "$repo_root" remote get-url "$remote_name" 2>/dev/null)"; then
+        extract_host_from_url "$url" && return 0
+    fi
 
-  fail "could not derive forge host from git remote URL; configure 'origin' or '$remote_name' first" 2
+    fail "could not derive forge host from git remote URL; configure 'origin' or '$remote_name' first" 2
 }
 
 json_escape() {
-  local value="${1-}"
-  value=${value//\\/\\\\}
-  value=${value//\"/\\\"}
-  value=${value//$'\n'/\\n}
-  value=${value//$'\r'/\\r}
-  value=${value//$'\t'/\\t}
-  printf '%s' "$value"
+    local value="${1-}"
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    value=${value//$'\n'/\\n}
+    value=${value//$'\r'/\\r}
+    value=${value//$'\t'/\\t}
+    printf '%s' "$value"
 }
 
 emit_result_json() {
-  local dry_run="${1:?dry_run}"
-  printf '{\n'
-  printf '  "version": "%s",\n' "$(json_escape "$GITCHECKOUT_VERSION")"
-  printf '  "dry_run": %s,\n' "$dry_run"
-  printf '  "repo": "%s",\n' "$(json_escape "$local_repo_root")"
-  printf '  "remote_name": "%s",\n' "$(json_escape "$REMOTE_NAME")"
-  printf '  "remote_url": "%s",\n' "$(json_escape "$remote_url")"
-  printf '  "push_ref": "%s",\n' "$(json_escape "$PUSH_REF")"
-  printf '  "remote_git_path": "%s",\n' "$(json_escape "$remote_git_path")"
-  printf '  "remote_latest_path": "%s",\n' "$(json_escape "$remote_latest_path")"
-  printf '  "remote_latest_sha_path": "%s",\n' "$(json_escape "$remote_latest_sha_path")"
-  printf '  "remote_runs_path": "%s",\n' "$(json_escape "$remote_runs_path")"
-  printf '  "keep_runs": %s,\n' "$KEEP_RUNS"
-  printf '  "max_run_age_days": %s\n' "$MAX_RUN_AGE_DAYS"
-  printf '}\n'
+    local dry_run="${1:?dry_run}"
+    printf '{\n'
+    printf '  "version": "%s",\n' "$(json_escape "$GITCHECKOUT_VERSION")"
+    printf '  "dry_run": %s,\n' "$dry_run"
+    printf '  "repo": "%s",\n' "$(json_escape "$local_repo_root")"
+    printf '  "remote_name": "%s",\n' "$(json_escape "$REMOTE_NAME")"
+    printf '  "remote_url": "%s",\n' "$(json_escape "$remote_url")"
+    printf '  "push_ref": "%s",\n' "$(json_escape "$PUSH_REF")"
+    printf '  "remote_git_path": "%s",\n' "$(json_escape "$remote_git_path")"
+    printf '  "remote_latest_path": "%s",\n' "$(json_escape "$remote_latest_path")"
+    printf '  "remote_latest_sha_path": "%s",\n' "$(json_escape "$remote_latest_sha_path")"
+    printf '  "remote_runs_path": "%s",\n' "$(json_escape "$remote_runs_path")"
+    printf '  "keep_runs": %s,\n' "$KEEP_RUNS"
+    printf '  "max_run_age_days": %s\n' "$MAX_RUN_AGE_DAYS"
+    printf '}\n'
 }
 
 # Embedded remote bootstrap script.
@@ -199,7 +211,7 @@ emit_result_json() {
 #   $4 keep runs (non-negative integer)
 #   $5 max run age days (non-negative integer)
 emit_remote_setup_script() {
-  cat <<'REMOTE_SETUP_EOF'
+    cat <<'REMOTE_SETUP_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -225,7 +237,7 @@ repo_name="${2:?repo name}"
 force="${3:?force}"
 keep_runs="${4:?keep runs}"
 max_run_age_days="${5:?max run age days}"
-marker='managed by git-checkouts'
+marker='# managed by git-checkouts'
 
 system="$(uname -s 2>/dev/null || true)"
 case "$system" in
@@ -255,7 +267,7 @@ fi
 
 mkdir -p -- "$remote_repo_root" "$runs_dir"
 
-if [[ -e "$hook_path" ]] && ! grep -q "$marker" "$hook_path" && [[ "$force" -ne 1 ]]; then
+if [[ -e "$hook_path" ]] && ! grep -Fqx "$marker" "$hook_path" && [[ "$force" -ne 1 ]]; then
   printf 'error: remote hook already exists and is not managed by git-checkouts: %s\n' "$hook_path" >&2
   printf 'error: re-run with --force to replace it.\n' >&2
   exit 1
@@ -268,7 +280,7 @@ repo_root_q="$(printf '%q' "$remote_repo_root")"
 # template tokens are replaced with the concrete config values via perl.
 cat > "$hook_path" <<'EOF_HOOK'
 #!/usr/bin/env bash
-# __MARKER__
+__MARKER__
 set -euo pipefail
 
 fail() { printf 'error: post-receive: %s\n' "$*" >&2; exit 1; }
@@ -277,6 +289,8 @@ repo_git_dir="$(git rev-parse --absolute-git-dir)"
 repo_root=__REPO_ROOT_Q__
 runs_dir="$repo_root/runs"
 latest_link="$repo_root/latest"
+latest_owner_marker="$repo_root/.git-checkouts-latest-owner"
+latest_owner_marker_contents='git-checkouts latest symlink v1'
 latest_sha_file="$repo_root/LATEST_SHA"
 deploy_log="$repo_root/deploy-log"
 keep_runs=__KEEP_RUNS__
@@ -304,44 +318,76 @@ PY
   printf '%s\n' "$target"
 }
 
+latest_target_is_managed() {
+  local target=''
+  local target_run=''
+
+  [[ -L "$latest_link" ]] || return 1
+  target="$(readlink "$latest_link" 2>/dev/null || true)"
+  [[ "$target" =~ ^runs/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z-[0-9a-f]{12}$ ]] || return 1
+  target_run="$repo_root/$target"
+  [[ -d "$target_run" && -f "$target_run/RUN_SHA" && -f "$target_run/RUN_REF" ]]
+}
+
+latest_owner_marker_is_managed() {
+  [[ -f "$latest_owner_marker" && ! -L "$latest_owner_marker" ]] || return 1
+  [[ "$(<"$latest_owner_marker")" == "$latest_owner_marker_contents" ]]
+}
+
+assert_latest_replacement_is_safe() {
+  if [[ -e "$latest_link" || -L "$latest_link" ]]; then
+    latest_target_is_managed || fail "refusing to replace unmanaged latest path: $latest_link; move it aside manually, then push again"
+  fi
+
+  if [[ -e "$latest_owner_marker" || -L "$latest_owner_marker" ]]; then
+    latest_owner_marker_is_managed || fail "refusing to use unrecognized latest ownership marker: $latest_owner_marker; inspect it manually before pushing again"
+  fi
+}
+
+write_latest_owner_marker() {
+  printf '%s\n' "$latest_owner_marker_contents" > "$latest_owner_marker"
+}
+
 prune_runs() {
   [[ -d "$runs_dir" ]] || return 0
 
   local active_run=''
+  local candidate_run=''
   if [[ -L "$latest_link" ]]; then
     active_run="$(latest_target_realpath)" || fail "cannot resolve active latest symlink target: $latest_link"
   fi
 
   mapfile -t old_runs < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -mtime +"$max_run_age_days" -print 2>/dev/null | sort)
   if (( ${#old_runs[@]} > 0 )); then
-    for run_dir in "${old_runs[@]}"; do
-      if [[ -n "$active_run" && "$run_dir" == "$active_run" ]]; then
+    for candidate_run in "${old_runs[@]}"; do
+      if [[ -n "$active_run" && "$candidate_run" == "$active_run" ]]; then
         continue
       fi
-      printf 'pruned old run %s\n' "$run_dir"
-      git --git-dir="$repo_git_dir" worktree remove --force "$run_dir" 2>/dev/null || rm -rf -- "$run_dir"
+      printf 'pruned old run %s\n' "$candidate_run"
+      git --git-dir="$repo_git_dir" worktree remove --force "$candidate_run" 2>/dev/null || rm -rf -- "$candidate_run"
     done
   fi
 
   # Run IDs are UTC ISO-8601 timestamps plus short SHA; reverse lexical sort keeps newest first.
   mapfile -t run_dirs < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort -r)
   local kept=0
-  for run_dir in "${run_dirs[@]}"; do
-    if [[ -n "$active_run" && "$run_dir" == "$active_run" ]]; then
+  for candidate_run in "${run_dirs[@]}"; do
+    if [[ -n "$active_run" && "$candidate_run" == "$active_run" ]]; then
       continue
     fi
     if (( kept < keep_runs )); then
       kept=$((kept + 1))
       continue
     fi
-    printf 'pruned excess run %s\n' "$run_dir"
-    git --git-dir="$repo_git_dir" worktree remove --force "$run_dir" 2>/dev/null || rm -rf -- "$run_dir"
+    printf 'pruned excess run %s\n' "$candidate_run"
+    git --git-dir="$repo_git_dir" worktree remove --force "$candidate_run" 2>/dev/null || rm -rf -- "$candidate_run"
   done
 
   git --git-dir="$repo_git_dir" worktree prune
 }
 
 mkdir -p -- "$repo_root" "$runs_dir"
+assert_latest_replacement_is_safe
 
 while read -r _oldrev newrev refname; do
   if [[ -z "${newrev//0/}" ]]; then
@@ -366,8 +412,12 @@ while read -r _oldrev newrev refname; do
   printf '%s\n' "$refname" > "$run_ref_file"
   printf '%s\n' "$sha" > "$latest_sha_file"
   printf '%s %s %s %s\n' "$timestamp" "$short_sha" "$sha" "$refname" >> "$deploy_log"
-  rm -rf -- "$latest_link"
+  assert_latest_replacement_is_safe
+  if [[ -L "$latest_link" ]]; then
+    rm -- "$latest_link"
+  fi
   ln -s "runs/$run_id" "$latest_link"
+  write_latest_owner_marker
   prune_runs
   printf 'deployed %s to %s (latest -> runs/%s)\n' "$sha" "$run_dir" "$run_id"
 done
@@ -404,36 +454,79 @@ DRY_RUN=0
 OUTPUT_FORMAT="text"
 
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --host) HOST="${2:?missing value for --host}"; shift 2 ;;
-    --repo) REPO="${2:?missing value for --repo}"; shift 2 ;;
-    --name|--repo-name) REPO_NAME="${2:?missing value for --name}"; shift 2 ;;
-    --remote|--remote-name) REMOTE_NAME="${2:?missing value for --remote}"; shift 2 ;;
-    --root|--remote-root) REMOTE_ROOT="${2:?missing value for --root}"; shift 2 ;;
-    --ref|--push-ref) PUSH_REF="${2:?missing value for --ref}"; shift 2 ;;
-    --keep-runs) KEEP_RUNS="${2:?missing value for --keep-runs}"; shift 2 ;;
-    --max-run-age) MAX_RUN_AGE_DAYS="${2:?missing value for --max-run-age}"; shift 2 ;;
-    --force) FORCE=1; shift ;;
-    --dry-run) DRY_RUN=1; shift ;;
-    --json) OUTPUT_FORMAT="json"; shift ;;
-    --version) printf 'git-checkouts %s\n' "$GITCHECKOUT_VERSION"; exit 0 ;;
-    -h|--help) usage; exit 0 ;;
-    *) usage >&2; fail "unknown argument: $1" 2 ;;
-  esac
+    case "$1" in
+    --host)
+        HOST="${2:?missing value for --host}"
+        shift 2
+        ;;
+    --repo)
+        REPO="${2:?missing value for --repo}"
+        shift 2
+        ;;
+    --name | --repo-name)
+        REPO_NAME="${2:?missing value for --name}"
+        shift 2
+        ;;
+    --remote | --remote-name)
+        REMOTE_NAME="${2:?missing value for --remote}"
+        shift 2
+        ;;
+    --root | --remote-root)
+        REMOTE_ROOT="${2:?missing value for --root}"
+        shift 2
+        ;;
+    --ref | --push-ref)
+        PUSH_REF="${2:?missing value for --ref}"
+        shift 2
+        ;;
+    --keep-runs)
+        KEEP_RUNS="${2:?missing value for --keep-runs}"
+        shift 2
+        ;;
+    --max-run-age)
+        MAX_RUN_AGE_DAYS="${2:?missing value for --max-run-age}"
+        shift 2
+        ;;
+    --force)
+        FORCE=1
+        shift
+        ;;
+    --dry-run)
+        DRY_RUN=1
+        shift
+        ;;
+    --json)
+        OUTPUT_FORMAT="json"
+        shift
+        ;;
+    --version)
+        printf 'git-checkouts %s\n' "$GITCHECKOUT_VERSION"
+        exit 0
+        ;;
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    *)
+        usage >&2
+        fail "unknown argument: $1" 2
+        ;;
+    esac
 done
 
 require_value --host "$HOST"
 require_value --root "$REMOTE_ROOT"
+safe_ssh_host "$HOST" || fail "--host must be user@host, a safe SSH host alias, or an IPv6 address; it may not begin with dash: $HOST" 2
 need_cmd git
 need_cmd ssh
 
 local_repo_root="$(git -C "$REPO" rev-parse --show-toplevel)"
 if [[ -z "$REPO_NAME" ]]; then
-  REPO_NAME="$(basename -- "$local_repo_root")"
-  REPO_NAME="${REPO_NAME%.git}"
+    REPO_NAME="$(basename -- "$local_repo_root")"
+    REPO_NAME="${REPO_NAME%.git}"
 fi
 safe_name "$REPO_NAME" || fail "--name must contain only letters, numbers, dot, underscore, and dash: $REPO_NAME" 2
-safe_name "$REMOTE_NAME" || fail "--remote must contain only letters, numbers, dot, underscore, and dash: $REMOTE_NAME" 2
+safe_option_name "$REMOTE_NAME" || fail "--remote must contain only letters, numbers, dot, underscore, and dash, and may not begin with dash: $REMOTE_NAME" 2
 safe_remote_root "$REMOTE_ROOT" || fail "--root must contain only letters, numbers, slash, dot, underscore, dash, and tilde (no '..'): $REMOTE_ROOT" 2
 forge_host_segment="$(resolve_forge_host_segment "$local_repo_root" "$REMOTE_NAME")"
 push_ref_check="${PUSH_REF#+}"
@@ -460,45 +553,45 @@ log "push_default=$PUSH_REF"
 log "prune_policy=keep $KEEP_RUNS, max_age_days $MAX_RUN_AGE_DAYS"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  log "dry-run: would bootstrap remote bare repo and managed post-receive hook via ssh"
-  log "dry-run: would configure local remote '$REMOTE_NAME' and remote.$REMOTE_NAME.push='$PUSH_REF'"
-  if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-    emit_result_json true
-  else
-    printf 'dry-run: no changes applied\n'
-    printf 'dry-run: ssh %s bash -s -- %q %q %q %q %q\n' "$HOST" "$remote_base_path" "$REPO_NAME" "$FORCE" "$KEEP_RUNS" "$MAX_RUN_AGE_DAYS"
-    printf 'dry-run: git -C %q remote add|set-url %q %q\n' "$local_repo_root" "$REMOTE_NAME" "$remote_url"
-    printf 'dry-run: git -C %q config --replace-all %q %q\n' "$local_repo_root" "remote.$REMOTE_NAME.push" "$PUSH_REF"
-  fi
-  exit 0
+    log "dry-run: would bootstrap remote bare repo and managed post-receive hook via ssh"
+    log "dry-run: would configure local remote '$REMOTE_NAME' and remote.$REMOTE_NAME.push='$PUSH_REF'"
+    if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        emit_result_json true
+    else
+        printf 'dry-run: no changes applied\n'
+        printf 'dry-run: ssh %s bash -s -- %q %q %q %q %q\n' "$HOST" "$remote_base_path" "$REPO_NAME" "$FORCE" "$KEEP_RUNS" "$MAX_RUN_AGE_DAYS"
+        printf 'dry-run: git -C %q remote add|set-url %q %q\n' "$local_repo_root" "$REMOTE_NAME" "$remote_url"
+        printf 'dry-run: git -C %q config --replace-all %q %q\n' "$local_repo_root" "remote.$REMOTE_NAME.push" "$PUSH_REF"
+    fi
+    exit 0
 fi
 
 run_remote_setup() {
-  emit_remote_setup_script \
-    | ssh "$HOST" bash -s -- "$remote_base_path" "$REPO_NAME" "$FORCE" "$KEEP_RUNS" "$MAX_RUN_AGE_DAYS"
+    emit_remote_setup_script |
+        ssh -- "$HOST" bash -s -- "$remote_base_path" "$REPO_NAME" "$FORCE" "$KEEP_RUNS" "$MAX_RUN_AGE_DAYS"
 }
 
 if ! run_remote_setup; then
-  show_recovery_hint
-  fail "remote bootstrap failed on host '$HOST'" 4
+    show_recovery_hint
+    fail "remote bootstrap failed on host '$HOST'" 4
 fi
 
 set_or_add_remote() {
-  local repo_root="${1:?repo_root}"
-  local remote_name="${2:?remote_name}"
-  local expected_url="${3:?expected_url}"
-  local force_update="${4:?force_update}"
+    local repo_root="${1:?repo_root}"
+    local remote_name="${2:?remote_name}"
+    local expected_url="${3:?expected_url}"
+    local force_update="${4:?force_update}"
 
-  if git -C "$repo_root" remote get-url "$remote_name" >/dev/null 2>&1; then
-    local existing_url=''
-    existing_url="$(git -C "$repo_root" remote get-url "$remote_name")"
-    if [[ "$existing_url" != "$expected_url" && "$force_update" -ne 1 ]]; then
-      fail "remote '$remote_name' already points at '$existing_url'; re-run with --force to set '$expected_url'" 4
+    if git -C "$repo_root" remote get-url "$remote_name" >/dev/null 2>&1; then
+        local existing_url=''
+        existing_url="$(git -C "$repo_root" remote get-url "$remote_name")"
+        if [[ "$existing_url" != "$expected_url" && "$force_update" -ne 1 ]]; then
+            fail "remote '$remote_name' already points at '$existing_url'; re-run with --force to set '$expected_url'" 4
+        fi
+        git -C "$repo_root" remote set-url "$remote_name" "$expected_url"
+    else
+        git -C "$repo_root" remote add "$remote_name" "$expected_url"
     fi
-    git -C "$repo_root" remote set-url "$remote_name" "$expected_url"
-  else
-    git -C "$repo_root" remote add "$remote_name" "$expected_url"
-  fi
 }
 
 set_or_add_remote "$local_repo_root" "$REMOTE_NAME" "$remote_url" "$FORCE"
@@ -515,5 +608,5 @@ ok "configured: git push $REMOTE_NAME"
 ok "prune policy: keep $KEEP_RUNS, max_age_days $MAX_RUN_AGE_DAYS"
 
 if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-  emit_result_json false
+    emit_result_json false
 fi

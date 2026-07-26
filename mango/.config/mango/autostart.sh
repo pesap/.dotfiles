@@ -34,6 +34,21 @@ if command -v systemctl >/dev/null 2>&1; then
 	systemctl --user import-environment XDG_DATA_DIRS >/dev/null 2>&1 || true
 fi
 
+NOTIFY_LOG="$LOG_DIR/notifications.log"
+if command -v swaync >/dev/null 2>&1; then
+	pkill -x swaync >/dev/null 2>&1 || true
+	swaync >>"$NOTIFY_LOG" 2>&1 &
+fi
+
+CLIPBOARD_LOG="$LOG_DIR/clipboard.log"
+if command -v wl-clip-persist >/dev/null 2>&1; then
+	wl-clip-persist --clipboard both >>"$CLIPBOARD_LOG" 2>&1 &
+fi
+if command -v wl-paste >/dev/null 2>&1 && command -v cliphist >/dev/null 2>&1; then
+	wl-paste --type text --watch cliphist store >>"$CLIPBOARD_LOG" 2>&1 &
+	wl-paste --type image --watch cliphist store >>"$CLIPBOARD_LOG" 2>&1 &
+fi
+
 # Create a persistent 1080p virtual output for Steam Link capture.
 # Mango 0.15+ exposes this through the new mmsg IPC.
 VIRTUAL_LOG="$LOG_DIR/virtual-output.log"
@@ -64,7 +79,9 @@ else
 fi
 
 SWAYBG_LOG="$LOG_DIR/swaybg.log"
-if command -v swaybg >/dev/null 2>&1; then
+if command -v wallpaperctl >/dev/null 2>&1; then
+	wallpaperctl apply-current >>"$SWAYBG_LOG" 2>&1 || true
+elif command -v swaybg >/dev/null 2>&1; then
 	WALLPAPER="$HOME/assets/empoleon.png"
 	pkill -x swaybg >/dev/null 2>&1 || true
 	if [ -f "$WALLPAPER" ]; then

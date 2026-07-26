@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+image="$HOME/assets/empoleon.png"
+
+lock() {
+	exec swaylock -f \
+		--indicator \
+		--clock \
+		--show-failed-attempts \
+		--font 'JetBrainsMono Nerd Font Mono' \
+		--font-size 24 \
+		--indicator-radius 120 \
+		--indicator-thickness 10 \
+		--inside-color 27353dcc \
+		--inside-clear-color 40515acc \
+		--inside-ver-color 5084cfcc \
+		--inside-wrong-color d95d5dcc \
+		--ring-color 5084cfff \
+		--ring-clear-color 80cbc4ff \
+		--ring-ver-color f8ae3bff \
+		--ring-wrong-color d95d5dff \
+		--line-color 00000000 \
+		--separator-color 00000000 \
+		--key-hl-color f8ae3bfff \
+		--bs-hl-color d95d5dff \
+		--text-color edf2f4ff \
+		--text-clear-color edf2f4ff \
+		--text-ver-color edf2f4ff \
+		--text-wrong-color edf2f4ff \
+		"$@"
+}
+
+if [ -f "$image" ]; then
+	lock --image "$image" --scaling fill --effect-blur 8x4
+else
+	lock --color 27353d
+fi

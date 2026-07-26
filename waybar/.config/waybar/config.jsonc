@@ -6,15 +6,109 @@
     "passthrough": false,
     "gtk-layer-shell": true,
     "height": 25,
-    "modules-left": ["custom/active-tag"],
-    "modules-center": ["mpris"],
-    "modules-right": ["cpu", "memory", "wireplumber", "wireplumber#microphone", "battery", "network", "clock", "tray"],
+    "modules-left": ["custom/mango-tags", "custom/mango-layout", "custom/mango-keymode"],
+    "modules-center": ["custom/mango-window", "custom/cava"],
+    "modules-right": ["custom/wallpaper", "custom/gpu", "custom/disk", "custom/weather", "custom/power", "custom/notifications", "mpris", "cpu", "memory", "wireplumber", "wireplumber#microphone", "battery", "network", "clock", "tray"],
 
-    "custom/active-tag": {
+    "custom/mango-tags": {
+        "exec": "~/.local/bin/waybar-mango tags",
         "return-type": "json",
-        "exec": "~/.config/waybar/active-tag.sh",
         "interval": 1,
-        "format": "{text}"
+        "on-click": "mmsg dispatch toggleoverview",
+        "format": "{}"
+    },
+
+    "custom/mango-layout": {
+        "exec": "~/.local/bin/waybar-mango layout",
+        "return-type": "json",
+        "interval": 1,
+        "format": "{}"
+    },
+
+    "custom/mango-keymode": {
+        "exec": "~/.local/bin/waybar-mango keymode",
+        "return-type": "json",
+        "interval": 1,
+        "format": "{}"
+    },
+
+    "custom/mango-window": {
+        "exec": "~/.local/bin/waybar-mango window",
+        "return-type": "json",
+        "interval": 1,
+        "format": "{}"
+    },
+
+    "custom/cava": {
+        "exec": "~/.local/bin/waybar-cava",
+        "return-type": "json",
+        "interval": 1,
+        "format": "{}"
+    },
+
+    "custom/wallpaper": {
+        "exec": "~/.local/bin/wallpaperctl status",
+        "return-type": "json",
+        "interval": 10,
+        "on-click": "~/.local/bin/wallpaperctl pick",
+        "on-click-right": "~/.local/bin/wallpaperctl next",
+        "format": "{}"
+    },
+
+    "custom/gpu": {
+        "exec": "~/.local/bin/waybar-gpu",
+        "return-type": "json",
+        "interval": 2,
+        "format": "{}"
+    },
+
+    "custom/disk": {
+        "exec": "~/.local/bin/waybar-disk",
+        "return-type": "json",
+        "interval": 30,
+        "format": "{}"
+    },
+
+    "custom/weather": {
+        "exec": "~/.local/bin/waybar-weather",
+        "return-type": "json",
+        "interval": 1800,
+        "format": "{}"
+    },
+
+    "custom/power": {
+        "exec": "~/.local/bin/waybar-power",
+        "return-type": "json",
+        "interval": 5,
+        "on-click": "~/.local/bin/waybar-power cycle",
+        "format": "{}"
+    },
+
+    "custom/notifications": {
+        "exec": "~/.local/bin/waybar-notifications",
+        "return-type": "json",
+        "interval": 10,
+        "on-click": "swaync-client -t",
+        "format": "{}"
+    },
+
+    "mpris": {
+        "title-len": 32,
+        "interval": 1,
+        "album-len": 0,
+        "max-len": 44,
+        "format": "{player_icon} {artist} - {title}",
+        "format-paused": "{player_icon} {artist} - {title}",
+        "player-icons": {
+            "default": "▶",
+            "mpv": "🎵",
+            "spotify": " ",
+            "firefox": ""
+        },
+        "status-icons": {
+            "paused": ""
+        },
+        "ignored-players": ["vlc", "firefox", "brave"]
     },
 
     "tray": {
@@ -78,24 +172,5 @@
         "format-linked": "{ifname} (No IP) ",
         "format-disconnected": "Disconnected ⚠",
         "format-alt": "{ifname}:{essid} {ipaddr}/{cidr}"
-    },
-
-    "mpris": {
-        "title-len": 40,
-        "interval": 1,
-        "album-len": 0,
-        "max-len": 60,
-        "format": "{player_icon} {artist} - {title}",
-        "format-paused": "{player_icon} {artist} - {title}",
-        "player-icons": {
-            "default": "▶",
-            "mpv": "🎵",
-            "spotify": " ",
-            "firefox": ""
-        },
-        "status-icons": {
-            "paused": ""
-        },
-        "ignored-players": ["vlc", "firefox", "brave"]
     }
 }

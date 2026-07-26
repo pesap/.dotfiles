@@ -1,3 +1,4 @@
+// Validated with Zellij 0.44.3; use check-0.44.3.sh to catch host/plugin drift.
 options {
     mouse_mode true
     support_kitty_keyboard_protocol false
@@ -371,4 +372,3 @@ keybinds clear-defaults=true {
         }
     }
 }
-

@@ -1,6 +1,6 @@
 # Keymaps by Program
 
-Last updated: 2026-06-29
+Last updated: 2026-07-26
 
 This is a central index of keymaps configured in this dotfiles repo, grouped by program.
 
@@ -108,7 +108,8 @@ Leader is `<Space>`.
 ### Git / Fugitive (`plugins/tpope.lua`)
 
 - `<leader>gb` `:GBrowse`
-- `<leader>gd` `:Gdiff`
+- `<leader>gd` LSP definition
+- `<leader>gD` `:Gdiff`
 - `<leader>gl` toggle `:Git log %`
 - `<leader>gs` toggle `:Git` status
 
@@ -140,10 +141,8 @@ Leader is `<Space>`.
 Sources:
 - `zellij/.config/zellij/config.kdl`
 - `zellij/.config/zellij/layouts/default.kdl`
-- `zellij/.config/zellij/layouts/dev.kdl`
-- `zellij/.config/zellij/layouts/pi.kdl`
 
-### Mode keymaps (full)
+### Configured mode keymaps
 
 #### `normal`
 
@@ -152,7 +151,7 @@ Sources:
 | `Ctrl+l` | switch to Locked mode |
 | `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
 | `Alt+1..4` | go to tab 1..4 + return to Locked mode |
-| `Alt+f` | open floating `zsh` pane + return to Locked mode |
+| `Alt+f` | toggle floating panes + return to Locked mode |
 | `Alt+p` | open floating pane inventory (`list-panes --all --json`) + return to Locked mode |
 | `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
 | `Alt+Shift+h` / `Alt+Shift+l` | resize decrease/increase |
@@ -166,13 +165,16 @@ Sources:
 |---|---|
 | `Ctrl+l` | switch to Normal mode |
 | `Alt+d` | detach session |
+| `Alt+f` | toggle floating panes |
+| `Alt+1..4` | go to tab 1..4 + stay Locked |
 | `Ctrl+\\` / `Alt+\\` | run floating `zession` Bash picker + stay Locked |
 
 #### `resize`
 
 | Key | Action |
 |---|---|
-| `Ctrl+n` | switch to Normal mode |
+| `Ctrl+n` / `Esc` / `Enter` | switch to Normal mode |
+| `Ctrl+l` | switch to Locked mode |
 | `h` / `Left` | resize increase left |
 | `j` / `Down` | resize increase down |
 | `k` / `Up` | resize increase up |
@@ -188,29 +190,29 @@ Sources:
 
 | Key | Action |
 |---|---|
-| `Ctrl+p` | switch to Normal mode |
+| `Ctrl+p` / `Esc` / `Enter` | switch to Normal mode |
+| `Ctrl+l` | switch to Locked mode |
 | `h` / `Left` | move focus left |
 | `l` / `Right` | move focus right |
 | `j` / `Down` | move focus down |
 | `k` / `Up` | move focus up |
 | `p` | switch focus |
-| `n` | new pane + Normal mode |
+| `n` | new pane right + Normal mode |
 | `d` | new pane down + Normal mode |
 | `r` | new pane right + Normal mode |
+| `s` | new stacked pane + Normal mode |
 | `x` | close focused pane + Normal mode |
 | `f` | toggle pane fullscreen + Normal mode |
-| `z` | toggle pane frames + Normal mode |
 | `w` | toggle floating panes + Normal mode |
 | `e` | toggle pane embed/floating + Normal mode |
-| `c` | rename pane mode |
 
 #### `move`
 
 | Key | Action |
 |---|---|
-| `Ctrl+h` | switch to Normal mode |
+| `Ctrl+h` / `Esc` / `Enter` | switch to Normal mode |
+| `Ctrl+l` | switch to Locked mode |
 | `n` / `Tab` | move pane |
-| `p` | move pane backwards |
 | `h` / `Left` | move pane left |
 | `j` / `Down` | move pane down |
 | `k` / `Up` | move pane up |
@@ -220,88 +222,30 @@ Sources:
 
 | Key | Action |
 |---|---|
-| `Ctrl+t` | switch to Normal mode |
+| `Ctrl+t` / `Esc` / `Enter` | switch to Normal mode |
+| `Ctrl+l` | switch to Locked mode |
 | `r` | rename tab mode |
 | `h` / `Left` / `Up` / `k` | go to previous tab |
 | `l` / `Right` / `Down` / `j` | go to next tab |
 | `n` | new tab + Normal mode |
 | `x` | close tab + Normal mode |
-| `s` | **unbound** (toggle active sync removed) |
-| `b` | break pane + Normal mode |
-| `]` | break pane right + Normal mode |
-| `[` | break pane left + Normal mode |
-| `1..9` | go to tab 1..9 + Normal mode |
-| `Tab` | toggle previous tab |
-
-#### `scroll`
-
-| Key | Action |
-|---|---|
-| `Ctrl+s` | switch to Normal mode |
-| `e` | edit scrollback + Normal mode |
-| `s` | EnterSearch mode |
-| `Ctrl+c` | scroll to bottom + Normal mode |
-| `j` / `Down` | scroll down |
-| `k` / `Up` | scroll up |
-| `Ctrl+f` / `PageDown` / `Right` / `l` | page scroll down |
-| `Ctrl+b` / `PageUp` / `Left` / `h` | page scroll up |
-| `d` | half-page scroll down |
-| `u` | half-page scroll up |
-
-#### `search`
-
-| Key | Action |
-|---|---|
-| `Ctrl+s` | switch to Normal mode |
-| `Ctrl+c` | scroll to bottom + Normal mode |
-| `j` / `Down` | scroll down |
-| `k` / `Up` | scroll up |
-| `Ctrl+f` / `PageDown` / `Right` / `l` | page scroll down |
-| `Ctrl+b` / `PageUp` / `Left` / `h` | page scroll up |
-| `d` | half-page scroll down |
-| `u` | half-page scroll up |
-| `n` | next search result |
-| `p` | previous search result |
-| `c` | toggle case sensitivity |
-| `w` | toggle wrap |
-| `o` | toggle whole-word |
-
-#### `entersearch`
-
-| Key | Action |
-|---|---|
-| `Ctrl+c` / `Esc` | switch to Scroll mode |
-| `Enter` | switch to Search mode |
+| `s` | toggle active sync + Normal mode |
+| `1..4` | go to tab 1..4 + Locked mode |
 
 #### `renametab`
 
 | Key | Action |
 |---|---|
-| `Ctrl+c` | switch to Normal mode |
 | `Esc` | undo rename + Tab mode |
-
-#### `renamepane`
-
-| Key | Action |
-|---|---|
-| `Ctrl+c` | switch to Normal mode |
-| `Esc` | undo rename + Pane mode |
-
-#### `session`
-
-| Key | Action |
-|---|---|
-| `Ctrl+o` | switch to Normal mode inside Session mode only |
-| `Ctrl+s` | switch to Scroll mode |
-| `d` | detach |
-| `w` | open/focus session-manager plugin (floating) + Normal mode |
+| `Ctrl+c` | undo rename + Tab mode |
+| `Enter` | accept rename + Normal mode |
 
 #### `tmux`
 
 | Key | Action |
 |---|---|
-| `[` | switch to Scroll mode |
-| `Ctrl+b` | write `Ctrl+b` + Normal mode |
+| `Ctrl+b` / `Esc` / `Enter` | switch to Normal mode |
+| `Ctrl+l` | switch to Locked mode |
 | `"` | new pane down + Normal mode |
 | `%` | new pane right + Normal mode |
 | `z` | toggle fullscreen + Normal mode |
@@ -309,14 +253,8 @@ Sources:
 | `,` | rename tab mode |
 | `p` | previous tab + Normal mode |
 | `n` | next tab + Normal mode |
-| `Left/Right/Up/Down` | move focus + Normal mode |
-| `h/j/k/l` | move focus + Normal mode |
-| `o` | focus next pane |
+| `h/j/k/l` or arrows | move focus + Normal mode |
 | `d` | detach |
-| `Space` | next swap layout |
-| `x` | close focused pane + Normal mode |
-| `Ctrl+o` | **unbound** Session mode entry |
-| `Ctrl+f` | switch to Session mode |
 
 ### Zellij keymaps
 
@@ -330,12 +268,12 @@ Sources:
 | locked/normal | `Ctrl+\\` / `Alt+\\` | run floating `zession` Bash picker |
 | normal | `Ctrl+l` | lock Zellij |
 | normal | `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
-| normal | `Alt+f` | open floating `zsh` pane + return to Locked mode |
+| locked/normal | `Alt+f` | toggle floating panes |
 | normal | `Alt+p` | floating pane inventory + return to Locked mode |
 | normal | `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
 | normal | `Ctrl+y` | open layout picker plugin + return to Locked mode |
 | tab | `1..4` | go to tab 1..4 + return to Locked mode |
-| pane/tab/resize/move/tmux/scroll | `Esc` / `Enter` or mode entry key | return to Normal mode |
+| pane/tab/resize/move/tmux | `Esc` / `Enter` or mode entry key | return to Normal mode |
 
 ### Mode/keymap notes
 
@@ -344,7 +282,7 @@ Sources:
 - `Ctrl+o` is intentionally unbound globally so Pi can use it to expand tools.
 - `Alt+d` detaches directly from locked mode.
 - Inside `zession`, `Ctrl-D`/`Alt-D` deletes the selected saved/live session entry; `Esc`/`Ctrl-C` closes the picker.
-- `default.kdl`, `dev.kdl`, `pi.kdl`, and `vibe.kdl` add a top `zellij-locked-indicator` row that shows `🔐` only while locked.
+- `default.kdl` provides the status row, vertical tab list, and terminal pane.
 
 ### Theme notes
 
@@ -355,19 +293,6 @@ Sources:
 
 - `term` tab: regular terminal only
 - Use `Alt+f` for a floating terminal pane
-
-### Layout-specific notes (`vibe.kdl`)
-
-- `pi` tab: large left `pi`, top-right `pi`, bottom-right scratch terminal
-- `review` tab: `nvim` in the project cwd with `ReviewToggle` opened
-- `scratch` tab: single scratch terminal
-
-### Layout-specific notes (`dev.kdl`)
-
-- `code` tab: `nvim` + `pi`
-- `review` tab: `gitu` + `pi`
-- In both tabs, primary pane width is fixed to `110` columns (to match default Neovim width), secondary `pi` pane fills remainder
-- Tests are ephemeral: use `Alt+t` to open floating pinned `just test`
 
 ---
 

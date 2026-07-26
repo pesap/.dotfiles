@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+count="$(swaync-client --count 2>/dev/null || printf 0)"
+case "$count" in
+	''|*[!0-9]*) count=0 ;;
+esac
+if [ "$count" -gt 0 ]; then
+	text="󰂚 $count"
+else
+	text='󰂚'
+fi
+jq -cn --arg text "$text" --arg tooltip "$count notifications" '{text:$text,tooltip:$tooltip}'

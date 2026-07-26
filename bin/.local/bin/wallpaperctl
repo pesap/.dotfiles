@@ -1,0 +1,81 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/mango"
+STATE_FILE="$STATE_DIR/wallpaper"
+LOG_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/mango/swaybg.log"
+DEFAULT="$HOME/assets/empoleon.png"
+
+wallpapers() {
+	for dir in "$HOME/assets" "$HOME/assets/wallpapers"; do
+		[ -d "$dir" ] || continue
+		find "$dir" -maxdepth 1 -type f \( \
+			-iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o \
+			-iname '*.webp' -o -iname '*.gif' \
+		\) -print
+	done | awk '!seen[$0]++' | sort
+}
+
+current() {
+	if [ -s "$STATE_FILE" ]; then
+		read -r image <"$STATE_FILE" || true
+		[ -f "${image:-}" ] && { printf '%s\n' "$image"; return; }
+	fi
+	if [ -f "$DEFAULT" ]; then
+		printf '%s\n' "$DEFAULT"
+		return
+	fi
+	wallpapers | head -n 1
+}
+
+apply() {
+	image="$1"
+	[ -f "$image" ] || { printf 'Wallpaper not found: %s\n' "$image" >&2; exit 1; }
+	mkdir -p "$STATE_DIR" "$(dirname "$LOG_FILE")"
+	printf '%s\n' "$image" >"$STATE_FILE"
+	pkill -x swaybg >/dev/null 2>&1 || true
+	swaybg -i "$image" -m fill >>"$LOG_FILE" 2>&1 &
+	if command -v notify-send >/dev/null 2>&1; then
+		notify-send -t 1200 "Wallpaper" "$(basename "$image")" >/dev/null 2>&1 || true
+	fi
+}
+
+pick() {
+	command -v rofi >/dev/null 2>&1 || { printf 'rofi is required\n' >&2; exit 1; }
+	image="$(wallpapers | rofi -dmenu -i -p 'Wallpaper' || true)"
+	[ -n "$image" ] && apply "$image"
+}
+
+next() {
+	images="$(wallpapers)"
+	[ -n "$images" ] || exit 0
+	image="$(current || true)"
+	next_image="$(printf '%s\n' "$images" | awk -v current="$image" '
+		{ images[++count] = $0 }
+		END {
+			for (i = 1; i <= count; i++) if (images[i] == current) {
+				print images[(i % count) + 1]; found = 1; break
+			}
+			if (!found) print images[1]
+		}')"
+	[ -n "$next_image" ] && apply "$next_image"
+}
+
+case "${1:-status}" in
+	apply-current) image="$(current || true)"; [ -n "$image" ] && apply "$image" ;;
+	apply) [ -n "${2:-}" ] && apply "$2" ;;
+	pick) pick ;;
+	next) next ;;
+	status)
+		image="$(current || true)"
+		if [ -n "$image" ]; then
+			printf '{"text":"󰸉","tooltip":"%s"}\n' "$(basename "$image")"
+		else
+			printf '{"text":"󰸉","tooltip":"No wallpaper found"}\n'
+		fi
+		;;
+	*)
+		printf 'usage: %s {apply-current|apply PATH|pick|next|status}\n' "$0" >&2
+		exit 2
+		;;
+esac

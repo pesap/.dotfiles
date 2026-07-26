@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/waybar"
+cache_file="$cache_dir/weather"
+location_file="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/weather.location"
+mkdir -p "$cache_dir"
+
+if [ -s "$cache_file" ] && [ "$(find "$cache_file" -mmin -30 -print 2>/dev/null)" ]; then
+	cat "$cache_file"
+	exit 0
+fi
+
+location=''
+[ -r "$location_file" ] && location="$(tr -d '\n' <"$location_file")"
+location="$(printf '%s' "$location" | sed 's/ /+/g')"
+if [ -n "$location" ]; then
+	url="https://wttr.in/$location?format=%c+%t"
+else
+	url='https://wttr.in/?format=%c+%t'
+fi
+
+weather="$(curl -fsSL --max-time 8 "$url" 2>/dev/null || true)"
+if [ -n "$weather" ]; then
+	jq -cn --arg text "󰖐 $weather" --arg tooltip "Weather${location:+: $location}" '{text:$text,tooltip:$tooltip}' | tee "$cache_file"
+elif [ -s "$cache_file" ]; then
+	cat "$cache_file"
+else
+	printf '{"text":"󰖐 ?","tooltip":"Weather unavailable"}\n'
+fi

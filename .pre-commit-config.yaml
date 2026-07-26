@@ -3,7 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^waybar/\.config/waybar/themes/
       - id: end-of-file-fixer
+        exclude: ^waybar/\.config/waybar/themes/
       - id: check-yaml
       - id: check-json
         exclude: 'config\\.jsonc$'
@@ -13,11 +15,17 @@ repos:
     hooks:
       - id: shellcheck
         args: [-x]
+        # ShellCheck does not parse Zsh and the legacy theme catalog is
+        # reference material; the maintained entry points remain gated.
+        files: ^(bootstrap\.sh|install\.sh|scripts/|tests/|bin/\.local/bin/(dotfiles|dotfiles-healthcheck|git-checkouts|restow)$|waybar/\.config/waybar/(theme-switcher|waybar\.sh|tests/)|zellij/\.config/zellij/(check-0\.44\.3\.sh|plugins-src/zellij-layout-picker/build-wasm\.sh)$)
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.10.0-1
     hooks:
       - id: shfmt
         args: [-d, -i, '4']
+        # Legacy Waybar themes are reference material; advanced Zsh is checked
+        # with zsh -n because shfmt 3.10 cannot parse it.
+        files: ^(bootstrap\.sh|install\.sh|scripts/|tests/|bin/\.local/bin/(dotfiles|dotfiles-healthcheck|git-checkouts|restow)$|waybar/\.config/waybar/(theme-switcher|waybar\.sh|tests/)|zellij/\.config/zellij/(check-0\.44\.3\.sh|plugins-src/zellij-layout-picker/build-wasm\.sh)$)
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
     hooks:
