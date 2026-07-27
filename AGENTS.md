@@ -55,6 +55,14 @@ as a disposable test environment.
 - Keep the test command and its cleanup in the same script scope. Do not rely
   on environment-variable assignments persisting across commands.
 
+## Markdown command examples
+
+- Make every command example copy-pastable as written. Prefer one complete command per code block; do not present a sequence of dependent commands as if it were one pasteable command.
+- When commands must run together, combine them into a single safe shell snippet with explicit sequencing (`&&` where failure should stop the next step), or provide a small script the user can copy as one unit.
+- State the expected starting directory, required tools, environment variables, prompts, files changed, and whether the command is read-only or modifies the machine before the command block.
+- After the block, explain what successful output or end state the user should expect. Call out commands that may prompt, take time, require confirmation, or fail safely.
+- Keep examples honest: do not omit setup steps, hide side effects, or imply that a later command ran when the pasted command only ran the first line.
+
 ## Dotfile installation and Stow
 
 - Inspect `git status` before changing anything. Existing modifications belong
