@@ -355,18 +355,31 @@ Note: SUPER+1..4 is reserved for Alacritty/Zellij tab selection; Linux workspace
 
 ---
 
-## Tip: quick grep commands to regenerate this index
+## Tip: commands to regenerate this index
+
+Run these commands from the repository root. Each command is independent and
+prints the relevant source file or matching lines; none changes files.
+
+Neovim keymaps:
 
 ```bash
-# Neovim keymaps
 grep -R "vim.keymap.set" nvim/.config/nvim -n
+```
 
-# Zellij bindings
+Zellij bindings:
+
+```bash
 grep -n "bind \"" zellij/.config/zellij/config.kdl
+```
 
-# skhd
+macOS `skhd` bindings:
+
+```bash
 cat skhd/.config/skhd/skhdrc
+```
 
-# Mango
+Mango bindings:
+
+```bash
 cat mango/.config/mango/config-bindings.conf
 ```
