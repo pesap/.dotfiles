@@ -13,7 +13,7 @@ $ loom apply --dry-run --profile common
 ```
 
 The installer uses `--local` to read the current checkout. Without it, a normal
-install downloads the version selected by `INSTALLER_VERSION` (default `0.0.2`)
+install downloads the version selected by `INSTALLER_VERSION` (default `0.0.4`)
 into `~/.dotfiles` before applying it.
 
 ## Apply one package
@@ -65,7 +65,7 @@ $ loom tools outdated --bump
 ```
 
 After reviewing the proposed versions, edit
-[`mise/.config/mise/config.toml`](mise/.config/mise/config.toml), then install
+[`mise/.config/mise/config.toml`](../mise/.config/mise/config.toml), then install
 and validate:
 
 ```console
@@ -74,7 +74,7 @@ $ loom check --repo
 $ prek run --all-files
 ```
 
-`mise install` is the only supported way to refresh the repository's managed
+`loom tools install` is the supported way to refresh the repository's managed
 CLI tool set. Runtime artifacts under `~/.local/share/mise`, `~/.cargo`, and
 `~/.rustup` are not Stow packages.
 

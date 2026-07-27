@@ -1,8 +1,8 @@
-# Getting started
+# Setup reference
 
-> Tutorial · Follow this once on a new machine.
+> Personal reference · A repeatable setup sequence for a future machine.
 
-This tutorial installs the shared profile first. It leaves window-manager and
+This sequence installs the shared profile first. It leaves window-manager and
 bar configuration out of the way until the baseline is healthy.
 
 ## Before you begin
@@ -65,7 +65,7 @@ optional personal configuration is skipped.
 
 ## 3. Install pinned tools
 
-The mise manifest is [`mise/.config/mise/config.toml`](mise/.config/mise/config.toml):
+The mise manifest is [`mise/.config/mise/config.toml`](../mise/.config/mise/config.toml):
 
 ```console
 $ loom tools install
@@ -106,4 +106,4 @@ $ loom apply --dry-run --profile common
 $ loom apply --profile common
 ```
 
-For the full maintenance loop, continue with [Operations and recovery](OPERATIONS.md).
+For the full maintenance loop, continue with [Operations and recovery](operations.md).

@@ -48,7 +48,7 @@ The profile is used in three places:
 2. `loom apply` decides what to refresh;
 3. `loom check` decides what should exist.
 
-Keeping these decisions in [`packages.conf`](packages.conf) prevents the
+Keeping these decisions in [`packages.conf`](../packages.conf) prevents the
 three workflows from drifting apart.
 
 ## Why desktop updates are different

@@ -1,0 +1,83 @@
+.TH WALLPAPERCTL 1 "2026-07-27" "wallpaperctl" "User Commands"
+.SH NAME
+wallpaperctl \- select and control the Mango wallpaper
+.SH SYNOPSIS
+.B wallpaperctl
+.B status
+.br
+.B wallpaperctl
+.B apply-current
+.br
+.B wallpaperctl
+.B apply
+.I path
+.br
+.B wallpaperctl
+.B pick
+.br
+.B wallpaperctl
+.B next
+.SH DESCRIPTION
+.B wallpaperctl
+keeps the selected wallpaper in the Mango state directory and controls a background
+.B swaybg
+process. Wallpaper images are discovered from
+.I ~/assets
+and
+.I ~/assets/wallpapers .
+.PP
+The
+.B status
+command emits Waybar-compatible JSON.
+.SH COMMANDS
+.TP
+.B status
+Print the current wallpaper as Waybar JSON.
+.TP
+.B apply-current
+Apply the saved wallpaper, or the default image if one exists.
+.TP
+.BI apply " PATH"
+Apply a specific image file.
+.TP
+.B pick
+Choose an image with rofi.
+.TP
+.B next
+Apply the next discovered image in sorted order.
+.SH FILES
+.TP
+.I ~/.local/state/mango/wallpaper
+Saved wallpaper path.
+.TP
+.I ~/.cache/mango/swaybg.log
+.B swaybg
+output log.
+.TP
+.I ~/assets/empoleon.png
+Default wallpaper when present.
+.SH DEPENDENCIES
+.B swaybg
+is required to display images. The
+.B pick
+command also requires
+.BR rofi .
+The optional notification uses
+.BR notify-send .
+.SH EXAMPLES
+.nf
+wallpaperctl status
+wallpaperctl apply ~/assets/wallpapers/night.png
+wallpaperctl next
+wallpaperctl pick
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+The requested action completed successfully or no optional action was needed.
+.TP
+.B 1
+A required dependency or image was unavailable.
+.TP
+.B 2
+An unknown command was supplied.

@@ -1,0 +1,77 @@
+.TH ZESSION 1 "2026-07-27" "zession" "User Commands"
+.SH NAME
+zession \- pick and manage Zellij project sessions
+.SH SYNOPSIS
+.B zession
+.RI [ options ]
+.br
+.B zession --session-action delete
+.I name
+.SH DESCRIPTION
+.B zession
+combines Zellij sessions with project directories discovered by zoxide.
+Selecting a project attaches to its existing session or creates a session named after the project directory.
+.PP
+Project discovery is limited to the directories listed in
+.B ZESSION_ROOTS .
+Session names are sanitized basenames; two projects with the same basename intentionally map to the same session.
+.SH OPTIONS
+.TP
+.B --help
+Print usage.
+.TP
+.B --generate-list
+Print picker rows for scripting or debugging.
+.TP
+.B --refresh-cache
+Refresh the cached picker rows.
+.TP
+.BI --session-action " delete name"
+Delete a selected Zellij session.
+.SH INTERACTIVE KEYS
+.TP
+.B Enter
+Switch to or attach to the selected project or session.
+.TP
+.B Ctrl-R
+Refresh the project and session list.
+.TP
+.B Ctrl-D
+Delete the selected Zellij session.
+.TP
+.B Ctrl-/
+Toggle the preview pane.
+.TP
+.B Alt-Enter
+Accept the first match.
+.SH ENVIRONMENT
+.TP
+.B ZESSION_ROOTS
+Colon-separated project roots. Defaults to
+.BR ~/dev:~/sandbox:~/work:~/.dotfiles .
+.TP
+.B ZESSION_SWITCH_PLUGIN
+Optional Zellij switch-session plugin URL.
+.TP
+.B XDG_STATE_HOME
+Location for the picker cache. Defaults to
+.BR ~/.local/state .
+.SH DEPENDENCIES
+.BR zellij (1)
+and
+.BR zoxide (1).
+An interactive picker also expects the configured fuzzy finder.
+.SH EXAMPLES
+.nf
+zession
+zession --refresh-cache
+zession --generate-list
+zession --session-action delete project-name
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+The requested action completed successfully.
+.TP
+.B non-zero
+A dependency is missing, a session action failed, or an invalid option was supplied.

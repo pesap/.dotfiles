@@ -1,0 +1,115 @@
+.TH LOOM 1 "2026-07-27" "loom 0.0.4" "User Commands"
+.SH NAME
+loom \- manage the workstation configuration
+.SH SYNOPSIS
+.B loom
+.I command
+.RI [ options ]
+.SH DESCRIPTION
+.B loom
+is the single public command for installing, applying, checking, and maintaining this workstation configuration.
+.PP
+The command is installed in
+.I ~/.local/bin
+by the common profile. The repository's setup and apply operations use GNU Stow with dry-run and backup safeguards.
+.SH COMMANDS
+.TP
+.B setup
+Install or update a profile. Passes installer options such as
+.BR --local ,
+.BR --profile ,
+.BR --dry-run ,
+and
+.BR --no-backup .
+.TP
+.B apply
+Apply packages from the existing checkout. With no package arguments, applies the selected profile; with package arguments, applies only those declared packages.
+.TP
+.B check
+Run the installed-machine check and repository validation. Use
+.BR --machine
+or
+.BR --repo
+to select one scope.
+.TP
+.B desktop
+Apply window-manager packages with smoke checks, confirmation, and last-known-good rollback. Use
+.BR --yes
+for non-interactive confirmation.
+.TP
+.B tools
+Run
+.BR loom\ tools\ install
+or
+.BR loom\ tools\ outdated .
+.TP
+.B profiles
+Print supported profiles.
+.TP
+.B version
+Print the checkout revision used by Loom.
+.SH SAFETY
+Always inspect a dry run before a broad apply. Loom refuses
+.B --adopt
+and limits packages to those listed in
+.I packages.conf .
+Desktop changes require a clean Git worktree and can roll back when smoke checks fail.
+.SH FILES
+.TP
+.I ~/.dotfiles
+Default checkout used by setup and apply.
+.TP
+.I ~/.local/bin/loom
+Installed command.
+.TP
+.I ~/.local/share/man/man1/loom.1
+This manual page.
+.TP
+.I ~/.stow-backup/
+Backup location used by the installer for replaced files.
+.SH ENVIRONMENT
+.TP
+.B DOTFILES_PROFILE
+Default profile for checks and applies. Defaults to
+.B common .
+.TP
+.B DOTFILES_DIR
+Override the checkout used by
+.B loom apply .
+.TP
+.B DOTFILES_ROOT
+Override the checkout used by
+.B loom desktop .
+.TP
+.B DOTFILES_WM_PACKAGES
+Desktop packages to apply. Defaults to
+.B mango waybar .
+.SH EXIT STATUS
+.TP
+.B 0
+The requested operation completed successfully.
+.TP
+.B 2
+Usage or argument error.
+.TP
+.B non-zero
+A dependency, conflict, validation, or desktop safety check failed.
+.SH EXAMPLES
+Preview and install the shared profile:
+.PP
+.nf
+loom setup --local --dry-run --profile common
+loom setup --local --profile common
+.fi
+.PP
+Apply one package safely:
+.PP
+.nf
+loom apply --dry-run nvim
+loom apply nvim
+.fi
+.SH SEE ALSO
+.BR git (1),
+.BR man (1),
+.BR mise (1),
+.BR stow (1)

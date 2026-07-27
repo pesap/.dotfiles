@@ -6,7 +6,7 @@
 # option. This file may not be copied, modified, or distributed
 # except according to those terms.
 #
-VERSION="${INSTALLER_VERSION:-0.0.3}"
+VERSION="${INSTALLER_VERSION:-0.0.4}"
 RECEIPT_HOME="${HOME}/.dotfiles"
 BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
 DOTFILES_REMOTE=""
@@ -147,7 +147,7 @@ install_selected_packages() {
     packages="$(profile_packages "$base")"
     for folder in $packages; do
         safe_package_name "$folder" || err "unsafe package name in manifest: $folder"
-        if [ -d "$base/$folder/.local/share" ] || [ -d "$base/$folder/.cargo" ] || [ -d "$base/$folder/.rustup" ]; then
+        if [ "$folder" != man ] && { [ -d "$base/$folder/.local/share" ] || [ -d "$base/$folder/.cargo" ] || [ -d "$base/$folder/.rustup" ]; }; then
             err "refusing to stow runtime state from package: $folder"
         fi
         if [ -d "$base/$folder" ]; then
@@ -460,9 +460,14 @@ backup_target() {
     list_file="${2:-}"
     safe_relative_path "$rel" || err "refusing unsafe backup path: $rel"
     case "$rel" in
-    .cargo/* | .rustup/* | .local/share/*)
+    .cargo/* | .rustup/*)
         err "refusing to manage mutable tool state: $rel"
         ;;
+    .local/share/*)
+        case "$rel" in
+        .local/share/man/*) ;;
+        *) err "refusing to manage mutable tool state: $rel" ;;
+        esac
     esac
     target="$HOME/$rel"
     if path_reaches_symlink "$(dirname "$target")"; then

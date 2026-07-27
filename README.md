@@ -61,7 +61,7 @@ to a shell:
 
 ```console
 $ curl --proto '=https' --tlsv1.2 -LsSf \
-    https://raw.githubusercontent.com/pesap/.dotfiles/0.0.3/bootstrap.sh \
+    https://raw.githubusercontent.com/pesap/.dotfiles/main/bootstrap.sh \
   | sh -s -- --profile common
 $ loom check
 ```
@@ -80,7 +80,7 @@ used by Loom's setup, apply, and check commands.
 
 | Profile         | Platform      | Includes                                                                              | Best for                   |
 | --------------- | ------------- | ------------------------------------------------------------------------------------- | -------------------------- |
-| `common`        | macOS + Linux | Alacritty, Atuin, shell, Neovim, Pi, Starship, Zellij, Worktrunk, mise, local scripts | The safe baseline; default |
+| `common`        | macOS + Linux | Alacritty, Atuin, shell, Neovim, Pi, Starship, Zellij, Worktrunk, mise, man pages, local scripts | The safe baseline; default |
 | `linux-desktop` | Linux         | `common` + Linux settings, Mango, Waybar                                              | A Mango/Wayland desktop    |
 | `macos`         | macOS         | `common` + SketchyBar, skhd, yabai, optional personal config                          | A yabai/skhd desktop       |
 
@@ -100,7 +100,7 @@ macos
 | Shell         | `zshrc`, `starship`, `atuin`  | Prompt, history, completions, navigation, aliases                        |
 | Terminal      | `alacritty`, `zellij`         | Cross-platform terminal settings and a locked-first multiplexer workflow |
 | Editor        | `nvim`                        | Native LSP, lazy.nvim, FFF/fzf-lua, Git tooling, format-on-save          |
-| Tools         | `mise`, `bin`                 | Pinned CLI versions and small workflow helpers                           |
+| Tools         | `mise`, `bin`, `man`          | Pinned CLI versions, manuals, and small workflow helpers                 |
 | Linux desktop | `mango`, `waybar`, `linux`    | Window manager, status bar, and platform settings                        |
 | macOS desktop | `sketchybar`, `skhd`, `yabai` | Bar, hotkeys, spaces, and window management                              |
 | AI workflow   | `pi`                          | Pi configuration and local agent workflow files                          |
@@ -135,7 +135,7 @@ $ loom desktop --yes
 `loom desktop` requires a clean Git tree, applies only the configured WM
 packages, runs smoke checks, and rolls back to the last-known-good tag when the
 checks fail or the interactive confirmation times out. See [desktop
-configuration](OPERATIONS.md#apply-desktop-configuration).
+configuration](docs/operations.md#apply-desktop-configuration).
 
 ### Check the machine
 
@@ -168,13 +168,14 @@ recoverable backup.
 
 ## Documentation
 
-The docs are organized by the kind of question they answer:
+The full documentation index is [`docs/README.md`](docs/README.md):
 
-- Tutorial — [Getting started](GETTING_STARTED.md): go from a fresh checkout to a working shell.
-- How-to — [Operations and recovery](OPERATIONS.md): install, apply, update tools, and recover from conflicts.
-- Reference — [Profiles, packages, and commands](REFERENCE.md): authoritative names, flags, and paths.
-- Reference — [Keymaps](KEYMAPS.md): Neovim, Zellij, Alacritty, Mango, and macOS shortcuts.
-- Explanation — [Design and safety](DESIGN.md): why Stow, mise, profiles, and guarded desktop updates are separate.
+- [Setup reference](docs/setup.md): repeatable installation sequence for a future machine.
+- [Operations and recovery](docs/operations.md): apply changes, update tools, and recover from conflicts.
+- [Profiles and commands](docs/reference.md): Loom commands, profiles, environment variables, and paths.
+- [Design and safety](docs/design.md): why Stow, profiles, Loom, and desktop rollback are separate.
+- [Man pages](docs/man-pages.md): install and use manuals for custom commands.
+- [Keymaps](KEYMAPS.md): Neovim, Zellij, Alacritty, Mango, and macOS shortcuts.
 
 ## Compatibility notes
 

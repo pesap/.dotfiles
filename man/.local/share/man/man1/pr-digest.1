@@ -1,0 +1,41 @@
+.TH PR-DIGEST 1 "2026-07-27" "pr-digest" "User Commands"
+.SH NAME
+pr-digest \- print a GitHub pull-request discussion digest
+.SH SYNOPSIS
+.B pr-digest
+.I owner/repository pull-request-number
+.br
+.B pr-digest
+.I pull-request-url
+.SH DESCRIPTION
+.B pr-digest
+uses the GitHub CLI to fetch review comments and general comments for a pull request.
+It prints both line-level review comments and issue-level discussion comments in a readable digest.
+.PP
+The GitHub CLI must be authenticated for private repositories and for any operation requiring authentication.
+.SH ARGUMENTS
+.TP
+.I owner/repository
+GitHub repository, for example
+.B anthropics/claude-code .
+.TP
+.I pull-request-number
+Numeric pull-request number.
+.TP
+.I pull-request-url
+A GitHub pull-request URL from which the repository and number are extracted.
+.SH EXAMPLES
+.nf
+pr-digest anthropics/claude-code 123
+pr-digest https://github.com/anthropics/claude-code/pull/123
+.fi
+.SH DEPENDENCIES
+.BR gh (1)
+with access to the target repository.
+.SH EXIT STATUS
+.TP
+.B 0
+The digest was produced. Empty comment sections are reported as such.
+.TP
+.B 1
+The arguments could not be parsed or the GitHub request failed.

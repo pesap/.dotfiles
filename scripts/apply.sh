@@ -108,7 +108,9 @@ for package in "${packages[@]}"; do
     safe_package_name "$package" || fail "unsafe package name: $package"
     is_declared_package "$package" || fail "package is not declared in packages.conf: $package"
     [[ -d "$repo_dir/$package" && ! -L "$repo_dir/$package" ]] || fail "package not found: $package"
-    [[ ! -d "$repo_dir/$package/.local/share" && ! -d "$repo_dir/$package/.cargo" && ! -d "$repo_dir/$package/.rustup" ]] || fail "refusing mutable runtime-state package: $package"
+    if [[ "$package" != man ]] && { [[ -d "$repo_dir/$package/.local/share" ]] || [[ -d "$repo_dir/$package/.cargo" ]] || [[ -d "$repo_dir/$package/.rustup" ]]; }; then
+        fail "refusing mutable runtime-state package: $package"
+    fi
 done
 
 cd "$repo_dir"

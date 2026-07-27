@@ -3,7 +3,7 @@
 
 set -eu
 
-VERSION="${INSTALLER_VERSION:-0.0.3}"
+VERSION="${INSTALLER_VERSION:-0.0.4}"
 REPO_RAW_BASE="https://raw.githubusercontent.com/pesap/.dotfiles"
 INSTALLER_URL="${REPO_RAW_BASE}/${VERSION}/install.sh"
 INSTALLER_SHA256="${INSTALLER_SHA256:-}"
@@ -44,7 +44,7 @@ expected_installer_sha256() {
     fi
 
     case "$VERSION" in
-    0.0.3) printf '%s\n' 'c35743aab5d736f16a06dafe61149f58dc56fad069710b46f8ee1a565aafa350' ;;
+    0.0.4) printf '%s\n' '30d49bab146a082bbb347419a4a2ae31360da20312d174b638fb39f9dc567659' ;;
     *) err "no installer checksum recorded for version '$VERSION'; set INSTALLER_SHA256 explicitly" ;;
     esac
 }

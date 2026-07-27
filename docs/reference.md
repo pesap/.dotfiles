@@ -114,7 +114,7 @@ remaining fields are Stow package directories.
 
 | Profile | Package directories |
 | --- | --- |
-| `common` | `alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise` |
+| `common` | `alacritty atuin bin man nvim pi starship worktrunk zellij zshrc mise` |
 | `linux-desktop` | Common + `linux mango waybar` |
 | `macos` | Common + `sketchybar skhd yabai personal` |
 
@@ -129,9 +129,11 @@ exist. Package names are restricted to simple letters, numbers, `_`, and `-`.
 | `install.sh` | Downloading/local installer implementation |
 | `bootstrap.sh` | Prerequisite installation and checksum-verified bootstrap |
 | `bin/.local/bin/loom` | Installed Loom command |
+| `man/.local/share/man/man1/` | Installed custom command manuals |
 | `scripts/apply.sh` | Loom package-apply implementation |
 | `scripts/desktop-apply.sh` | Loom guarded desktop-apply implementation |
 | `scripts/validate.sh` | Read-only repository validation entry point |
 | `tests/` | Isolated installer, apply, and desktop regression tests |
+| `zshrc/.config/zshrc/05-man.zsh` | Adds installed manuals to `MANPATH` |
 | `KEYMAPS.md` | Human-readable shortcut index |
 | `.github/workflows/validate.yml` | CI validation and scheduled dependency report |
