@@ -4,27 +4,83 @@ set -eu
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/waybar"
 cache_file="$cache_dir/weather"
 location_file="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/weather.location"
-mkdir -p "$cache_dir"
 
-if [ -s "$cache_file" ] && [ "$(find "$cache_file" -mmin -30 -print 2>/dev/null)" ]; then
-	cat "$cache_file"
-	exit 0
-fi
-
-location=''
-[ -r "$location_file" ] && location="$(tr -d '\n' <"$location_file")"
-location="$(printf '%s' "$location" | sed 's/ /+/g')"
-if [ -n "$location" ]; then
-	url="https://wttr.in/$location?format=%c+%t"
-else
-	url='https://wttr.in/?format=%c+%t'
-fi
-
-weather="$(curl -fsSL --max-time 8 "$url" 2>/dev/null || true)"
-if [ -n "$weather" ]; then
-	jq -cn --arg text "󰖐 $weather" --arg tooltip "Weather${location:+: $location}" '{text:$text,tooltip:$tooltip}' | tee "$cache_file"
-elif [ -s "$cache_file" ]; then
-	cat "$cache_file"
-else
+unavailable() {
 	printf '{"text":"󰖐 ?","tooltip":"Weather unavailable"}\n'
-fi
+}
+
+show_cached() {
+	if [ -s "$cache_file" ]; then
+		IFS= read -r payload <"$cache_file" || true
+		printf '%s\n' "${payload:-}"
+	else
+		unavailable
+	fi
+}
+
+refresh() {
+	mkdir -p "$cache_dir" || return 1
+	location=''
+	if [ -r "$location_file" ]; then
+		location="$(tr -d '\n' <"$location_file")" || return 1
+	fi
+	location="$(printf '%s' "$location" | sed 's/ /+/g')" || return 1
+	if [ -n "$location" ]; then
+		url="https://wttr.in/$location?format=%c+%t"
+	else
+		url='https://wttr.in/?format=%c+%t'
+	fi
+
+	if ! weather="$(curl -fsSL --max-time 8 "$url" 2>/dev/null)" ||
+		[ -z "$weather" ]; then
+		show_cached
+		return
+	fi
+
+	if ! payload="$(jq -cn \
+		--arg text "󰖐 $weather" \
+		--arg tooltip "Weather${location:+: $location}" \
+		'{text:$text,tooltip:$tooltip}')" ||
+		[ -z "$payload" ]; then
+		show_cached
+		return 1
+	fi
+
+	temp_file="$cache_file.tmp.$$"
+	if ! printf '%s\n' "$payload" >"$temp_file"; then
+		return 1
+	fi
+	if ! mv -f -- "$temp_file" "$cache_file"; then
+		rm -f -- "$temp_file"
+		return 1
+	fi
+	printf '%s\n' "$payload"
+}
+
+watch() {
+	mkdir -p "$cache_dir"
+	exec 9>"$cache_dir/weather.lock"
+	flock -n 9 || exit 0
+
+	refresh_seconds="${WAYBAR_WEATHER_REFRESH_SECONDS:-1800}"
+	case "$refresh_seconds" in
+		'' | *[!0-9]*) refresh_seconds=1800 ;;
+	esac
+	[ "$refresh_seconds" -ge 60 ] || refresh_seconds=60
+
+	while :; do
+		refresh >/dev/null || true
+		# The child must not inherit the singleton lock if this shell exits.
+		sleep "$refresh_seconds" 9>&-
+	done
+}
+
+case "${1:-status}" in
+	status) show_cached ;;
+	refresh) refresh ;;
+	watch) watch ;;
+	*)
+		printf 'usage: %s {status|refresh|watch}\n' "$0" >&2
+		exit 2
+		;;
+esac

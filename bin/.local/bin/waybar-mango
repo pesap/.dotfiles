@@ -2,14 +2,16 @@
 set -eu
 
 output="${WAYBAR_OUTPUT_NAME:-HDMI-A-1}"
-state="$(mmsg get monitor "$output" 2>/dev/null || true)"
 
-if [ -z "$state" ]; then
+unavailable() {
 	printf '{"text":"-","class":"inactive","tooltip":"Mango unavailable"}\n'
-	exit 0
-fi
+}
 
-case "${1:-tags}" in
+render() {
+	mode="$1"
+	state="$2"
+
+	case "$mode" in
 	tags)
 		printf '%s\n' "$state" | jq -c --arg output "$output" '
 			[.tags[] | select(.client_count > 0 or .is_active) |
@@ -29,7 +31,36 @@ case "${1:-tags}" in
 	keymode)
 		printf '%s\n' "$state" | jq -c '{text:.keymode,tooltip:("Key mode: " + .keymode)}'
 		;;
-	*)
-		exit 2
-		;;
+	esac
+}
+
+watch=0
+mode="${1:-tags}"
+if [ "$mode" = watch ]; then
+	watch=1
+	mode="${2:-tags}"
+fi
+
+case "$mode" in
+	tags | layout | window | keymode) ;;
+	*) exit 2 ;;
 esac
+
+if [ "$watch" -eq 1 ]; then
+	if ! command -v mmsg >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+		unavailable
+		exit 0
+	fi
+	mmsg watch monitor "$output" 2>/dev/null |
+		while IFS= read -r state; do
+			[ -n "$state" ] && render "$mode" "$state"
+		done
+	exit 0
+fi
+
+state="$(mmsg get monitor "$output" 2>/dev/null || true)"
+if [ -z "$state" ]; then
+	unavailable
+	exit 0
+fi
+render "$mode" "$state"

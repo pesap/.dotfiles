@@ -11,24 +11,24 @@
     "modules-right": ["custom/wallpaper", "custom/system", "custom/power", "wireplumber", "network", "clock", "tray"],
 
     "custom/mango-tags": {
-        "exec": "~/.local/bin/waybar-mango tags",
+        "exec": "~/.local/bin/waybar-mango watch tags",
         "return-type": "json",
-        "interval": 1,
+        "restart-interval": 2,
         "on-click": "mmsg dispatch toggleoverview",
         "format": "{}"
     },
 
     "custom/mango-layout": {
-        "exec": "~/.local/bin/waybar-mango layout",
+        "exec": "~/.local/bin/waybar-mango watch layout",
         "return-type": "json",
-        "interval": 1,
+        "restart-interval": 2,
         "format": "{}"
     },
 
     "custom/mango-window": {
-        "exec": "~/.local/bin/waybar-mango window",
+        "exec": "~/.local/bin/waybar-mango watch window",
         "return-type": "json",
-        "interval": 1,
+        "restart-interval": 2,
         "max-length": 32,
         "format": "{}"
     },
@@ -52,7 +52,7 @@
     "custom/power": {
         "exec": "~/.local/bin/waybar-power",
         "return-type": "json",
-        "interval": 5,
+        "interval": 30,
         "on-click": "~/.local/bin/waybar-power cycle",
         "format": "{}"
     },
