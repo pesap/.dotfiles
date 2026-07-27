@@ -6,11 +6,11 @@
 yabai -m config layout bsp
 
 # Window padding (top accounts for sketchybar height of 32px)
-yabai -m config top_padding    32
-yabai -m config bottom_padding 5
-yabai -m config left_padding   5
-yabai -m config right_padding  5
-yabai -m config window_gap     5
+yabai -m config top_padding    15
+yabai -m config bottom_padding 3
+yabai -m config left_padding   3
+yabai -m config right_padding  3
+yabai -m config window_gap     3
 
 # Mouse settings
 yabai -m config mouse_follows_focus off
@@ -28,7 +28,13 @@ yabai -m config auto_balance off
 yabai -m config window_topmost off
 
 # App placement
+# Keep each frequently used app in its familiar space.
 yabai -m rule --add app="^Ghostty$" space=1
+yabai -m rule --add app="^Alacritty$" space=1
+yabai -m rule --add app="^Safari$" space=1
+yabai -m rule --add app="^Finder$" space=2
+yabai -m rule --add app="^Microsoft Teams$" space=3
+yabai -m rule --add app="^Microsoft Outlook$" space=4
 
 # Disable management for system apps
 yabai -m rule --add app="^System Preferences$" manage=off

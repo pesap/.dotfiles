@@ -8,6 +8,9 @@ command -v starship >/dev/null && eval "$(starship init zsh)"
 # Leave Ctrl+R for Atuin history search.
 command -v fzf >/dev/null && FZF_CTRL_R_COMMAND= eval "$(fzf --zsh)"
 
+# Navi cheatsheet widget (Ctrl-G)
+command -v navi >/dev/null && eval "$(navi widget zsh)"
+
 # Atuin shell history
 if command -v atuin >/dev/null 2>&1; then
     [[ -f "$HOME/.atuin/bin/env" ]] && . "$HOME/.atuin/bin/env"
