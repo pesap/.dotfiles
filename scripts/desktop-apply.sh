@@ -267,7 +267,7 @@ for arg in "$@"; do
         --yes) YES_MODE=1 ;;
         --help|-h)
             cat <<'EOF'
-Usage: dotcfg run [--yes]
+Usage: loom desktop [--yes]
 
 Applies WM-scoped dotfiles safely.
 - No effective WM diff: exits success, no confirmation gate.
@@ -313,11 +313,11 @@ LKG_TAG="$(resolve_lkg_tag)"
 WM_PACKAGES="$(resolve_packages)"
 [ -n "$WM_PACKAGES" ] || err "no WM packages found under $DOTFILES_ROOT (checked: ${DOTFILES_WM_PACKAGES:-mango waybar})"
 
-is_git_clean || err "working tree must be clean before dotcfg run (commit/stash first)"
+is_git_clean || err "working tree must be clean before loom desktop (commit/stash first)"
 HEAD_COMMIT="$(git -C "$DOTFILES_ROOT" rev-parse HEAD 2>/dev/null)" || err "failed to resolve HEAD"
 
 if ! has_effective_diff "$DOTFILES_ROOT"; then
-    say "dotcfg run: no effective WM diff; nothing to apply"
+    say "loom desktop: no effective WM diff; nothing to apply"
     if ! git -C "$DOTFILES_ROOT" rev-parse -q --verify "refs/tags/$LKG_TAG" >/dev/null 2>&1; then
         promote_lkg || err "failed to initialize LKG tag: $LKG_TAG"
         say "initialized LKG anchor: $LKG_TAG -> $HEAD_COMMIT"
@@ -329,7 +329,7 @@ if ! git -C "$DOTFILES_ROOT" rev-parse -q --verify "refs/tags/$LKG_TAG" >/dev/nu
     err "missing LKG anchor tag '$LKG_TAG'. First run with already-applied config to initialize anchor."
 fi
 
-say "dotcfg run: applying WM packages:$WM_PACKAGES"
+say "loom desktop: applying WM packages:$WM_PACKAGES"
 apply_from_root "$DOTFILES_ROOT" || err "failed to apply upcoming WM configuration"
 
 if ! smoke_checks; then

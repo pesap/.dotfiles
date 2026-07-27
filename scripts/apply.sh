@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Restow only packages declared in packages.conf. Existing user files are never adopted.
+# Loom's package-apply implementation. Existing user files are never adopted.
 
 set -Eeuo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: restow [OPTIONS] [package ...]
+Usage: loom apply [OPTIONS] [package ...]
 
-Restow declared dotfile packages. With no package arguments, restow the
-selected profile (common by default). A Stow dry-run is always completed before
+Apply declared packages. With no package arguments, apply the selected
+profile (common by default). A Stow dry-run is always completed before
 any links are changed.
 
 Options:
@@ -21,7 +21,7 @@ EOF
 }
 
 fail() {
-    printf 'restow: %s\n' "$*" >&2
+    printf 'loom apply: %s\n' "$*" >&2
     exit 1
 }
 
@@ -32,7 +32,8 @@ dry_run=0
 declare -a requested=()
 declare -a packages=()
 declare -a applied=()
-declare -A snapshots=()
+declare -a snapshot_packages=()
+declare -a snapshot_files=()
 
 while (($#)); do
     case "$1" in
@@ -111,7 +112,7 @@ for package in "${packages[@]}"; do
 done
 
 cd "$repo_dir"
-stow_opts=(--ignore='\.DS_Store' -t "$HOME")
+stow_opts=(--ignore='\.DS_Store|local.toml' -t "$HOME")
 
 for package in "${packages[@]}"; do
     printf 'Preflight: %s\n' "$package"
@@ -169,10 +170,24 @@ remove_managed_target() {
     fi
 }
 
+snapshot_for_package() {
+    local package="$1"
+    local index=0
+    while ((index < ${#snapshot_packages[@]})); do
+        if [[ "${snapshot_packages[$index]}" = "$package" ]]; then
+            printf '%s\n' "${snapshot_files[$index]}"
+            return 0
+        fi
+        index=$((index + 1))
+    done
+    return 1
+}
+
 restore_snapshot() {
     local package="$1"
-    local snapshot="${snapshots[$package]}"
+    local snapshot
     local rel src target
+    snapshot="$(snapshot_for_package "$package")" || return 1
     stow -D "${stow_opts[@]}" "$package" >/dev/null 2>&1 || true
     [[ -s "$snapshot" ]] || return 0
     while IFS=$'\t' read -r rel src; do
@@ -189,26 +204,28 @@ restore_snapshot() {
 
 cleanup() {
     local snapshot
-    for snapshot in "${snapshots[@]:-}"; do
+    for snapshot in "${snapshot_files[@]:-}"; do
         [[ -n "$snapshot" && -f "$snapshot" ]] && rm -f -- "$snapshot"
     done
 }
 trap cleanup EXIT
 
 for current_package in "${packages[@]}"; do
-    snapshots["$current_package"]="$(mktemp /var/tmp/dotfiles-test.restow.XXXXXX)" ||
+    snapshot_file="$(mktemp /var/tmp/dotfiles-test.restow.XXXXXX)" ||
         fail 'failed to create rollback record'
-    snapshot_package_links "$current_package" "${snapshots[$current_package]}"
-    printf 'Restowing: %s\n' "$current_package"
+    snapshot_packages+=("$current_package")
+    snapshot_files+=("$snapshot_file")
+    snapshot_package_links "$current_package" "$snapshot_file"
+    printf 'Applying: %s\n' "$current_package"
     if ! stow -R "${stow_opts[@]}" "$current_package"; then
-        printf 'Restow failed for %s; restoring the prior link state.\n' "$current_package" >&2
+        printf 'Apply failed for %s; restoring the prior link state.\n' "$current_package" >&2
         restore_snapshot "$current_package" ||
             fail "could not restore prior links for $current_package"
         for applied_package in "${applied[@]}"; do
             restore_snapshot "$applied_package" ||
                 fail "could not restore prior links for $applied_package"
         done
-        fail 'restow failed; prior package links restored'
+        fail 'apply failed; prior package links restored'
     fi
     applied+=("$current_package")
 done

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 install_script="$repo_root/install.sh"
-restow_script="$repo_root/bin/.local/bin/restow"
+apply_script="$repo_root/scripts/apply.sh"
 test_dir=''
 
 fail() {
@@ -122,22 +122,22 @@ EOF
 chmod +x "$mock_bin/stow"
 
 env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" \
-    bash "$restow_script" --dry-run pkg >"$test_dir/restow-dry-run.out"
+    bash "$apply_script" --dry-run pkg >"$test_dir/restow-dry-run.out"
 [[ -L "$restow_home/config" ]] || fail 'restow dry-run changed the prior link'
 
 if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" FAIL_RESTOW=1 \
-    bash "$restow_script" pkg >"$test_dir/restow-rollback.out" 2>"$test_dir/restow-rollback.err"; then
+    bash "$apply_script" pkg >"$test_dir/restow-rollback.out" 2>"$test_dir/restow-rollback.err"; then
     fail 'restow unexpectedly succeeded after a simulated Stow failure'
 fi
 [[ -L "$restow_home/config" ]] || fail 'restow rollback did not restore prior Stow link'
 [[ "$(readlink "$restow_home/config")" == "$restow_repo/pkg/config" ]] || fail 'restow rollback restored the wrong link'
 
-if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" bash "$restow_script" --adopt >/dev/null 2>"$test_dir/restow-adopt.err"; then
+if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" bash "$apply_script" --adopt >/dev/null 2>"$test_dir/restow-adopt.err"; then
     fail 'restow accepted --adopt'
 fi
 grep -F -- '--adopt is refused' "$test_dir/restow-adopt.err" >/dev/null || fail 'restow adopt rejection changed'
 
-if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" bash "$restow_script" unlisted >/dev/null 2>"$test_dir/restow-unlisted.err"; then
+if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" bash "$apply_script" unlisted >/dev/null 2>"$test_dir/restow-unlisted.err"; then
     fail 'restow accepted an undeclared package'
 fi
 grep -F -- 'package is not declared' "$test_dir/restow-unlisted.err" >/dev/null || fail 'restow allowlist rejection changed'

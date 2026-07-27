@@ -1,8 +1,22 @@
-# Keymaps by Program
+# Keymaps by program
 
-Last updated: 2026-07-26
+> A quick reference for the shortcuts that make this setup feel like one
+> workspace instead of a collection of separate applications.
 
-This is a central index of keymaps configured in this dotfiles repo, grouped by program.
+Last updated: 2026-07-26 · Leader: `<Space>` in Neovim · Zellij starts locked
+
+## Find a shortcut
+
+- [Neovim](#neovim) — editing, search, LSP, Git, and review workflows
+- [Zellij](#zellij) — panes, tabs, modes, sessions, and floating tools
+- [Alacritty](#alacritty) — terminal-to-Zellij key translation
+- [skhd](#skhd-macos) — macOS apps, spaces, and Yabai
+- [Mango](#mango-wm-linux) — Linux windows, tags, and screenshots
+
+> [!TIP]
+> Start with `Ctrl+l` in Zellij: it toggles between `locked` and `normal`.
+> Locked mode lets application shortcuts pass through; normal mode exposes the
+> Zellij controls listed below.
 
 ---
 

@@ -2,11 +2,11 @@
 # shellcheck shell=dash
 #
 # Licensed under the MIT license
-# <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+# <LICENSE-MIT.txt or https://opensource.org/licenses/MIT>, at your
 # option. This file may not be copied, modified, or distributed
 # except according to those terms.
 #
-VERSION="${INSTALLER_VERSION:-0.0.2}"
+VERSION="${INSTALLER_VERSION:-0.0.3}"
 RECEIPT_HOME="${HOME}/.dotfiles"
 BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
 DOTFILES_REMOTE=""
@@ -15,7 +15,7 @@ LOCAL_INSTALL=${INSTALLER_LOCAL_INSTALL:-0}
 PRINT_VERBOSE=${INSTALLER_PRINT_VERBOSE:-0}
 PRINT_QUIET=${INSTALLER_PRINT_QUIET:-0}
 STOW_CMD=""
-STOW_IGNORE="--ignore=\\.DS_Store"
+STOW_IGNORE="--ignore=\\.DS_Store|local.toml"
 STOW_VERSION="2.4.1"
 STOW_SHA256="2a671e75fc207303bfe86a9a7223169c7669df0a8108ebdf1a7fe8cd2b88780b"
 FORCE_INSTALL=${INSTALLER_FORCE_INSTALL:-0}
@@ -61,12 +61,12 @@ set_dotfiles_remote() {
 # NOTE: I can re-enable this if at some point I need more functionality
 usage() {
     cat <<EOF
-dotfiles.sh
+loom setup
 
-The installer for my dotfiles
+The installer for this workstation configuration
 
 USAGE:
-    dotfiles.sh [OPTIONS]
+    loom setup [OPTIONS]
 
 OPTIONS:
     -l, --local
@@ -641,7 +641,7 @@ verify_tools() {
         fi
     done
 
-    for tool in nvim rg cargo dotcfg; do
+    for tool in nvim rg cargo loom; do
         if check_cmd "$tool"; then
             say_verbose "ok: $tool"
         else
