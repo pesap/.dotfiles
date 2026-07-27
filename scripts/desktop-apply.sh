@@ -25,23 +25,23 @@ is_git_clean() {
 
 detect_os() {
     case "$(uname -s 2>/dev/null || echo unknown)" in
-        Linux) echo "linux" ;;
-        Darwin) echo "macos" ;;
-        *) echo "unknown" ;;
+    Linux) echo "linux" ;;
+    Darwin) echo "macos" ;;
+    *) echo "unknown" ;;
     esac
 }
 
 wm_process_alive() {
     case "$OS_NAME" in
-        linux)
-            pgrep -x mango >/dev/null 2>&1
-            ;;
-        macos)
-            pgrep -x yabai >/dev/null 2>&1 && pgrep -x skhd >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
+    linux)
+        pgrep -x mango >/dev/null 2>&1
+        ;;
+    macos)
+        pgrep -x yabai >/dev/null 2>&1 && pgrep -x skhd >/dev/null 2>&1
+        ;;
+    *)
+        return 1
+        ;;
     esac
 }
 
@@ -49,35 +49,35 @@ smoke_checks() {
     [ "${DOTFILES_SKIP_SMOKE:-0}" = "1" ] && return 0
 
     case "$OS_NAME" in
-        linux)
-            need_cmd mango
-            if [ ! -f "$HOME/.config/mango/config.conf" ]; then
-                warn "missing ~/.config/mango/config.conf after apply"
-                return 1
-            fi
-            mango -p -c "$HOME/.config/mango/config.conf" || return 1
-            wm_process_alive || return 1
-            ;;
-        macos)
-            need_cmd yabai
-            need_cmd skhd
-            if ! yabai --check-config >/dev/null 2>&1; then
-                warn "yabai config check failed"
-                return 1
-            fi
-            wm_process_alive || return 1
-            ;;
-        *)
+    linux)
+        need_cmd mango
+        if [ ! -f "$HOME/.config/mango/config.conf" ]; then
+            warn "missing ~/.config/mango/config.conf after apply"
             return 1
-            ;;
+        fi
+        mango -p -c "$HOME/.config/mango/config.conf" || return 1
+        wm_process_alive || return 1
+        ;;
+    macos)
+        need_cmd yabai
+        need_cmd skhd
+        if ! yabai --check-config >/dev/null 2>&1; then
+            warn "yabai config check failed"
+            return 1
+        fi
+        wm_process_alive || return 1
+        ;;
+    *)
+        return 1
+        ;;
     esac
 }
 
 resolve_lkg_tag() {
     case "$OS_NAME" in
-        linux) echo "lkg-wm-linux" ;;
-        macos) echo "lkg-wm-macos" ;;
-        *) echo "" ;;
+    linux) echo "lkg-wm-linux" ;;
+    macos) echo "lkg-wm-macos" ;;
+    *) echo "" ;;
     esac
 }
 
@@ -246,12 +246,12 @@ prompt_confirm() {
     fi
 
     case "$answer" in
-        y|Y|yes|YES)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
+    y | Y | yes | YES)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
     esac
 }
 
@@ -263,10 +263,10 @@ YES_MODE=0
 ACTION="run"
 for arg in "$@"; do
     case "$arg" in
-        run) ACTION="run" ;;
-        --yes) YES_MODE=1 ;;
-        --help|-h)
-            cat <<'EOF'
+    run) ACTION="run" ;;
+    --yes) YES_MODE=1 ;;
+    --help | -h)
+        cat <<'EOF'
 Usage: loom desktop [--yes]
 
 Applies WM-scoped dotfiles safely.
@@ -281,11 +281,11 @@ Environment:
   DOTFILES_CONFIRM_TIMEOUT  Gate timeout seconds (default: 30)
   DOTFILES_SKIP_SMOKE   Set to 1 to skip smoke checks (testing only)
 EOF
-            exit 0
-            ;;
-        *)
-            err "unknown argument: $arg (expected: run, --yes, --help)"
-            ;;
+        exit 0
+        ;;
+    *)
+        err "unknown argument: $arg (expected: run, --yes, --help)"
+        ;;
     esac
 done
 

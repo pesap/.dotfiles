@@ -12,6 +12,11 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://raw.githubusercontent.com/pesap/.dotfiles/main/bootstrap.sh \
   | sh -s -- --profile common
 
+```
+
+To check the status:
+
+```
 loom check
 ```
 

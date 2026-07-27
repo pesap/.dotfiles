@@ -136,24 +136,24 @@ check_command() {
     while (($#)); do
         arg="$1"
         case "$arg" in
-            --machine) scope='machine' ;;
-            --repo) scope='repo' ;;
-            --profile)
-                (($# >= 2)) || fail '--profile requires a value'
-                profile="$2"
-                shift
-                ;;
-            --profile=*) profile="${arg#--profile=}" ;;
-            -h|--help)
-                cat <<'EOF'
+        --machine) scope='machine' ;;
+        --repo) scope='repo' ;;
+        --profile)
+            (($# >= 2)) || fail '--profile requires a value'
+            profile="$2"
+            shift
+            ;;
+        --profile=*) profile="${arg#--profile=}" ;;
+        -h | --help)
+            cat <<'EOF'
 Usage: loom check [--machine|--repo] [--profile PROFILE]
 
 Run the installed-machine check and repository validation. With no scope,
 both checks run. --profile changes the machine package check.
 EOF
-                return 0
-                ;;
-            *) fail "unknown check option: $arg" ;;
+            return 0
+            ;;
+        *) fail "unknown check option: $arg" ;;
         esac
         shift
     done
@@ -181,71 +181,71 @@ command_name="${1:-help}"
 shift || true
 
 case "$command_name" in
-    setup)
-        exec "$repo_root/install.sh" "$@"
+setup)
+    exec "$repo_root/install.sh" "$@"
+    ;;
+apply)
+    if [[ -n "${DOTFILES_DIR:-}" ]]; then
+        exec "$repo_root/scripts/apply.sh" "$@"
+    else
+        DOTFILES_DIR="$repo_root" exec "$repo_root/scripts/apply.sh" "$@"
+    fi
+    ;;
+check)
+    check_command "$@"
+    ;;
+desktop)
+    if [[ -n "${DOTFILES_ROOT:-}" ]]; then
+        exec "$repo_root/scripts/desktop-apply.sh" run "$@"
+    else
+        DOTFILES_ROOT="$repo_root" exec "$repo_root/scripts/desktop-apply.sh" run "$@"
+    fi
+    ;;
+tools)
+    case "${1:-help}" in
+    install)
+        shift
+        exec mise install "$@"
         ;;
-    apply)
-        if [[ -n "${DOTFILES_DIR:-}" ]]; then
-            exec "$repo_root/scripts/apply.sh" "$@"
-        else
-            DOTFILES_DIR="$repo_root" exec "$repo_root/scripts/apply.sh" "$@"
-        fi
+    outdated)
+        shift
+        exec mise outdated "$@"
         ;;
-    check)
-        check_command "$@"
-        ;;
-    desktop)
-        if [[ -n "${DOTFILES_ROOT:-}" ]]; then
-            exec "$repo_root/scripts/desktop-apply.sh" run "$@"
-        else
-            DOTFILES_ROOT="$repo_root" exec "$repo_root/scripts/desktop-apply.sh" run "$@"
-        fi
-        ;;
-    tools)
-        case "${1:-help}" in
-            install)
-                shift
-                exec mise install "$@"
-                ;;
-            outdated)
-                shift
-                exec mise outdated "$@"
-                ;;
-            help|-h|--help)
-                cat <<'EOF'
+    help | -h | --help)
+        cat <<'EOF'
 Usage: loom tools COMMAND [OPTIONS]
 
 Commands:
   install     Install versions pinned in the mise manifest
   outdated    Report available updates without installing them
 EOF
-                ;;
-            *)
-                fail "unknown tools command: ${1:-}"
-                ;;
-        esac
-        ;;
-    profiles)
-        case "${1:-}" in
-            ''|-h|--help)
-                printf '%s\n' common linux-desktop macos
-                ;;
-            *)
-                fail "unknown profiles option: $1"
-                ;;
-        esac
-        ;;
-    version)
-        if git -C "$repo_root" describe --always --dirty >/dev/null 2>&1; then
-            printf 'loom %s\n' "$(git -C "$repo_root" describe --always --dirty)"
-        else
-            printf 'loom unknown\n'
-        fi
-        ;;
-    help|-h|--help)
-        usage
         ;;
     *)
-        fail "unknown command: $command_name"
+        fail "unknown tools command: ${1:-}"
         ;;
+    esac
+    ;;
+profiles)
+    case "${1:-}" in
+    '' | -h | --help)
+        printf '%s\n' common linux-desktop macos
+        ;;
+    *)
+        fail "unknown profiles option: $1"
+        ;;
+    esac
+    ;;
+version)
+    if git -C "$repo_root" describe --always --dirty >/dev/null 2>&1; then
+        printf 'loom %s\n' "$(git -C "$repo_root" describe --always --dirty)"
+    else
+        printf 'loom unknown\n'
+    fi
+    ;;
+help | -h | --help)
+    usage
+    ;;
+*)
+    fail "unknown command: $command_name"
+    ;;
 esac
