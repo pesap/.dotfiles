@@ -1,15 +1,18 @@
-# Herdr workflow extensions
-# The plugin is linked from this dotfiles checkout by the setup command below.
+# Herdr project-session workflow.
 
 [keys]
-# Herdr-native indexed workspace navigation: Cmd+1 through Cmd+9.
+# Native detach exits the sessionizer; the project shortcut switches only after selection.
+detach = "prefix+q"
+# Herdr-native indexed workspace navigation: Cmd/Super+1 through Cmd/Super+9.
 switch_workspace = "cmd+1..9"
 
 [[keys.command]]
-key = "cmd+backslash"
-type = "plugin_action"
-command = "pesap.herdr-zessioner.open"
-description = "open Herdr zessioner"
+key = "ctrl+backslash"
+type = "popup"
+command = "herdr-sessionizer --select"
+description = "switch Herdr project session"
+width = "80%"
+height = "70%"
 
 [ui]
 agent_panel_sort = "spaces"

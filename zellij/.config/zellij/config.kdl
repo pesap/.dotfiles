@@ -36,7 +36,7 @@ keybinds clear-defaults=true {
             GoToTab 4
             SwitchToMode "Locked"
         }
-        bind "Ctrl \\" "Alt \\" {
+        bind "Alt \\" {
             Run "zsh" "-lc" "exec zellij-zessioner" {
                 close_on_exit true
                 floating true
@@ -102,7 +102,7 @@ keybinds clear-defaults=true {
             MoveFocus "Down"
             SwitchToMode "Locked"
         }
-        bind "Ctrl \\" "Alt \\" {
+        bind "Alt \\" {
             Run "zsh" "-lc" "exec zellij-zessioner" {
                 close_on_exit true
                 floating true

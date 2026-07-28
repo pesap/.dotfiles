@@ -8,9 +8,9 @@ Last updated: 2026-07-26 · Leader: `<Space>` in Neovim · Zellij starts locked
 ## Find a shortcut
 
 - [Neovim](#neovim) — editing, search, LSP, Git, and review workflows
-- [Herdr](#herdr) — persistent workspaces, agents, and project picker
+- [Herdr](#herdr) — persistent project sessions and same-window switching
 - [Zellij](#zellij) — panes, tabs, modes, sessions, and floating tools
-- [Alacritty](#alacritty) — terminal-to-Zellij key translation
+- [Alacritty](#alacritty) — terminal shortcut translation
 - [skhd](#skhd-macos) — macOS apps, spaces, and Yabai
 - [Mango](#mango-wm-linux) — Linux windows, tags, and screenshots
 
@@ -155,22 +155,29 @@ Leader is `<Space>`.
 
 Sources:
 - `herdr/.config/herdr/config.toml`
-- `herdr/.config/herdr/plugins/herdr-zessioner/`
-- `bin/.local/bin/zessioner`
+- `bin/.local/bin/herdr-sessionizer`
+- `zshrc/.config/zshrc/50-functions.zsh`
+- `alacritty/.config/alacritty/alacritty.toml`
 
 | Key | Action |
 |---|---|
-| `Cmd+\\` | toggle the Herdr zessioner workspace/project picker |
-| `Cmd+1..9` | switch directly to Herdr workspace 1..9 |
+| `Cmd+\\` (macOS) / `Super+\\` (Linux) | select, then switch Herdr project sessions |
+| `Ctrl+\\` | terminal-level equivalent |
+| `Ctrl+b`, then `q` | detach Herdr and return to the shell |
+| `Cmd+1..9` / `Super+1..9` | switch directly to Herdr workspace 1..9 |
 
-The picker is bound as a toggle to `Cmd+\\`; the Zellij adapter has the analogous workflow. It shows live Herdr workspaces first, followed by zoxide projects under
-`~/dev`, `~/sandbox`, `~/work`, and `~/.dotfiles`. Enter focuses an existing
-workspace or creates a fresh workspace for a project. `Ctrl+d` closes an
-existing workspace; project rows cannot be closed. `Ctrl+/` toggles details.
+`herdr-sessionizer` discovers first-level projects under `~/dev`, `~/work`,
+`~/projects`, `~/personal`, and `~/sandbox` with `fd`, then selects one with
+`fzf`. The project basename is its Herdr session name. Inside Herdr, the
+shortcut opens `fzf` in a native popup. Escape leaves the current client
+attached; choosing a project asks the outer sessionizer to detach cleanly and
+attach the selected session in the same terminal. There are no nested clients
+or additional terminal windows.
 
-The picker UI is context-neutral. Herdr supplies only the backend adapter, so
-other workspace managers can reuse `zessioner` with the same adapter
-interface.
+Override the roots with a colon-separated `HERDR_PROJECT_ROOTS` value, or pass
+a project directory directly to `herdr-sessionizer`. From a shell outside
+Herdr, `herdr-kill-all` terminates every session and deletes all named-session
+state; it prompts unless passed `--force`.
 
 ---
 
@@ -194,7 +201,7 @@ Sources:
 | `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
 | `Alt+Shift+h` / `Alt+Shift+l` | resize decrease/increase |
 | `Alt+{` / `Alt+}` | move focus up/down + return to Locked mode |
-| `Ctrl+\\` / `Alt+\\` | run floating `zellij-zessioner` + return to Locked mode |
+| `Alt+\\` | run floating `zellij-zessioner` + return to Locked mode |
 | `Ctrl+y` | open layout picker plugin + return to Locked mode |
 
 #### `locked`
@@ -205,7 +212,7 @@ Sources:
 | `Alt+d` | detach session |
 | `Alt+f` | toggle floating panes |
 | `Alt+1..4` | go to tab 1..4 + stay Locked |
-| `Ctrl+\\` / `Alt+\\` | run floating `zellij-zessioner` + stay Locked |
+| `Alt+\\` | run floating `zellij-zessioner` + stay Locked |
 
 #### `resize`
 
@@ -303,7 +310,7 @@ Sources:
 | locked | `Ctrl+l` | unlock to Normal mode |
 | locked | `Alt+d` | detach |
 | locked/normal | `Alt+1..4` | go to tab 1..4 + return to Locked mode |
-| locked/normal | `Ctrl+\\` / `Alt+\\` | run floating `zellij-zessioner` |
+| locked/normal | `Alt+\\` | run floating `zellij-zessioner` |
 | normal | `Ctrl+l` | lock Zellij |
 | normal | `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
 | locked/normal | `Alt+f` | toggle floating panes |
@@ -319,7 +326,7 @@ Sources:
 - `Ctrl+l` toggles between `locked` and `normal`; use it to unlock Zellij controls or lock back into app keymaps.
 - `Ctrl+o` is intentionally unbound globally so Pi can use it to expand tools.
 - `Alt+d` detaches directly from locked mode.
-- Zellij uses `zellij-zessioner` through `Ctrl+\\` / `Alt+\\`; Herdr uses the same `Cmd+\\` workflow through its native plugin.
+- Zellij uses `zellij-zessioner` through `Alt+\\`; `Ctrl+\\` is reserved for the Herdr sessionizer.
 - `default.kdl` provides the status row, vertical tab list, and terminal pane.
 
 ### Theme notes

@@ -1,6 +1,6 @@
 # Zessioner
 
-`bin/.local/bin/zessioner` is the context-neutral picker used by workflow integrations such as `zellij-zessioner` and `herdr-zessioner`.
+`bin/.local/bin/zessioner` is the context-neutral picker used by workflows such as `zellij-zessioner`. Herdr uses the intentionally smaller `herdr-sessionizer` command instead.
 
 The picker owns:
 
@@ -28,7 +28,7 @@ adapter --close ID NAME
 kind  id  path  name  state  rank  sort-key
 ```
 
-`kind` is `project` for rows owned by the picker or an adapter-specific value such as `herdr`. The `state` value may be `current`, `active`, or `idle`; it controls the row marker. `rank` controls grouping, and `sort-key` controls ordering within a group.
+`kind` is `project` for rows owned by the picker or an adapter-specific value such as `zellij`. The `state` value may be `current`, `active`, or `idle`; it controls the row marker. `rank` controls grouping, and `sort-key` controls ordering within a group.
 
 The picker invokes `--select` after Enter. Project rows use `-` as their sentinel `ID`; the adapter decides how to create a context for the supplied path. `--close` is only invoked for adapter rows; project rows cannot be deleted by the generic UI.
 
@@ -36,9 +36,9 @@ The picker invokes `--select` after Enter. Project rows use `-` as their sentine
 
 ```sh
 zessioner \
-  --adapter "$HOME/.config/herdr/plugins/herdr-zessioner/backend.sh" \
+  --adapter "$HOME/.local/bin/zellij-zessioner-adapter" \
   --roots "$HOME/dev:$HOME/work" \
-  --prompt 'workspace › '
+  --prompt 'session › '
 ```
 
-A Zellij, Herdr, tmux, editor, or plain-shell workflow can reuse `zessioner` by implementing the three adapter operations. No multiplexer-specific protocol belongs in the picker itself.
+A Zellij, tmux, editor, or plain-shell workflow can reuse `zessioner` by implementing the three adapter operations. No multiplexer-specific protocol belongs in the picker itself.

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+    -f|--force) force=1 ;;
+    "") force=0 ;;
+    -h|--help)
+        printf 'Usage: herdr-kill-all [--force]\n'
+        printf 'Stop every session and delete all named-session state.\n'
+        exit 0
+        ;;
+    *) printf 'herdr-kill-all: unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac
+
+if [[ "${HERDR_ENV:-}" == 1 ]]; then
+    printf 'herdr-kill-all: run this outside Herdr so it can stop every session\n' >&2
+    exit 1
+fi
+
+sessions=$(herdr session list --json)
+running=$(jq '[.sessions[] | select(.running)] | length' <<<"$sessions")
+named=$(jq '[.sessions[] | select(.name != "default")] | length' <<<"$sessions")
+
+if (( running == 0 && named == 0 )); then
+    printf 'No Herdr sessions to terminate or delete.\n'
+    exit 0
+fi
+
+if (( ! force )); then
+    printf 'Terminate %d running session(s) and delete %d named session(s)? [y/N] ' "$running" "$named" >/dev/tty
+    read -r answer </dev/tty || exit 1
+    [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || exit 0
+fi
+
+while IFS=$'\t' read -r name is_running; do
+    [[ -n "$name" ]] || continue
+    [[ "$is_running" != true ]] || herdr session stop "$name"
+    herdr session delete "$name"
+done < <(jq -r '.sessions[] | select(.name != "default") | [.name, .running] | @tsv' <<<"$sessions")
+
+if jq -e '.sessions[] | select(.name == "default" and .running)' >/dev/null <<<"$sessions"; then
+    herdr session stop default
+fi
+
+printf 'All Herdr sessions terminated; named sessions deleted.\n'

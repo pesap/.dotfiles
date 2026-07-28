@@ -99,7 +99,7 @@ including:
 
 - `loom` for setup and maintenance;
 - `aclui` for a simpler interface to `getfacl` and `setfacl`;
-- `git-checkouts`, `pr-digest`, and `zessioner` adapters for Herdr/Zellij workspace workflows;
+- `git-checkouts`, `pr-digest`, `herdr-sessionizer`, `herdr-kill-all`, and `zessioner` for session workflows;
 - Waybar, Mango, wallpaper, clipboard, and macOS helpers.
 
 Run a command with `--help` when it provides help. Tools that depend on Linux
