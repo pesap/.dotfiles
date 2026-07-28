@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ $# -eq 1 ]] || {
+    printf 'Usage: project-name DIRECTORY\n' >&2
+    exit 2
+}
+
+name="${1%/}"
+name="${name##*/}"
+name="${name#.}"
+[[ -n "$name" ]] || name=root
+
+printf '%s\n' "$name" |
+    tr . _ |
+    tr -c '[:alnum:]_-' _ |
+    sed 's/_\{2,\}/_/g; s/^_//; s/_$//'

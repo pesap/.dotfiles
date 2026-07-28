@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+picker="${HERDR_PROJECT_PICKER:-$script_dir/project-picker}"
+namer="${HERDR_PROJECT_NAME:-$script_dir/project-name}"
+
+state_dir="${XDG_RUNTIME_DIR:-$HOME/.cache}/herdr-project"
+request_file="$state_dir/request"
+active_file="$state_dir/active"
+client_file="$state_dir/client"
+mkdir -p "$state_dir"
+chmod 700 "$state_dir"
+
+pick_project() {
+    PROJECT_PICKER_PROMPT='herdr › ' "$picker"
+}
+
+if [[ "${1:-}" == --select ]]; then
+    read -r project_pid <"$active_file" 2>/dev/null || {
+        printf 'Launch Herdr with herdr-project first.\n' >&2
+        sleep 2
+        exit 1
+    }
+    kill -0 "$project_pid" 2>/dev/null || exit 1
+    selected=$(pick_project) || exit 0
+    [[ -n "$selected" ]] && printf '%s\n' "$selected" >"$request_file"
+    exit 0
+fi
+
+[[ "${HERDR_ENV:-}" != 1 ]] || {
+    printf 'Use Ctrl+\\ to switch Herdr sessions without nesting.\n' >&2
+    exit 1
+}
+
+printf '%s\n' "$$" >"$active_file"
+rm -f -- "$request_file"
+trap 'rm -f -- "$active_file" "$request_file" "$client_file"' EXIT
+selected="${1:-}"
+
+while true; do
+    [[ -n "$selected" ]] || selected=$(pick_project) || exit 0
+    [[ -d "$selected" ]] || {
+        printf 'Not a project directory: %s\n' "$selected" >&2
+        exit 1
+    }
+
+    session_name=$("$namer" "$selected")
+    rm -f -- "$request_file" "$client_file"
+
+    watch_request() {
+        local client_pid=''
+        while [[ ! -s "$client_file" ]]; do
+            sleep 0.05
+        done
+        read -r client_pid <"$client_file"
+        while kill -0 "$client_pid" 2>/dev/null; do
+            if [[ -s "$request_file" ]]; then
+                kill -INT "$client_pid" 2>/dev/null || true
+                return
+            fi
+            sleep 0.05
+        done
+    }
+
+    watch_request &
+    watcher_pid=$!
+    status=0
+    (
+        cd -- "$selected"
+        exec bash -c 'printf "%s\n" "$$" >"$1"; shift; exec herdr "$@"' \
+            herdr-project-client "$client_file" --session "$session_name"
+    ) || status=$?
+    kill "$watcher_pid" 2>/dev/null || true
+    wait "$watcher_pid" 2>/dev/null || true
+    rm -f -- "$client_file"
+
+    [[ -s "$request_file" ]] || exit "$status"
+    read -r selected <"$request_file"
+done

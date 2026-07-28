@@ -84,8 +84,8 @@ osc52 = "OnlyCopy"              # remote shells can write to clipboard, not read
 
 [keyboard]
 bindings = [
-    # Cmd+\\ on macOS / Super+\\ on Linux becomes Ctrl+\\. The shell launches
-    # herdr-sessionizer; Herdr opens its select-before-switch popup.
+    # Cmd+\\ on macOS / Super+\\ on Linux becomes Ctrl+\\. Outside Herdr,
+    # zsh launches herdr-project; inside Herdr, its native popup handles it.
     { key = "Backslash", mods = "Super", chars = "\u001c" },
 
     # ── zellij tab switching from macOS ──────────────────────────────────────

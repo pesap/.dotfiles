@@ -1,7 +1,7 @@
-# Herdr project-session workflow.
+# Herdr project workflow.
 
 [keys]
-# Native detach exits the sessionizer; the project shortcut switches only after selection.
+# Native detach exits the project launcher; the project shortcut switches only after selection.
 detach = "prefix+q"
 # Herdr-native indexed workspace navigation: Cmd/Super+1 through Cmd/Super+9.
 switch_workspace = "cmd+1..9"
@@ -9,8 +9,8 @@ switch_workspace = "cmd+1..9"
 [[keys.command]]
 key = "ctrl+backslash"
 type = "popup"
-command = "herdr-sessionizer --select"
-description = "switch Herdr project session"
+command = "herdr-project --select"
+description = "switch Herdr project"
 width = "80%"
 height = "70%"
 

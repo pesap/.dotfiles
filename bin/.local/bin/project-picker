@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+provider="${PROJECT_DIRS_BIN:-$script_dir/project-dirs}"
+prompt="${PROJECT_PICKER_PROMPT:-project › }"
+
+if [[ $# -gt 1 ]]; then
+    printf 'Usage: project-picker [DIRECTORY]\n' >&2
+    exit 2
+fi
+
+if [[ $# -eq 1 ]]; then
+    [[ -d "$1" ]] || {
+        printf 'project-picker: not a directory: %s\n' "$1" >&2
+        exit 1
+    }
+    printf '%s\n' "$1"
+    exit 0
+fi
+
+command -v fzf >/dev/null 2>&1 || {
+    printf 'project-picker: fzf is required\n' >&2
+    exit 1
+}
+
+selected=$("$provider" | fzf \
+    --prompt="$prompt" \
+    --height=70% \
+    --layout=reverse \
+    --border=rounded \
+    --preview='if [[ -f {}/README.md && -x "$(command -v bat 2>/dev/null)" ]]; then bat --color=always --style=plain --line-range=:80 {}/README.md 2>/dev/null; else fd --max-depth 2 --hidden --exclude .git --type f . {} 2>/dev/null | head -40; fi' \
+    --preview-window='right,50%,border-left,wrap')
+
+if [[ -n "$selected" ]]; then
+    printf '%s\n' "$selected"
+fi

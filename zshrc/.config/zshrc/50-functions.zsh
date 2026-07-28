@@ -5,7 +5,7 @@
 # Keep Herdr subcommands native, but route a plain launch through the picker.
 herdr() {
     if (( $# == 0 )); then
-        herdr-sessionizer
+        herdr-project
     else
         command herdr "$@"
     fi
@@ -222,12 +222,12 @@ _make_cmd_widget() {
     "
 }
 
-_make_cmd_widget _herdr_sessionizer_widget 'BUFFER=herdr-sessionizer; CURSOR=${#BUFFER}; zle accept-line; return'
+_make_cmd_widget _herdr_project_widget 'BUFFER=herdr-project; CURSOR=${#BUFFER}; zle accept-line; return'
 _make_cmd_widget _fj_widget      'fj'
 _make_cmd_widget _fjh_widget     'fjh'
 _make_cmd_widget _pj_widget      'pj'
 
-_bind_widget_all_keymaps '^\\' _herdr_sessionizer_widget # Ctrl+\ -> Herdr project/session picker
+_bind_widget_all_keymaps '^\\' _herdr_project_widget # Ctrl+\ -> Herdr project picker
 _bind_widget_all_keymaps '^f'  _fj_widget        # Ctrl+F  -> folder jump (shadows forward-char by design)
 _bind_widget_all_keymaps '^[F' _fjh_widget       # Alt+Shift+F -> folder jump (hidden)
 _bind_widget_all_keymaps '^[g' _pj_widget        # Alt+G   -> project jump

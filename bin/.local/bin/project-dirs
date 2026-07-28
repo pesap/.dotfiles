@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+roots_value="${PROJECT_ROOTS-${HERDR_PROJECT_ROOTS:-$HOME/dev:$HOME/work:$HOME/projects:$HOME/personal:$HOME/sandbox}}"
+paths_value="${PROJECT_PATHS-$HOME/.dotfiles}"
+
+IFS=: read -r -a roots <<< "$roots_value"
+IFS=: read -r -a paths <<< "$paths_value"
+
+command -v fd >/dev/null 2>&1 || {
+    printf 'project-dirs: fd is required\n' >&2
+    exit 1
+}
+
+{
+    for path in "${paths[@]}"; do
+        [[ -d "$path" ]] && printf '%s\n' "$path"
+    done
+
+    for root in "${roots[@]}"; do
+        [[ -d "$root" ]] || continue
+        fd --type d --min-depth 1 --max-depth 1 --exclude .bare . "$root" 2>/dev/null
+    done
+} | awk '!seen[$0]++'

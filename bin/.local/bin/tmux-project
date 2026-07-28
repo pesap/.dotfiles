@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+selected="${1:-$(project-picker)}"
+[[ -n "$selected" ]] || exit 0
+
+name=$(project-name "$selected")
+
+if ! tmux has-session -t="$name" 2>/dev/null; then
+    tmux new-session -ds "$name" -c "$selected"
+fi
+
+if [[ -n "${TMUX:-}" ]]; then
+    exec tmux switch-client -t "$name"
+fi
+
+exec tmux attach-session -t "$name"

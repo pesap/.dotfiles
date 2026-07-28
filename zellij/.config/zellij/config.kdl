@@ -37,14 +37,14 @@ keybinds clear-defaults=true {
             SwitchToMode "Locked"
         }
         bind "Alt \\" {
-            Run "zsh" "-lc" "exec zellij-zessioner" {
+            Run "zsh" "-lc" "exec zellij-project" {
                 close_on_exit true
                 floating true
                 x "30%"
                 y "10%"
                 width "40%"
                 height "80%"
-                name "zellij-zessioner"
+                name "zellij-project"
             }
             SwitchToMode "Locked"
         }
@@ -103,14 +103,14 @@ keybinds clear-defaults=true {
             SwitchToMode "Locked"
         }
         bind "Alt \\" {
-            Run "zsh" "-lc" "exec zellij-zessioner" {
+            Run "zsh" "-lc" "exec zellij-project" {
                 close_on_exit true
                 floating true
                 x "30%"
                 y "10%"
                 width "40%"
                 height "80%"
-                name "zellij-zessioner"
+                name "zellij-project"
             }
             SwitchToMode "Locked"
         }

@@ -155,29 +155,28 @@ Leader is `<Space>`.
 
 Sources:
 - `herdr/.config/herdr/config.toml`
-- `bin/.local/bin/herdr-sessionizer`
+- `bin/.local/bin/herdr-project`
 - `zshrc/.config/zshrc/50-functions.zsh`
 - `alacritty/.config/alacritty/alacritty.toml`
 
 | Key | Action |
 |---|---|
-| `Cmd+\\` (macOS) / `Super+\\` (Linux) | select, then switch Herdr project sessions |
-| `Ctrl+\\` | terminal-level equivalent |
+| `Cmd+\\` (macOS) / `Super+\\` (Linux) | open Herdr project picker |
+| `Ctrl+\\` | open Herdr project picker from a terminal |
 | `Ctrl+b`, then `q` | detach Herdr and return to the shell |
 | `Cmd+1..9` / `Super+1..9` | switch directly to Herdr workspace 1..9 |
 
-`herdr-sessionizer` discovers first-level projects under `~/dev`, `~/work`,
-`~/projects`, `~/personal`, and `~/sandbox` with `fd`, then selects one with
-`fzf`. The project basename is its Herdr session name. Inside Herdr, the
-shortcut opens `fzf` in a native popup. Escape leaves the current client
-attached; choosing a project asks the outer sessionizer to detach cleanly and
-attach the selected session in the same terminal. There are no nested clients
-or additional terminal windows.
+`project-picker` discovers first-level projects under the shared project roots
+with `fd`, and includes `~/.dotfiles` as an explicit project. It uses `fzf`
+with a lightweight preview; pass a project directory directly to any launcher
+to skip the picker. The project basename is sanitized into the multiplexer
+session name.
 
-Override the roots with a colon-separated `HERDR_PROJECT_ROOTS` value, or pass
-a project directory directly to `herdr-sessionizer`. From a shell outside
-Herdr, `herdr-kill-all` terminates every session and deletes all named-session
-state; it prompts unless passed `--force`.
+Set `PROJECT_ROOTS` and `PROJECT_PATHS` as colon-separated overrides when
+needed. `herdr-project` opens a project outside Herdr and uses its native popup
+handoff when switching from inside Herdr. From a shell outside Herdr,
+`herdr-kill-all` terminates every session and deletes all named-session state;
+it prompts unless passed `--force`.
 
 ---
 
@@ -201,7 +200,7 @@ Sources:
 | `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
 | `Alt+Shift+h` / `Alt+Shift+l` | resize decrease/increase |
 | `Alt+{` / `Alt+}` | move focus up/down + return to Locked mode |
-| `Alt+\\` | run floating `zellij-zessioner` + return to Locked mode |
+| `Alt+\\` | run floating `zellij-project` + return to Locked mode |
 | `Ctrl+y` | open layout picker plugin + return to Locked mode |
 
 #### `locked`
@@ -212,7 +211,7 @@ Sources:
 | `Alt+d` | detach session |
 | `Alt+f` | toggle floating panes |
 | `Alt+1..4` | go to tab 1..4 + stay Locked |
-| `Alt+\\` | run floating `zellij-zessioner` + stay Locked |
+| `Alt+\\` | run floating `zellij-project` + stay Locked |
 
 #### `resize`
 
@@ -310,7 +309,7 @@ Sources:
 | locked | `Ctrl+l` | unlock to Normal mode |
 | locked | `Alt+d` | detach |
 | locked/normal | `Alt+1..4` | go to tab 1..4 + return to Locked mode |
-| locked/normal | `Alt+\\` | run floating `zellij-zessioner` |
+| locked/normal | `Alt+\\` | run floating `zellij-project` |
 | normal | `Ctrl+l` | lock Zellij |
 | normal | `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
 | locked/normal | `Alt+f` | toggle floating panes |
@@ -326,7 +325,7 @@ Sources:
 - `Ctrl+l` toggles between `locked` and `normal`; use it to unlock Zellij controls or lock back into app keymaps.
 - `Ctrl+o` is intentionally unbound globally so Pi can use it to expand tools.
 - `Alt+d` detaches directly from locked mode.
-- Zellij uses `zellij-zessioner` through `Alt+\\`; `Ctrl+\\` is reserved for the Herdr sessionizer.
+- Zellij uses `zellij-project` through `Alt+\\`; `Ctrl+\\` is reserved for the Herdr project launcher.
 - `default.kdl` provides the status row, vertical tab list, and terminal pane.
 
 ### Theme notes
