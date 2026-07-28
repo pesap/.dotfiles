@@ -1,0 +1,279 @@
+#!/usr/bin/env bash
+# zessioner — reusable project/context picker.
+#
+# Backend interface:
+#   backend --rows
+#       Emit tab-separated rows:
+#       kind  id  path  name  state  rank  sort-key
+#   backend --select KIND ID PATH NAME
+#   backend --close ID NAME
+#
+# The backend owns the context manager. This utility owns project discovery,
+# ordering, rendering, fzf interaction, and generic Git previews.
+set -uo pipefail
+
+adapter=""
+roots_value="${ZESSIONER_ROOTS:-${ZESSION_ROOTS:-$HOME/dev:$HOME/sandbox:$HOME/work:$HOME/.dotfiles}}"
+prompt='zessioner › '
+title='zessioner'
+header=$'enter select/create  ·  ctrl-r refresh  ·  ctrl-d close  ·  ctrl-/ details  ·  esc close'
+show_projects=1
+IFS=':' read -r -a roots <<< "$roots_value"
+
+usage() {
+  cat <<'EOF'
+Usage: zessioner --adapter PATH [options]
+
+Options:
+  --adapter PATH       context backend executable (required)
+  --roots ROOTS       colon-separated project roots
+  --prompt TEXT        fzf prompt
+  --title TEXT         preview title
+  --header TEXT        fzf header
+  --no-projects        show backend rows only
+  --rows               print machine-readable rows
+  --generate-list      print display rows
+  --preview-row ROW   preview one machine-readable row
+  --close-row ROW     close one backend row
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --adapter) [[ $# -gt 1 ]] || { printf '%s\n' '--adapter requires a path' >&2; return 2; }; adapter="$2"; shift 2 ;;
+      --roots) [[ $# -gt 1 ]] || { printf '%s\n' '--roots requires a value' >&2; return 2; }; roots_value="$2"; IFS=':' read -r -a roots <<< "$roots_value"; shift 2 ;;
+      --prompt) [[ $# -gt 1 ]] || return 2; prompt="$2"; shift 2 ;;
+      --title) [[ $# -gt 1 ]] || return 2; title="$2"; shift 2 ;;
+      --header) [[ $# -gt 1 ]] || return 2; header="$2"; shift 2 ;;
+      --no-projects) show_projects=0; shift ;;
+      --rows|--generate-list|--preview-row|--close-row|--help|-h) break ;;
+      *) printf 'zessioner: unknown option: %s\n' "$1" >&2; return 2 ;;
+    esac
+  done
+  picker_action="${1:-}"
+  picker_value="${2:-}"
+  [[ -n "$adapter" ]] || { printf 'zessioner: --adapter is required\n' >&2; return 2; }
+  [[ -x "$adapter" ]] || { printf 'zessioner: adapter is not executable: %s\n' "$adapter" >&2; return 2; }
+}
+
+require_dependencies() {
+  if [[ -z "${picker_action:-}" ]]; then
+    command -v fzf >/dev/null 2>&1 || {
+      printf 'zessioner: fzf is required\n' >&2
+      return 1
+    }
+  fi
+  if [[ "$show_projects" -eq 1 ]]; then
+    command -v zoxide >/dev/null 2>&1 || {
+      printf 'zessioner: zoxide is required unless --no-projects is used\n' >&2
+      return 1
+    }
+  fi
+}
+
+adapter_rows() {
+  "$adapter" --rows
+}
+
+project_name() {
+  local path="${1%/}"
+  local name="${path##*/}"
+  [[ -n "$name" ]] || name="root"
+  printf '%s\n' "$name" | tr -c '[:alnum:]._-' '_' | sed 's/_\{2,\}/_/g; s/^_//; s/_$//'
+}
+
+project_rows() {
+  [[ "$show_projects" -eq 1 ]] || return 0
+
+  local path root name sequence=0
+  while IFS= read -r path; do
+    [[ -d "$path" ]] || continue
+    for root in "${roots[@]}"; do
+      if [[ -n "$root" && ( "$path" == "$root" || "$path" == "$root/"* ) ]]; then
+        name=$(project_name "$path")
+        # kind, id, path, name, state, rank, sort-key, sequence
+        printf 'project\t-\t%s\t%s\tproject\t2\t%09d\t%09d\n' \
+          "$path" "$name" "$sequence" "$sequence"
+        sequence=$((sequence + 1))
+        break
+      fi
+    done
+  done < <(zoxide query -l 2>/dev/null)
+}
+
+generate_rows() {
+  {
+    adapter_rows || return 1
+    project_rows
+  } | awk -F '\t' '
+    # Backend rows win over project rows with the same path.
+    $1 != "project" && $3 != "" { backend_path[$3] = 1 }
+    $1 == "project" && backend_path[$3] { next }
+    { print }' | awk -F '\t' -v home="$HOME" '
+    function symbol(state) {
+      if (state == "current") return "◆"
+      if (state == "active") return "●"
+      if (state == "idle") return "○"
+      return "·"
+    }
+    function display_path(path) {
+      if (path == home) return "~"
+      if (home != "" && index(path, home "/") == 1) return "~" substr(path, length(home) + 1)
+      return path
+    }
+    {
+      kind = $1
+      id = $2
+      path = $3
+      name = $4
+      state = $5
+      rank = $6
+      key = $7
+      sequence = $8
+
+      if (kind == "project") {
+        display = sprintf("· %-28s %s", name, display_path(path))
+      } else {
+        display = sprintf("%s %-28s", symbol(state), name)
+        if (path != "") display = display " " display_path(path)
+      }
+      gsub(/\t/, " ", display)
+      printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", \
+        kind, id, path, name, state, rank, key, sequence, display
+    }
+  ' | LC_ALL=C sort -t $'\t' -k6,6n -k7,7f -k8,8n
+}
+
+generate_display_list() {
+  generate_rows | cut -f9
+}
+
+parse_row() {
+  local row="${1:-}"
+  row_kind=""
+  row_id=""
+  row_path=""
+  row_name=""
+  row_state=""
+  local _row_extra=""
+
+  IFS=$'\t' read -r row_kind row_id row_path row_name row_state _row_extra <<< "$row"
+  [[ "$row_kind" == "project" || -n "$row_id" ]] || return 1
+  [[ "$row_id" == "-" ]] && row_id=""
+  [[ -n "$row_name" ]] || return 1
+}
+
+preview_row() {
+  parse_row "$1" || {
+    printf 'Invalid picker selection\n'
+    return 1
+  }
+
+  printf '%s\n' "$title"
+  printf '%s\n\n' '────────────────'
+  printf 'kind     %s\n' "$row_kind"
+  printf 'name     %s\n' "$row_name"
+  [[ -n "$row_path" ]] && printf 'path     %s\n' "$row_path"
+  [[ "$row_kind" != "project" ]] && printf 'state    %s\n' "$row_state"
+
+  if [[ -n "$row_path" ]] && command -v git >/dev/null 2>&1 \
+    && git -C "$row_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local branch changes
+    branch=$(git -C "$row_path" branch --show-current 2>/dev/null || true)
+    changes=$(git -C "$row_path" status --short 2>/dev/null | wc -l | tr -d '[:space:]')
+    printf '\ngit\n───\n'
+    printf 'branch   %s\n' "${branch:-detached}"
+    printf 'changes  %s\n' "${changes:-0}"
+  fi
+
+  printf '\nenter   select/create\n'
+  if [[ "$row_kind" == "project" ]]; then
+    printf 'ctrl-d  unavailable for projects\n'
+  else
+    printf 'ctrl-d  close context\n'
+  fi
+}
+
+close_row() {
+  parse_row "$1" || {
+    printf 'zessioner: invalid selection\n' >&2
+    return 1
+  }
+
+  if [[ "$row_kind" == "project" ]]; then
+    printf 'zessioner: project rows cannot be closed\n' >&2
+    return 1
+  fi
+
+  local answer=""
+  printf '\nClose "%s"? [y/N] ' "$row_name" >/dev/tty
+  IFS= read -r answer </dev/tty || return 1
+  case "$answer" in
+    [yY]|[yY][eE][sS]) "$adapter" --close "$row_id" "$row_name" ;;
+  esac
+}
+
+select_row() {
+  parse_row "$1" || {
+    printf 'zessioner: invalid selection\n' >&2
+    return 1
+  }
+  "$adapter" --select "$row_kind" "$row_id" "$row_path" "$row_name"
+}
+
+run_picker() {
+  require_dependencies || return 1
+
+  local script_path adapter_q title_q preview_cmd close_cmd reload_cmd selected
+  script_path="${BASH_SOURCE[0]}"
+  if command -v realpath >/dev/null 2>&1; then
+    script_path=$(realpath "$script_path" 2>/dev/null || printf '%s\n' "$script_path")
+  fi
+  printf -v adapter_q '%q' "$adapter"
+  printf -v title_q '%q' "$title"
+  printf -v preview_cmd '%q --adapter %s --title %s --preview-row {}' "$script_path" "$adapter_q" "$title_q"
+  printf -v close_cmd '%q --adapter %s --close-row {}' "$script_path" "$adapter_q"
+  printf -v reload_cmd '%q --adapter %s --rows' "$script_path" "$adapter_q"
+
+  selected=$(generate_rows | fzf \
+    --prompt="$prompt" \
+    --header="$header" \
+    --border=rounded \
+    --highlight-line \
+    --pointer='▌' \
+    --marker='▌' \
+    --delimiter=$'\t' \
+    --with-nth=9 \
+    --preview="$preview_cmd" \
+    --preview-window='right,42%,border-left,wrap,hidden' \
+    --layout=reverse \
+    --info=inline-right \
+    --height=95% \
+    --cycle \
+    --tiebreak=index \
+    --bind='ctrl-/:toggle-preview' \
+    --bind="ctrl-r:reload($reload_cmd)" \
+    --bind="ctrl-d:execute($close_cmd)+reload($reload_cmd)")
+
+  [[ -n "$selected" ]] && select_row "$selected"
+}
+
+main() {
+  if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    usage
+    return 0
+  fi
+  parse_args "$@" || return $?
+
+  case "$picker_action" in
+    --rows) require_dependencies && generate_rows ;;
+    --generate-list) require_dependencies && generate_display_list ;;
+    --preview-row) preview_row "$picker_value" ;;
+    --close-row) close_row "$picker_value" ;;
+    "") run_picker ;;
+    *) printf 'zessioner: unknown option: %s\n' "$picker_action" >&2; return 2 ;;
+  esac
+}
+
+main "$@"

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# zellij-zessioner — Zellij adapter for the shared zessioner picker.
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+picker="${ZESSIONER_BIN:-$script_dir/zessioner}"
+adapter="${ZELLIJ_ZESSIONER_ADAPTER:-$script_dir/zellij-zessioner-adapter}"
+roots="${ZESSION_ROOTS:-$HOME/dev:$HOME/sandbox:$HOME/work:$HOME/.dotfiles}"
+
+[[ -x "$picker" ]] || { printf 'zellij-zessioner: zessioner is not installed\n' >&2; exit 1; }
+[[ -x "$adapter" ]] || { printf 'zellij-zessioner: adapter is not installed\n' >&2; exit 1; }
+
+exec "$picker" \
+  --adapter "$adapter" \
+  --roots "$roots" \
+  --prompt 'zellij › ' \
+  --title 'zellij-zessioner' \
+  --header $'enter switch/create  ·  ctrl-r refresh  ·  ctrl-d delete  ·  ctrl-/ details  ·  esc close'
