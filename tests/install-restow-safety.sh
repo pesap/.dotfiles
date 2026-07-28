@@ -27,9 +27,9 @@ mock_bin="$test_dir/mock-bin"
 mkdir -p -- "$home_dir" "$source_dir" "$mock_bin"
 
 cat >"$source_dir/packages.conf" <<'EOF'
-common alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise
-linux-desktop alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise linux mango waybar
-macos alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise sketchybar skhd yabai personal
+common alacritty atuin bin nvim personal pi starship worktrunk zellij zshrc mise
+linux-desktop alacritty atuin bin nvim personal pi starship worktrunk zellij zshrc mise linux mango waybar
+macos alacritty atuin bin nvim personal pi starship worktrunk zellij zshrc mise sketchybar skhd yabai
 EOF
 for package in alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise; do
     mkdir -p -- "$source_dir/$package"
@@ -96,7 +96,7 @@ fi
 restow_repo="$test_dir/restow-repo"
 restow_home="$test_dir/restow-home"
 mkdir -p -- "$restow_repo/pkg" "$restow_home"
-printf 'common pkg\nlinux-desktop pkg\nmacos pkg\n' >"$restow_repo/packages.conf"
+printf 'common pkg personal\nlinux-desktop pkg personal\nmacos pkg personal\n' >"$restow_repo/packages.conf"
 printf 'configuration\n' >"$restow_repo/pkg/config"
 ln -s -- "$restow_repo/pkg/config" "$restow_home/config"
 
@@ -120,6 +120,17 @@ rm -f -- "${HOME:?}/config"
 exit 0
 EOF
 chmod +x "$mock_bin/stow"
+
+env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" \
+    bash "$apply_script" --dry-run --profile common >"$test_dir/restow-profile-dry-run.out"
+grep -F -- 'Skipping optional package unavailable: personal' "$test_dir/restow-profile-dry-run.out" >/dev/null || fail 'apply did not skip unavailable personal package'
+grep -F -- 'Preflight: pkg' "$test_dir/restow-profile-dry-run.out" >/dev/null || fail 'apply skipped the declared package with unavailable personal config'
+
+if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" \
+    bash "$apply_script" --dry-run personal >"$test_dir/restow-personal.err" 2>&1; then
+    fail 'apply accepted an explicitly requested unavailable personal package'
+fi
+grep -F -- 'package not found: personal' "$test_dir/restow-personal.err" >/dev/null || fail 'explicit unavailable personal error changed'
 
 env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" \
     bash "$apply_script" --dry-run pkg >"$test_dir/restow-dry-run.out"

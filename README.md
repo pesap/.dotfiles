@@ -88,9 +88,9 @@ Git worktree, run smoke checks, and can roll back to the last-known-good state.
 
 `packages.conf` is the allowlist used by setup, apply, and check.
 
-- `common`: shell, terminal, editor, tools, Pi, Zellij, and helper scripts.
-- `linux-desktop`: common configuration plus Mango, Waybar, and Linux settings.
-- `macos`: common configuration plus SketchyBar, skhd, yabai, and optional personal configuration.
+- `common`: shell, terminal, editor, tools, Pi, Zellij, helper scripts, and optional personal configuration.
+- `linux-desktop`: common configuration plus personal configuration, Mango, Waybar, and Linux settings.
+- `macos`: common configuration plus SketchyBar, skhd, and yabai.
 
 ## Local tools
 

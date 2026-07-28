@@ -99,6 +99,16 @@ is_declared_package() {
 if ((${#requested[@]} == 0)); then
     profile_line="$(profile_packages)" || fail "unknown profile: $profile"
     read -r -a packages <<<"$profile_line"
+
+    available_packages=()
+    for package in "${packages[@]}"; do
+        if [[ "$package" == personal && ! -d "$repo_dir/$package" ]]; then
+            printf 'Skipping optional package unavailable: %s\n' "$package"
+            continue
+        fi
+        available_packages+=("$package")
+    done
+    packages=("${available_packages[@]}")
 else
     packages=("${requested[@]}")
 fi
