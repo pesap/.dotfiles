@@ -1,25 +1,24 @@
 {
-  "lastChangelogVersion": "0.82.1",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-luna",
-  "defaultThinkingLevel": "high",
-  "packages": [
-    "https://github.com/crustyhacker/pi-thinking-steps@d0a59a4f394a8b13f58aa84c30e2dc4071b7c2fd",
-    "npm:pi-web-access@0.14.0"
-  ],
-  "subagents": {
-    "agentOverrides": {
-      "planner": {"model": "gpt-5.4"},
-      "scout": {"model": "ollama/local-scout:4b", "thinking": "low"},
-      "worker": {"model": "gpt-5.4", "thinking": "medium"},
-      "reviewer": {"model": "gpt-5.4", "thinking": "medium"}
-    }
-  },
-  "theme": "dark",
-  "enableInstallTelemetry": false,
+  "collapseChangelog": true,
+  "followUpMode": "all",
   "hideThinkingBlock": true,
-  "steeringMode": "one-at-a-time",
-  "transport": "auto",
+  "images": {
+    "blockImages": false
+  },
+  "packages": [
+    "npm:pi-web-access@0.14.0",
+    "git:github.com/crustyhacker/pi-thinking-steps",
+    "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.6",
+    "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
+    "git:github.com/pesap/khala"
+  ],
+  "quiteStartup": true,
   "showCacheMissNotices": true,
-  "collapseChangelog": true
+  "steeringMode": "all",
+  "terminal": {
+    "showImages": false
+  },
+  "theme": "rose-pine-moon",
+  "transport": "auto",
+  "lastChangelogVersion": "0.83.0"
 }

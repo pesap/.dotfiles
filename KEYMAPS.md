@@ -378,8 +378,10 @@ Source:
 
 This file contains the full Linux keymap set (window focus/move/resize/layout/tags/screenshots/mouse/gestures), using ALT number bindings for workspace navigation.
 
-Notable launcher:
+Notable launchers:
 - `Alt+Return` launches Alacritty
+- `Super+S` switches to tag 4 and launches Palworld through Steam
+- `Super+O` switches to tag 3 and opens the Bolt OSRS launcher
 
 Note: SUPER+1..4 is reserved for Alacritty/Zellij tab selection; Linux workspace switching uses the configured Ctrl/Alt bindings instead.
 

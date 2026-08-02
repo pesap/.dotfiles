@@ -1,33 +1,17 @@
 {
   "providers": {
-    "ollama": {
-      "baseUrl": "http://localhost:11434/v1",
-      "api": "openai-completions",
-      "apiKey": "ollama",
-      "compat": {
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": false,
-        "maxTokensField": "max_tokens",
-        "requiresThinkingAsText": true,
-        "thinkingFormat": "qwen"
-      },
-      "models": [
-        {
-          "id": "ornith-concise-accepted:latest",
-          "name": "Ornith Concise Accepted",
-          "reasoning": true,
-          "input": ["text"],
-          "contextWindow": 8192,
-          "maxTokens": 160,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          }
+    "openai-codex": {
+      "modelOverrides": {
+        "gpt-5.6-luna": {
+          "contextWindow": 272000
+        },
+        "gpt-5.6-sol": {
+          "contextWindow": 272000
+        },
+        "gpt-5.6-terra": {
+          "contextWindow": 272000
         }
-      ]
+      }
     }
   }
 }

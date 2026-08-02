@@ -50,7 +50,7 @@ printf 'Sunny +70°F\n'
 EOF
 chmod 755 "$mock_bin/mmsg" "$mock_bin/curl"
 
-fixture='{"name":"HDMI-A-1","layout_symbol":"T","tags":[{"index":1,"is_active":true,"client_count":1},{"index":2,"is_active":false,"client_count":1}],"active_client":{"title":"A & B","appid":"App"},"keymode":"default"}'
+fixture='{"name":"HDMI-A-1","layout_symbol":"T","tags":[{"index":1,"is_active":true,"client_count":1},{"index":2,"is_active":false,"client_count":1},{"index":3,"is_active":false,"client_count":0},{"index":4,"is_active":false,"client_count":0},{"index":5,"is_active":false,"client_count":2}],"active_client":{"title":"A & B","appid":"App"},"keymode":"default"}'
 run_mango=(
     env
     "HOME=$home_dir"
@@ -61,7 +61,7 @@ run_mango=(
 )
 
 tags="$("${run_mango[@]}" tags)"
-jq -e '.text == "[1]  2 " and .tooltip == "Monitor: HDMI-A-1"' <<<"$tags" >/dev/null ||
+jq -e '.text == "[1]  2   3   4 " and .tooltip == "Monitor: HDMI-A-1"' <<<"$tags" >/dev/null ||
     fail 'one-shot tags contract changed'
 
 layout="$("${run_mango[@]}" layout)"

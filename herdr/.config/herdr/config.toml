@@ -1,3 +1,4 @@
+onboarding = false
 # Herdr project workflow.
 
 [keys]
@@ -16,3 +17,10 @@ height = "70%"
 
 [ui]
 agent_panel_sort = "spaces"
+
+[experimental]
+pane_history = true
+
+[theme]
+name = "rose-pine"
+auto_switch = false

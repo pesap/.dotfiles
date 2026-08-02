@@ -14,7 +14,8 @@ render() {
 	case "$mode" in
 	tags)
 		printf '%s\n' "$state" | jq -c --arg output "$output" '
-			[.tags[] | select(.client_count > 0 or .is_active) |
+			# Keep the first four tags visible even when they are empty.
+			[.tags[] | select(.index <= 4) |
 				(if .is_active then "[\(.index)]" else " \(.index) " end)] |
 			{ text: join(" "), tooltip: ("Monitor: " + $output) }
 		'
