@@ -1,8 +1,5 @@
 #!/usr/bin/env sh
 set -eu
-MMSG_CMD="$(command -v mmsg || true)"
-WLR_RANDR_CMD="$(command -v wlr-randr || true)"
-
 LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/mango"
 mkdir -p "$LOG_DIR"
 
@@ -79,27 +76,6 @@ if command -v wl-paste >/dev/null 2>&1 && command -v cliphist >/dev/null 2>&1; t
 	wl-paste --type text --watch cliphist store >>"$CLIPBOARD_LOG" 2>&1 &
 	wl-paste --type image --watch cliphist store >>"$CLIPBOARD_LOG" 2>&1 &
 fi
-
-# Create a persistent 1080p virtual output for Steam Link capture.
-# Mango 0.15+ exposes this through the new mmsg IPC.
-VIRTUAL_LOG="$LOG_DIR/virtual-output.log"
-(
-	sleep 1
-	if [ -n "$MMSG_CMD" ] && ! "$MMSG_CMD" get all-monitors 2>/dev/null | grep -q 'HEADLESS-'; then
-		"$MMSG_CMD" dispatch create_virtual_output >>"$VIRTUAL_LOG" 2>&1 || true
-		sleep 1
-	fi
-	if [ -n "$WLR_RANDR_CMD" ]; then
-		"$WLR_RANDR_CMD" --output HEADLESS-1 --pos 3640,0 --scale 1 --custom-mode 1920x1080@60Hz >>"$VIRTUAL_LOG" 2>&1 || true
-	else
-		log_msg "$VIRTUAL_LOG" "wlr-randr is not installed; install the wlr-randr package"
-	fi
-	# Boot in the normal desk layout. The toggle switches to headless-only
-	# mode and routes any running Steam games to HEADLESS-1 when requested.
-	if [ -x "$HOME/.local/bin/mango-toggle-headless" ]; then
-		"$HOME/.local/bin/mango-toggle-headless" desk >>"$VIRTUAL_LOG" 2>&1 || true
-	fi
-) &
 
 WEATHER_LOG="$LOG_DIR/weather-refresh.log"
 rotate_log "$WEATHER_LOG" 1048576
