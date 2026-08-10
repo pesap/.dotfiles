@@ -8,7 +8,7 @@
     "height": 25,
     "modules-left": ["custom/mango-tags", "custom/mango-layout"],
     "modules-center": ["custom/mango-window"],
-    "modules-right": ["custom/wallpaper", "custom/system", "custom/power", "wireplumber", "network", "clock", "tray"],
+    "modules-right": ["custom/wallpaper", "custom/system", "custom/power", "wireplumber", "network", "bluetooth", "clock", "tray"],
 
     "custom/mango-tags": {
         "exec": "~/.local/bin/waybar-mango watch tags",
@@ -66,6 +66,17 @@
         "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
         "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
         "scroll-step": 5
+    },
+
+    "bluetooth": {
+        "format": " {status}",
+        "format-connected": " {device_alias}",
+        "format-disabled": "",
+        "on-click": "~/.local/bin/bt-kbd toggle",
+        "tooltip-format": "{controller_alias}\t{controller_address}\n\n{num_connections} connected",
+        "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
+        "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
+        "tooltip-format-enumerate-disconnected": "{device_alias}\t{device_address} (disconnected)"
     },
 
     "network": {
