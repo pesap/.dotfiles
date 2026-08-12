@@ -1,12 +1,14 @@
 # .dotfiles
 
-Personal macOS and Linux configuration managed with GNU Stow and mise.
+Personal macOS and Linux workstation configuration managed with [GNU Stow](https://www.gnu.org/software/stow/) and [mise](https://mise.jdx.dev/). Stow links configuration from this repository into `$HOME`; mise installs the pinned command-line tools.
 
-## Install
+`loom` is the command-line interface for installing, applying, checking, and maintaining the configuration.
 
-Run this from a shell with `curl` and `sh`. It downloads the latest bootstrap
-script from `main`, installs prerequisites, applies the `common` profile, and
-installs `loom` under `~/.local/bin`:
+## Quick start
+
+Use this on a new macOS or Linux machine. The bootstrap script downloads the current `main` branch, installs missing foundational tools, installs mise when needed, applies the `common` profile, and installs `loom` in `~/.local/bin`.
+
+Review [`bootstrap.sh`](bootstrap.sh) before running the streamed installer:
 
 ```console
 curl --proto '=https' --tlsv1.2 -LsSf \
@@ -14,178 +16,100 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   | sh -s -- --profile common
 ```
 
-Expected result: the shared configuration is linked into your home directory.
-The command may prompt before changing existing files. It installs `mise` in
-`~/.local/bin` when necessary and builds GNU Stow locally when no system Stow
-is available; system packages are requested only for foundational tools such as
-Git, curl, rsync, tar, and unzip. A regular user needs no `sudo` if those
-foundational tools already exist. Building the Stow fallback also needs a C
-compiler, `make`, Perl, and GNU `awk`; current Kestrel provides them on its
-default login-shell `PATH`.
+The command changes your home directory and may prompt before replacing existing files. Replaced files are backed up under `~/.stow-backup/<timestamp>/`. It may use `sudo` to install missing system prerequisites; it does not need `sudo` when those prerequisites are already installed.
 
-Install the pinned tools before checking the full setup:
+Install the versions pinned in the mise manifest:
 
 ```sh
 "$HOME/.local/bin/loom" tools install
 ```
 
-Expected result: mise installs the versions in the manifest, including Pi. This
-can take time and downloads additional tool artifacts; it needs no `sudo`.
+This downloads the configured tools, including Pi, and can take several minutes.
 
-Then validate the installed machine:
+Check the installed machine:
 
 ```sh
 "$HOME/.local/bin/loom" check --machine
 ```
 
-Expected result: `loom` reports the required machine dependencies. Use the
-absolute path until your shell configuration places `~/.local/bin` on `PATH`;
-on a fresh Bash-only machine, add it for the current session with:
+The check succeeds when required dependencies and the selected profile are available. Optional tools may still be reported as missing. Use the absolute path until a new shell loads the configuration that adds `~/.local/bin` to `PATH`.
+
+## Existing checkout
+
+Run these commands from the repository root. Preview changes before applying them:
 
 ```sh
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-For an existing checkout, run the following commands from the repository root.
-Each command is independent; read the dry-run output before applying changes.
-
-> [!IMPORTANT]
-> The streaming bootstrap follows the current `main` branch. Review the script
-> before piping it to `sh`. Releases must publish a checksum entry in
-> `bootstrap.sh`; until then, a reproducible tagged install must set both
-> `INSTALLER_VERSION` and `INSTALLER_SHA256` explicitly. To test a checked-out
-> revision, use the local workflow below.
-
-Preview the common profile without changing your home directory:
-
-```console
 ./bin/.local/bin/loom setup --local --dry-run --profile common
 ```
 
-Apply the common profile after reviewing the preview:
+The preview does not change your home directory. Apply the profile after reviewing it:
 
-```console
+```sh
 ./bin/.local/bin/loom setup --local --profile common
 ```
 
-Expected result: selected configuration is linked and any replaced files are
-backed up under `~/.stow-backup/<timestamp>/`.
+Install or update the pinned tools:
 
-Install the pinned mise tools:
-
-```console
+```sh
 ./bin/.local/bin/loom tools install
 ```
 
-Expected result: the tool versions in the mise manifest are installed.
+Check both the machine and repository:
 
-The desktop profiles are `linux-desktop` and `macos`. Preview Linux desktop
-changes without applying them:
-
-```console
-./bin/.local/bin/loom setup --local --dry-run --profile linux-desktop
+```sh
+./bin/.local/bin/loom check
 ```
 
-Apply the macOS profile:
+Use `loom check --machine` for only the installed-machine check or `loom check --repo` for repository validation. Run the formatting and secret checks separately when needed:
 
-```console
-./bin/.local/bin/loom setup --local --profile macos
-```
-
-Expected result: the selected desktop configuration is applied with the normal
-backup and rollback protections.
-
-## Loom commands
-
-```text
-loom setup       install or update a profile
-loom apply       apply packages from the checkout
-loom check       check the machine and repository
-loom desktop     apply desktop configuration with rollback protection
-loom tools       install or inspect mise-managed tools
-loom profiles    list profiles
-```
-
-Use `loom --help` and `loom COMMAND --help` for the current options.
-
-`loom apply` always runs a Stow preflight. It accepts only packages listed in
-`packages.conf` and does not support `--adopt`. Desktop changes require a clean
-Git worktree, run smoke checks, and can roll back to the last-known-good state.
-
-## Profiles
-
-`packages.conf` is the allowlist used by setup, apply, and check.
-
-- `common`: shell, terminal, editor, tools, Pi, Zellij, helper scripts, and optional personal configuration.
-- `linux-desktop`: common configuration plus personal configuration, Mango, Waybar, and Linux settings.
-- `macos`: common configuration plus SketchyBar, skhd, and yabai.
-
-## Local tools
-
-The `bin/.local/bin` package installs the small commands used by this setup,
-including:
-
-- `loom` for setup and maintenance;
-- `aclui` for a simpler interface to `getfacl` and `setfacl`;
-- `git-checkouts`, `pr-digest`, `project-picker`, `tmux-project`, `zellij-project`, `herdr-project`, and `herdr-kill-all` for session workflows;
-- Waybar, Mango, wallpaper, clipboard, and macOS helpers.
-
-Run a command with `--help` when it provides help. Tools that depend on Linux
-or macOS services are intentionally not useful on every machine.
-
-## Validation
-
-Run these commands from the repository root. Each command is independent and
-read-only unless noted.
-
-Check installed machine dependencies:
-
-```console
-./bin/.local/bin/loom check --machine
-```
-
-Expected result: the machine profile is checked without changing files.
-
-Validate repository contents:
-
-```console
-./bin/.local/bin/loom check --repo
-```
-
-Expected result: shell, configuration, and repository checks pass.
-
-Run the formatting and secret checks:
-
-```console
+```sh
 prek run --all-files
 ```
 
-Expected result: all local pre-commit checks pass.
+## Profiles
 
-Validation disables mise auto-install. Install the pinned tools with `loom tools
-install` first. The full validation suite also needs the Rust WASM target:
+Profiles are defined in [`packages.conf`](packages.conf):
 
-```console
-rustup target add wasm32-wasip1
-```
+| Profile | Includes |
+| --- | --- |
+| `common` | Shell, terminal, editor, tools, Pi, Zellij, helper scripts, and optional personal configuration. |
+| `linux-desktop` | `common` plus Linux settings, Mango, and Waybar. |
+| `macos` | `common` plus SketchyBar, skhd, and yabai. |
 
-Expected result: Rust installs the target, or reports that it is already
-installed.
+The desktop profiles are available only on their matching operating system. The optional `personal` package is skipped when it is not present.
 
-## Safety
+## Loom commands
 
-- Read the dry-run output before applying a profile.
-- Replaced files are backed up under `~/.stow-backup/<timestamp>/`.
+Run `loom --help` or `loom COMMAND --help` for the current options.
+
+| Command | Purpose |
+| --- | --- |
+| `loom setup` | Install or update a profile from a release or an existing checkout. Use `--local` for the current checkout and `--dry-run` to preview it. |
+| `loom apply` | Apply packages from an existing checkout. It always runs a Stow preflight and accepts only packages declared in `packages.conf`. |
+| `loom check` | Check the installed machine, the repository, or both. |
+| `loom desktop` | Apply desktop-window-manager configuration with smoke checks and rollback. It requires a clean Git worktree. |
+| `loom tools install` | Install the tool versions pinned in the mise manifest. |
+| `loom tools outdated` | Report available tool updates without installing them. |
+| `loom profiles` | List supported profiles. |
+| `loom version` | Show the checkout version. |
+
+## Safety and limits
+
+- Read the `--dry-run` output before applying a profile.
+- Setup backs up replaced files under `~/.stow-backup/<timestamp>/`.
+- `loom apply` refuses `--adopt`; existing files are not copied into the repository.
 - Runtime state under `~/.rustup`, `~/.cargo`, and `~/.local/share/mise` is not tracked.
-- Installer and apply tests use isolated `/var/tmp/dotfiles-test.*` homes.
+- `loom desktop` requires a clean worktree. It runs smoke checks and rolls back when the checks fail or the confirmation gate expires.
+- The streamed installer follows `main`. For a reproducible tagged install, set both `INSTALLER_VERSION` and `INSTALLER_SHA256`; see [`bootstrap.sh`](bootstrap.sh).
 
-## Reference
+## Further reading
 
-- [Keymaps](KEYMAPS.md) for Neovim, Zellij, Mango, Alacritty, and macOS shortcuts.
-- `packages.conf` for the profile/package list.
-- `loom --help` for the command reference.
+- [Project workflows](docs/project-workflows.md) — shared project picker and multiplexer launchers.
+- [Keymaps](KEYMAPS.md) — Neovim, Zellij, Mango, Alacritty, and macOS shortcuts.
+- [Neovim configuration](nvim/.config/nvim/README.md) — structure, plugins, LSP, and key mappings.
+- [`packages.conf`](packages.conf) — profile package allowlist.
+- [`loom`](bin/.local/bin/loom) — command implementation and help text.
 
 ## License
 
-This repository is licensed under the [MIT License](LICENSE-MIT.txt). Included
-upstream projects and private configuration may have separate licenses.
+This repository is licensed under the [MIT License](LICENSE-MIT.txt). Included upstream projects and private configuration may have separate licenses.
