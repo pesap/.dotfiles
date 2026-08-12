@@ -16,12 +16,28 @@ cleanup() {
     local status=$?
     trap - EXIT HUP INT TERM
     if [[ "$created_target_dir" == "1" ]]; then
-        local resolved_target_dir=""
+        local cleanup_status=0 logical_target_dir="" resolved_target_dir=""
+        logical_target_dir=$(cd -- "$target_dir" 2>/dev/null && pwd -L) || logical_target_dir=""
         resolved_target_dir=$(realpath "$target_dir")
-        if [[ -d "$resolved_target_dir" && ! -L "$resolved_target_dir" &&
-            "$resolved_target_dir" == /var/tmp/dotfiles-test.zellij-layout-picker.* ]]; then
-            rm -rf -- "$resolved_target_dir"
-        else
+        case "$logical_target_dir" in
+        /var/tmp/dotfiles-test.zellij-layout-picker.*/*) cleanup_status=1 ;;
+        /var/tmp/dotfiles-test.zellij-layout-picker.*)
+            case "$resolved_target_dir" in
+            /var/tmp/dotfiles-test.zellij-layout-picker.*/* | /private/var/tmp/dotfiles-test.zellij-layout-picker.*/*) cleanup_status=1 ;;
+            /var/tmp/dotfiles-test.zellij-layout-picker.* | /private/var/tmp/dotfiles-test.zellij-layout-picker.*)
+                if [[ -d "$target_dir" && ! -L "$target_dir" ]]; then
+                    rm -rf -- "$logical_target_dir"
+                else
+                    printf 'zellij-layout-picker: refusing to clean invalid target directory: %s\n' "$target_dir" >&2
+                    cleanup_status=1
+                fi
+                ;;
+            *) cleanup_status=1 ;;
+            esac
+            ;;
+        *) cleanup_status=1 ;;
+        esac
+        if ((cleanup_status)); then
             printf 'zellij-layout-picker: refusing to clean unexpected target directory: %s\n' "$resolved_target_dir" >&2
             status=1
         fi

@@ -6,16 +6,29 @@ test_dir=$(mktemp -d /var/tmp/dotfiles-test.project.XXXXXX)
 
 cleanup() {
     status=$?
+    cleanup_status=0
     trap - EXIT HUP INT TERM
-    case "$test_dir" in
-    /var/tmp/dotfiles-test.project.*)
-        [[ -d "$test_dir" && ! -L "$test_dir" ]] && rm -rf -- "$test_dir"
-        ;;
-    *)
+    if [[ -d "$test_dir" && ! -L "$test_dir" ]]; then
+        logical_test_dir="$(cd "$test_dir" && pwd -L)"
+        resolved_test_dir="$(cd "$test_dir" && pwd -P)"
+        case "$logical_test_dir" in
+        /var/tmp/dotfiles-test.project.*/*) cleanup_status=1 ;;
+        /var/tmp/dotfiles-test.project.*)
+            case "$resolved_test_dir" in
+            /var/tmp/dotfiles-test.project.*/* | /private/var/tmp/dotfiles-test.project.*/*) cleanup_status=1 ;;
+            /var/tmp/dotfiles-test.project.* | /private/var/tmp/dotfiles-test.project.*) rm -rf -- "$logical_test_dir" ;;
+            *) cleanup_status=1 ;;
+            esac
+            ;;
+        *) cleanup_status=1 ;;
+        esac
+    else
+        cleanup_status=1
+    fi
+    if ((cleanup_status)); then
         printf 'refusing to clean unexpected test path: %s\n' "$test_dir" >&2
         status=1
-        ;;
-    esac
+    fi
     exit "$status"
 }
 trap cleanup EXIT HUP INT TERM
@@ -61,7 +74,7 @@ selected=$(HOME="$test_dir/home" PATH="$test_dir/fake-bin:$PATH" \
     "$repo_root/bin/.local/bin/project-picker")
 [[ "$selected" == "$test_dir/home/.dotfiles" ]]
 
-HOME="$test_dir/home" XDG_RUNTIME_DIR="$test_dir/home/runtime" \
+env -u HERDR_ENV HOME="$test_dir/home" XDG_RUNTIME_DIR="$test_dir/home/runtime" \
     PATH="$test_dir/fake-bin:$PATH" HERDR_TEST_RESULT="$test_dir/herdr-result" \
     HERDR_PROJECT_NAME="$repo_root/bin/.local/bin/project-name" \
     "$repo_root/bin/.local/bin/herdr-project" "$test_dir/home/.dotfiles"

@@ -23,11 +23,28 @@ cleanup() {
     local status=$?
     trap - EXIT HUP INT TERM
     if [[ -n "$validation_temp_dir" ]]; then
-        local resolved_temp_dir=''
+        local cleanup_status=0 logical_temp_dir='' resolved_temp_dir=''
+        logical_temp_dir="$(cd "$validation_temp_dir" 2>/dev/null && pwd -L)" || logical_temp_dir=''
         resolved_temp_dir="$(realpath "$validation_temp_dir")"
-        if [[ -d "$resolved_temp_dir" && ! -L "$resolved_temp_dir" && "$resolved_temp_dir" == /var/tmp/dotfiles-test.validate.* ]]; then
-            rm -rf -- "$resolved_temp_dir"
-        else
+        case "$logical_temp_dir" in
+        /var/tmp/dotfiles-test.validate.*/*) cleanup_status=1 ;;
+        /var/tmp/dotfiles-test.validate.*)
+            case "$resolved_temp_dir" in
+            /var/tmp/dotfiles-test.validate.*/* | /private/var/tmp/dotfiles-test.validate.*/*) cleanup_status=1 ;;
+            /var/tmp/dotfiles-test.validate.* | /private/var/tmp/dotfiles-test.validate.*)
+                if [[ -d "$validation_temp_dir" && ! -L "$validation_temp_dir" ]]; then
+                    rm -rf -- "$logical_temp_dir"
+                else
+                    printf 'validate: refusing to clean invalid path: %s\n' "$validation_temp_dir" >&2
+                    cleanup_status=1
+                fi
+                ;;
+            *) cleanup_status=1 ;;
+            esac
+            ;;
+        *) cleanup_status=1 ;;
+        esac
+        if ((cleanup_status)); then
             printf 'validate: refusing to clean unexpected path: %s\n' "$resolved_temp_dir" >&2
             status=1
         fi
