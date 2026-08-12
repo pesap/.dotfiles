@@ -135,8 +135,12 @@ if ((dry_run)); then
 fi
 
 canonical_existing_path() {
-    local candidate="$1"
-    printf '%s/%s\n' "$(cd "$(dirname "$candidate")" && pwd -P)" "$(basename "$candidate")"
+    local candidate="$1" physical_parent=''
+    physical_parent="$(cd "$(dirname "$candidate")" && pwd -P)" || return 1
+    case "$physical_parent" in
+    /private/var/tmp/*) printf '/var/tmp/%s\n' "${physical_parent#/private/var/tmp/}/$(basename "$candidate")" ;;
+    *) printf '%s/%s\n' "$physical_parent" "$(basename "$candidate")" ;;
+    esac
 }
 
 canonical_link_target() {
@@ -147,7 +151,7 @@ canonical_link_target() {
     else
         link_path="$(cd "$(dirname "$target")/$(dirname "$link_target")" 2>/dev/null && pwd -P)/$(basename "$link_target")"
     fi
-    printf '%s\n' "$link_path"
+    canonical_existing_path "$link_path"
 }
 
 snapshot_package_links() {
@@ -231,7 +235,8 @@ for current_package in "${packages[@]}"; do
         printf 'Apply failed for %s; restoring the prior link state.\n' "$current_package" >&2
         restore_snapshot "$current_package" ||
             fail "could not restore prior links for $current_package"
-        for applied_package in "${applied[@]}"; do
+        for applied_package in "${applied[@]:-}"; do
+            [[ -n "$applied_package" ]] || continue
             restore_snapshot "$applied_package" ||
                 fail "could not restore prior links for $applied_package"
         done

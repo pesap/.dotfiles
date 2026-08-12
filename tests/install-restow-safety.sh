@@ -13,10 +13,20 @@ fail() {
 
 cleanup() {
     [[ -n "$test_dir" && -d "$test_dir" && ! -L "$test_dir" ]] || return 0
-    local resolved_test_dir
+    local logical_test_dir resolved_test_dir
+    logical_test_dir="$(cd "$test_dir" && pwd -L)"
     resolved_test_dir="$(cd "$test_dir" && pwd -P)"
-    [[ "$resolved_test_dir" == /var/tmp/dotfiles-test.* ]] || fail "refusing to clean unexpected path: $resolved_test_dir"
-    rm -rf -- "$resolved_test_dir"
+    case "$logical_test_dir" in
+    /var/tmp/dotfiles-test.*/*) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    /var/tmp/dotfiles-test.*) ;;
+    *) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    esac
+    case "$resolved_test_dir" in
+    /var/tmp/dotfiles-test.*/* | /private/var/tmp/dotfiles-test.*/*) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    /var/tmp/dotfiles-test.* | /private/var/tmp/dotfiles-test.*) ;;
+    *) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    esac
+    rm -rf -- "$logical_test_dir"
 }
 trap cleanup EXIT
 
@@ -68,6 +78,11 @@ if env HOME="$home_dir" LOCAL_SOURCE="$source_dir" PATH="$mock_bin:$PATH" \
 else
     fail 'installer dry-run failed with an isolated HOME'
 fi
+
+env HOME="$home_dir" LOCAL_SOURCE="$source_dir" PATH="$mock_bin:$PATH" \
+    INSTALLER_VERSION=main sh "$install_script" --local --dry-run --profile common >"$test_dir/install-main-dry-run.out"
+grep -F -- 'dry-run: ln -sfn' "$test_dir/install-main-dry-run.out" >/dev/null ||
+    fail 'main installer dry-run did not select an Alacritty overlay'
 
 if env HOME="$home_dir" LOCAL_SOURCE="$source_dir" PATH="$mock_bin:$PATH" \
     sh "$install_script" --local --unknown >"$test_dir/install-unknown.out" 2>"$test_dir/install-unknown.err"; then
@@ -136,6 +151,7 @@ env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" \
     bash "$apply_script" --dry-run pkg >"$test_dir/restow-dry-run.out"
 [[ -L "$restow_home/config" ]] || fail 'restow dry-run changed the prior link'
 
+ln -sf -- "$restow_repo/pkg/config" "$restow_home/config"
 if env HOME="$restow_home" DOTFILES_DIR="$restow_repo" PATH="$mock_bin:$PATH" FAIL_RESTOW=1 \
     bash "$apply_script" pkg >"$test_dir/restow-rollback.out" 2>"$test_dir/restow-rollback.err"; then
     fail 'restow unexpectedly succeeded after a simulated Stow failure'
