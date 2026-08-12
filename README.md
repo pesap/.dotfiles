@@ -15,18 +15,46 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 ```
 
 Expected result: the shared configuration is linked into your home directory.
-The command may prompt before changing existing files.
+The command may prompt before changing existing files. It installs `mise` in
+`~/.local/bin` when necessary and builds GNU Stow locally when no system Stow
+is available; system packages are requested only for foundational tools such as
+Git, curl, rsync, tar, and unzip. A regular user needs no `sudo` if those
+foundational tools already exist. Building the Stow fallback also needs a C
+compiler, `make`, Perl, and GNU `awk`; current Kestrel provides them on its
+default login-shell `PATH`.
 
-To check the installed setup, run this after the bootstrap completes:
+Install the pinned tools before checking the full setup:
 
-```console
-loom check
+```sh
+"$HOME/.local/bin/loom" tools install
 ```
 
-Expected result: `loom` reports machine and repository checks.
+Expected result: mise installs the versions in the manifest, including Pi. This
+can take time and downloads additional tool artifacts; it needs no `sudo`.
+
+Then validate the installed machine:
+
+```sh
+"$HOME/.local/bin/loom" check --machine
+```
+
+Expected result: `loom` reports the required machine dependencies. Use the
+absolute path until your shell configuration places `~/.local/bin` on `PATH`;
+on a fresh Bash-only machine, add it for the current session with:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
 
 For an existing checkout, run the following commands from the repository root.
 Each command is independent; read the dry-run output before applying changes.
+
+> [!IMPORTANT]
+> The streaming bootstrap follows the current `main` branch. Review the script
+> before piping it to `sh`. Releases must publish a checksum entry in
+> `bootstrap.sh`; until then, a reproducible tagged install must set both
+> `INSTALLER_VERSION` and `INSTALLER_SHA256` explicitly. To test a checked-out
+> revision, use the local workflow below.
 
 Preview the common profile without changing your home directory:
 
@@ -46,7 +74,7 @@ backed up under `~/.stow-backup/<timestamp>/`.
 Install the pinned mise tools:
 
 ```console
-loom tools install
+./bin/.local/bin/loom tools install
 ```
 
 Expected result: the tool versions in the mise manifest are installed.
@@ -55,13 +83,13 @@ The desktop profiles are `linux-desktop` and `macos`. Preview Linux desktop
 changes without applying them:
 
 ```console
-loom setup --local --dry-run --profile linux-desktop
+./bin/.local/bin/loom setup --local --dry-run --profile linux-desktop
 ```
 
 Apply the macOS profile:
 
 ```console
-loom setup --local --profile macos
+./bin/.local/bin/loom setup --local --profile macos
 ```
 
 Expected result: the selected desktop configuration is applied with the normal
@@ -113,7 +141,7 @@ read-only unless noted.
 Check installed machine dependencies:
 
 ```console
-loom check --machine
+./bin/.local/bin/loom check --machine
 ```
 
 Expected result: the machine profile is checked without changing files.
@@ -121,7 +149,7 @@ Expected result: the machine profile is checked without changing files.
 Validate repository contents:
 
 ```console
-loom check --repo
+./bin/.local/bin/loom check --repo
 ```
 
 Expected result: shell, configuration, and repository checks pass.

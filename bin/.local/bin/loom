@@ -64,6 +64,18 @@ resolve_repo_root() {
 
 repo_root="$(resolve_repo_root)"
 
+case ":$PATH:" in
+*":$HOME/.local/bin:"*) ;;
+*) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+if [[ -d "$HOME/.local/share/mise/shims" ]]; then
+    case ":$PATH:" in
+    *":$HOME/.local/share/mise/shims:"*) ;;
+    *) PATH="$HOME/.local/share/mise/shims:$PATH" ;;
+    esac
+fi
+export PATH
+
 run_healthcheck() {
     local profile="${DOTFILES_PROFILE:-common}"
     local status=0
@@ -74,11 +86,23 @@ run_healthcheck() {
 
     check_required() {
         local command_name="$1"
-        if command -v "$command_name" >/dev/null 2>&1 || [[ "$command_name" == loom && -x "$repo_root/bin/.local/bin/loom" ]]; then
+        if command -v "$command_name" >/dev/null 2>&1 ||
+            [[ "$command_name" == stow && -x "$HOME/.local/bin/stow" ]] ||
+            [[ "$command_name" == mise && -x "$HOME/.local/bin/mise" ]] ||
+            [[ "$command_name" == loom && -x "$repo_root/bin/.local/bin/loom" ]]; then
             printf 'ok: %s\n' "$command_name"
         else
             printf 'missing: %s\n' "$command_name"
             status=1
+        fi
+    }
+
+    check_bootstrap_tool() {
+        local command_name="$1"
+        if command -v "$command_name" >/dev/null 2>&1; then
+            printf 'ok: %s\n' "$command_name"
+        else
+            printf 'missing: %s (install with: loom tools install)\n' "$command_name"
         fi
     }
 
@@ -92,9 +116,10 @@ run_healthcheck() {
     }
 
     printf 'Loom machine check (profile: %s)\n' "$profile"
-    for tool in stow git curl rsync mise pi loom; do
+    for tool in stow git curl rsync mise loom; do
         check_required "$tool"
     done
+    check_bootstrap_tool pi
     for tool in nvim rg cargo zsh fzf zoxide atuin uv; do
         check_optional "$tool"
     done

@@ -6,9 +6,9 @@
 # option. This file may not be copied, modified, or distributed
 # except according to those terms.
 #
-VERSION="${INSTALLER_VERSION:-0.0.4}"
+VERSION="${INSTALLER_VERSION:-main}"
 RECEIPT_HOME="${HOME}/.dotfiles"
-BASE_URL="https://github.com/pesap/.dotfiles/archive/refs/tags"
+REPO_ARCHIVE_BASE="${DOTFILES_ARCHIVE_BASE:-https://github.com/pesap/.dotfiles/archive}"
 DOTFILES_REMOTE=""
 DOTFILES_EXT=""
 LOCAL_INSTALL=${INSTALLER_LOCAL_INSTALL:-0}
@@ -25,6 +25,13 @@ BACKUP_DIR=""
 PROFILE="${DOTFILES_PROFILE:-common}"
 
 set -eu
+
+case ":$PATH:" in
+*":$HOME/.local/bin:"*) ;;
+*) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+export PATH
+
 _temp_dir=""
 _stow_build_dir=""
 cleanup() {
@@ -55,7 +62,10 @@ set_dotfiles_remote() {
         ;;
     esac
 
-    DOTFILES_REMOTE="${BASE_URL}/${VERSION}${DOTFILES_EXT}"
+    case "$VERSION" in
+    main) DOTFILES_REMOTE="${REPO_ARCHIVE_BASE}/refs/heads/main${DOTFILES_EXT}" ;;
+    *) DOTFILES_REMOTE="${REPO_ARCHIVE_BASE}/refs/tags/${VERSION}${DOTFILES_EXT}" ;;
+    esac
 }
 
 # NOTE: I can re-enable this if at some point I need more functionality
@@ -319,6 +329,7 @@ install_stow() {
         make install
     )
     STOW_CMD="$HOME/.local/bin/stow"
+    [ -x "$STOW_CMD" ] || err "Stow installation did not create $STOW_CMD"
     safe_remove_temp_dir "$_stow_build_dir" || err "refusing to clean unexpected Stow build directory: $_stow_build_dir"
     _stow_build_dir=""
 }
@@ -339,13 +350,19 @@ verify_sha256() {
 safe_remove_temp_dir() {
     candidate="${1:-}"
     [ -n "$candidate" ] && [ -d "$candidate" ] && [ ! -L "$candidate" ] || return 1
+    logical="$(cd "$candidate" 2>/dev/null && pwd -L)" || return 1
     resolved="$(cd "$candidate" 2>/dev/null && pwd -P)" || return 1
-    case "$resolved" in
+    case "$logical" in
     /var/tmp/dotfiles-test.*/*) return 1 ;;
     /var/tmp/dotfiles-test.*) ;;
     *) return 1 ;;
     esac
-    rm -rf -- "$resolved"
+    case "$resolved" in
+    /var/tmp/dotfiles-test.*/* | /private/var/tmp/dotfiles-test.*/*) return 1 ;;
+    /var/tmp/dotfiles-test.* | /private/var/tmp/dotfiles-test.*) ;;
+    *) return 1 ;;
+    esac
+    rm -rf -- "$logical"
 }
 
 ensure_parent_dirs() {
@@ -575,12 +592,16 @@ canonical_link_target() {
     /*) link_path="$link_target" ;;
     *) link_path="$(cd "$(dirname "$target")/$(dirname "$link_target")" 2>/dev/null && pwd -P)/$(basename "$link_target")" ;;
     esac
-    printf '%s\n' "$link_path"
+    canonical_existing_path "$link_path"
 }
 
 canonical_existing_path() {
     candidate="$1"
-    printf '%s/%s\n' "$(cd "$(dirname "$candidate")" 2>/dev/null && pwd -P)" "$(basename "$candidate")"
+    physical_parent="$(cd "$(dirname "$candidate")" 2>/dev/null && pwd -P)" || return 1
+    case "$physical_parent" in
+    /private/var/tmp/*) printf '/var/tmp/%s\n' "${physical_parent#/private/var/tmp/}/$(basename "$candidate")" ;;
+    *) printf '%s/%s\n' "$physical_parent" "$(basename "$candidate")" ;;
+    esac
 }
 
 snapshot_stow_links() {
