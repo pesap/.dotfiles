@@ -50,19 +50,22 @@ if [[ -r "$_antidote_src" ]]; then
 fi
 unset _antidote_src _antidote_ref _antidote_commit _antidote_head _antidote_trusted _brew_prefix _plugins_txt _plugins_zsh
 
-# Cache compinit for 24 hours using Zsh's portable stat module.
-autoload -Uz compinit
-zmodload zsh/stat
-zmodload zsh/datetime
-typeset -a _zcompdump_stat
-if [[ -e "$HOME/.zcompdump" ]] &&
-    zstat -A _zcompdump_stat +mtime -- "$HOME/.zcompdump" 2>/dev/null &&
-    (( EPOCHSECONDS - _zcompdump_stat[1] < 86400 )); then
-    compinit -C
-else
-    compinit
+# Cache compinit for 24 hours using Zsh's portable stat module. A completion
+# provider may initialize it early, so avoid doing that work twice.
+if (( ! $+functions[_main_complete] )); then
+    autoload -Uz compinit
+    zmodload zsh/stat
+    zmodload zsh/datetime
+    typeset -a _zcompdump_stat
+    if [[ -e "$HOME/.zcompdump" ]] &&
+        zstat -A _zcompdump_stat +mtime -- "$HOME/.zcompdump" 2>/dev/null &&
+        (( EPOCHSECONDS - _zcompdump_stat[1] < 86400 )); then
+        compinit -C
+    else
+        compinit
+    fi
+    unset _zcompdump_stat
 fi
-unset _zcompdump_stat
 
 # zsh-autosuggestions perf tweaks
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"

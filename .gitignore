@@ -1,4 +1,5 @@
 .DS_Store
+PAPERCUTS.md
 .documented
 .worktrees/
 dotfiles.tar.gz

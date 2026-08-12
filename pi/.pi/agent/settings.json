@@ -1,24 +1,26 @@
 {
-  "collapseChangelog": true,
-  "followUpMode": "all",
-  "hideThinkingBlock": true,
-  "images": {
-    "blockImages": false
-  },
-  "packages": [
-    "npm:pi-web-access@0.14.0",
-    "git:github.com/crustyhacker/pi-thinking-steps",
-    "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.6",
-    "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
-    "git:github.com/pesap/khala"
-  ],
-  "quiteStartup": true,
-  "showCacheMissNotices": true,
-  "steeringMode": "all",
-  "terminal": {
-    "showImages": false
-  },
-  "theme": "rose-pine-moon",
-  "transport": "auto",
-  "lastChangelogVersion": "0.83.0"
+    "collapseChangelog": true,
+    "followUpMode": "all",
+    "hideThinkingBlock": true,
+    "images": {
+        "blockImages": false
+    },
+    "packages": [
+        "npm:pi-web-access@0.14.0",
+        "git:github.com/crustyhacker/pi-thinking-steps",
+        "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.6",
+        "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
+        "git:github.com/pesap/khala",
+        "npm:pi-clarify"
+    ],
+    "quiteStartup": true,
+    "showCacheMissNotices": true,
+    "steeringMode": "all",
+    "terminal": {
+        "showImages": false
+    },
+    "theme": "rose-pine-moon",
+    "transport": "auto",
+    "lastChangelogVersion": "0.84.1",
+    "tuiMode": "regular"
 }
