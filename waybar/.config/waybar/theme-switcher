@@ -26,7 +26,7 @@ mango_support() {
     awk -F '\t' -v theme="$1" '
     $0 !~ /^#/ && $1 == theme { support = $3 }
     $0 !~ /^#/ && $1 == "*" && support == "" { support = $3 }
-    END { print support == "" ? "unsupported" : support }
+    END { print (support == "" ? "unsupported" : support) }
   ' "$MANIFEST"
 }
 
@@ -52,18 +52,19 @@ THEME_STYLE="$THEME_DIR/style.css"
 [[ -f "$MANIFEST" && -r "$MANIFEST" ]] || fail "missing theme support manifest: $MANIFEST"
 support=$(mango_support "$THEME")
 
-config_dir_resolved=$(realpath -m -- "$CONFIG_DIR")
-runtime_dir_resolved=$(realpath -m -- "$RUNTIME_DIR")
-case "$runtime_dir_resolved/" in
-"$config_dir_resolved/"*) fail "runtime directory must be outside the tracked config tree" ;;
-esac
-
 if [[ -L "$RUNTIME_DIR" || (-e "$RUNTIME_DIR" && ! -d "$RUNTIME_DIR") ]]; then
     fail "runtime path must be a real directory: $RUNTIME_DIR"
 fi
+runtime_parent=$(dirname "$RUNTIME_DIR")
+[[ -d "$runtime_parent" ]] || fail "runtime directory parent does not exist: $runtime_parent"
+config_dir_resolved=$(cd -- "$CONFIG_DIR" && pwd -P)
+runtime_dir_resolved="$(cd -- "$runtime_parent" && pwd -P)/$(basename "$RUNTIME_DIR")"
+case "$runtime_dir_resolved/" in
+"$config_dir_resolved/"*) fail "runtime directory must be outside the tracked config tree" ;;
+esac
 mkdir -p -- "$RUNTIME_DIR"
 [[ -O "$RUNTIME_DIR" ]] || fail "runtime directory is not owned by the current user: $RUNTIME_DIR"
-chmod 0700 -- "$RUNTIME_DIR"
+chmod 0700 "$RUNTIME_DIR"
 config_stage=$(mktemp "$RUNTIME_DIR/.config.jsonc.XXXXXX")
 style_stage=$(mktemp "$RUNTIME_DIR/.style.css.XXXXXX")
 support_stage=$(mktemp "$RUNTIME_DIR/.mango-support.XXXXXX")

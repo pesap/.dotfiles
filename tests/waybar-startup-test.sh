@@ -16,10 +16,19 @@ fail() {
 
 cleanup() {
     [[ -n "$test_dir" && -d "$test_dir" && ! -L "$test_dir" ]] || return 0
+    logical_test_dir="$(cd "$test_dir" && pwd -L)"
     resolved_test_dir="$(realpath "$test_dir")"
-    [[ "$resolved_test_dir" == /var/tmp/dotfiles-test.waybar.* ]] ||
-        fail "refusing to clean unexpected path: $resolved_test_dir"
-    rm -rf -- "$resolved_test_dir"
+    case "$logical_test_dir" in
+    /var/tmp/dotfiles-test.waybar.*/*) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    /var/tmp/dotfiles-test.waybar.*) ;;
+    *) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    esac
+    case "$resolved_test_dir" in
+    /var/tmp/dotfiles-test.waybar.*/* | /private/var/tmp/dotfiles-test.waybar.*/*) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    /var/tmp/dotfiles-test.waybar.* | /private/var/tmp/dotfiles-test.waybar.*) ;;
+    *) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    esac
+    rm -rf -- "$logical_test_dir"
 }
 trap cleanup EXIT
 
@@ -77,13 +86,15 @@ jq -e '.text == "default" and .tooltip == "Key mode: default"' <<<"$keymode" >/d
     fail 'one-shot keymode contract changed'
 
 for mode in tags layout window keymode; do
-    mapfile -t streamed < <(
-        MMSG_REPEAT=2 "${run_mango[@]}" watch "$mode"
-    )
-    [[ "${#streamed[@]}" -eq 2 ]] || fail "streaming $mode dropped a repeated event"
-    [[ "${streamed[0]}" == "${streamed[1]}" ]] ||
+    streamed_file="$test_dir/streamed-$mode"
+    MMSG_REPEAT=2 "${run_mango[@]}" watch "$mode" >"$streamed_file"
+    streamed_count="$(wc -l <"$streamed_file" | tr -d ' ')"
+    [[ "$streamed_count" -eq 2 ]] || fail "streaming $mode dropped a repeated event"
+    streamed_first="$(sed -n '1p' "$streamed_file")"
+    streamed_second="$(sed -n '2p' "$streamed_file")"
+    [[ "$streamed_first" == "$streamed_second" ]] ||
         fail "streaming $mode produced inconsistent repeated events"
-    jq -e . <<<"${streamed[0]}" >/dev/null ||
+    jq -e . <<<"$streamed_first" >/dev/null ||
         fail "streaming $mode is not valid JSON"
 done
 
