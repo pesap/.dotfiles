@@ -357,21 +357,19 @@ prune_runs() {
     active_run="$(latest_target_realpath)" || fail "cannot resolve active latest symlink target: $latest_link"
   fi
 
-  mapfile -t old_runs < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -mtime +"$max_run_age_days" -print 2>/dev/null | sort)
-  if (( ${#old_runs[@]} > 0 )); then
-    for candidate_run in "${old_runs[@]}"; do
-      if [[ -n "$active_run" && "$candidate_run" == "$active_run" ]]; then
-        continue
-      fi
-      printf 'pruned old run %s\n' "$candidate_run"
-      git --git-dir="$repo_git_dir" worktree remove --force "$candidate_run" 2>/dev/null || rm -rf -- "$candidate_run"
-    done
-  fi
+  while IFS= read -r candidate_run; do
+    [[ -n "$candidate_run" ]] || continue
+    if [[ -n "$active_run" && "$candidate_run" == "$active_run" ]]; then
+      continue
+    fi
+    printf 'pruned old run %s\n' "$candidate_run"
+    git --git-dir="$repo_git_dir" worktree remove --force "$candidate_run" 2>/dev/null || rm -rf -- "$candidate_run"
+  done < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -mtime +"$max_run_age_days" -print 2>/dev/null | sort)
 
   # Run IDs are UTC ISO-8601 timestamps plus short SHA; reverse lexical sort keeps newest first.
-  mapfile -t run_dirs < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort -r)
   local kept=0
-  for candidate_run in "${run_dirs[@]}"; do
+  while IFS= read -r candidate_run; do
+    [[ -n "$candidate_run" ]] || continue
     if [[ -n "$active_run" && "$candidate_run" == "$active_run" ]]; then
       continue
     fi
@@ -381,7 +379,7 @@ prune_runs() {
     fi
     printf 'pruned excess run %s\n' "$candidate_run"
     git --git-dir="$repo_git_dir" worktree remove --force "$candidate_run" 2>/dev/null || rm -rf -- "$candidate_run"
-  done
+  done < <(find "$runs_dir" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort -r)
 
   git --git-dir="$repo_git_dir" worktree prune
 }

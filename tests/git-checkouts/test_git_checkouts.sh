@@ -12,11 +12,20 @@ fail() {
 
 cleanup() {
     [[ -n "$test_dir" && -d "$test_dir" && ! -L "$test_dir" ]] || return 0
-    local resolved_test_dir=''
+    local logical_test_dir='' resolved_test_dir=''
+    logical_test_dir="$(cd "$test_dir" && pwd -L)"
     resolved_test_dir="$(realpath "$test_dir")"
-    [[ "$resolved_test_dir" == /var/tmp/dotfiles-test.git-checkouts.* ]] ||
-        fail "refusing to clean unexpected path: $resolved_test_dir"
-    rm -rf -- "$resolved_test_dir"
+    case "$logical_test_dir" in
+    /var/tmp/dotfiles-test.git-checkouts.*/*) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    /var/tmp/dotfiles-test.git-checkouts.*) ;;
+    *) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    esac
+    case "$resolved_test_dir" in
+    /var/tmp/dotfiles-test.git-checkouts.*/* | /private/var/tmp/dotfiles-test.git-checkouts.*/*) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    /var/tmp/dotfiles-test.git-checkouts.* | /private/var/tmp/dotfiles-test.git-checkouts.*) ;;
+    *) fail "refusing to clean unexpected path: $resolved_test_dir" ;;
+    esac
+    rm -rf -- "$logical_test_dir"
 }
 trap cleanup EXIT
 
@@ -84,7 +93,7 @@ owner_marker="$remote_repo_root/.git-checkouts-latest-owner"
 
 run_hook() {
     local sha="${1:?sha}"
-    printf '%040d %s refs/heads/checkouts/latest\n' 0 "$sha" | env GIT_DIR="$remote_git_dir" "$hook"
+    printf '%040d %s refs/heads/checkouts/latest\n' 0 "$sha" | env PATH="/usr/local/bin:/usr/bin:/bin" GIT_DIR="$remote_git_dir" "$hook"
 }
 
 fetch_commit() {
