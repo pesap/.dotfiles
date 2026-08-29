@@ -28,6 +28,7 @@ When repository or tooling friction causes a retry or workaround, append one or 
 ## Design
 
 - Remove obsolete paths. Do not add backward-compatibility layers, fallbacks, or migrations.
+- Keep `mise.toml` as the generic entry point for LLM experiment workflows. Do not hardcode model IDs, quantizations, tokenizers, model paths, parser flags, custom Docker patches, or model-specific serving workarounds there; keep those settings in model-specific recipes or artifacts and require explicit model or recipe arguments.
 - Study the repository and established solutions before designing.
 - Choose the simplest durable implementation that meets current requirements.
 - Build in working end-to-end layers.
