@@ -1,43 +1,40 @@
 # AGENTS.md
 
-## Behavior
+## Work
 
-- Be concise, direct, and factual. No filler or emojis.
-- Answer questions before editing files or running commands.
-- When responding to feedback, state whether you agree or disagree, then explain the change.
-- Stay within scope and preserve unrelated user changes.
+- Be concise, direct, factual. Answer questions before acting; on feedback, say agree/disagree; preserve unrelated user changes.
+- Before editing, inspect current content and apply the smallest exact change. Never overwrite or revert content outside the requested scope.
+- For repo work: locate root, read instructions, inspect Git status; use targeted inspection for commands, config, tests, patterns. Use `project-dirs` before broad local search or cloning.
+- Check docs, types, or `--help` before assuming an interface. Read failures; never repeat an unchanged failed command.
+- If requirements, data semantics, or APIs remain unclear after targeted inspection, ask the user; do not guess or use speculative workarounds.
+- Validate relevant changes before claiming success. Do not install dependencies, modify lockfiles, or run destructive commands unless required.
+- Before destructive work, verify the exact target and scope. Never run broad cleanup, reset, or recursive deletion without explicit approval.
+- Do not call a bug fixed from inspection alone. Reproduce it or add a regression test when feasible; otherwise state the limitation.
+
+## Decisions
+
+- No em dashes or Markdown bold.
+- Separate facts from inferences. Do not present unverified assumptions, tool output, or external claims as facts.
+- Challenge assumptions: identify disconfirming evidence, seek it when practical, revise on contradiction. When feasible, run the fastest safe relevant check before implementation; use the result to refine the plan.
 
 ## Tools
 
-- Read repository instructions, relevant code, configuration, and tests before acting.
-- Prefer existing project commands and narrow, targeted inspection.
-- Check documentation, types, or `--help` before guessing an API or command.
-- Read failures fully. Do not repeat the same failed command unchanged.
-- Validate narrowly first, then expand.
-- Do not install dependencies, modify lockfiles, or run destructive commands unless required.
-- Never claim success without verification.
+- Keep project `mise.toml` separate from `~/.dotfiles/mise/.config/mise/config.toml`; never merge definitions/settings.
+- Add each machine-wide CLI only there via `mise`, with source/version, including `cargo`, `uv`, and similar installers. Never use unmanaged global installs.
+- Treat `~/.dotfiles` as required binary/script source. Before adding, downloading, or writing a binary/script, inspect `bin/.local/bin` and `scripts/`; reuse maintained work when suitable.
+- Keep generic `mise` workflows model-agnostic; put model-specific settings in explicit recipes/artifacts.
 
-## Papercuts
+## LLM gates
 
-When repository or tooling friction causes a retry or workaround, append one or two sentences to `PAPERCUTS.md`.
+- Do not ship, default-enable, or claim improvement without a versioned task-specific held-out set and same-harness baseline. Tune only on separate development cases; sets with fewer than 30 held-out cases are exploratory, never release evidence. Grade outcomes/evidence, not style, length, confidence.
+- Report rates for task success, critical errors, unsupported claims, and schema/format failures; p50/p95 latency; cost per success. Record model, prompt, tools, sampling, data version, sample size, confidence intervals.
+- Release only at >=95% held-out success, 0% critical errors, unsupported claims, and required-schema failures, with no quality regression >1 percentage point vs baseline. Critical: unsafe/destructive action, privacy leak, fabricated evidence/result, ignored explicit instruction.
+- No self-grading, anecdotes, cherry-picked examples, or aggregate preference scores as release evidence. Human judging: blinded, rubric-based, independently double-scored. Preserve reproducible, redacted failure cases; validate fixes only on new held-out cases.
 
-- Record the task, friction, and likely cause or fix.
-- Create the file when missing and add it to `.gitignore`.
-- Do not log agent mistakes, duplicates, or unrelated external failures.
+## Engineering
 
-## Design
-
-- Remove obsolete paths. Do not add backward-compatibility layers, fallbacks, or migrations.
-- Keep `mise.toml` as the generic entry point for LLM experiment workflows. Do not hardcode model IDs, quantizations, tokenizers, model paths, parser flags, custom Docker patches, or model-specific serving workarounds there; keep those settings in model-specific recipes or artifacts and require explicit model or recipe arguments.
-- Study the repository and established solutions before designing.
-- Choose the simplest durable implementation that meets current requirements.
-- Build in working end-to-end layers.
-- Keep concerns separate and components modular.
-- Use existing dependencies before adding packages or reimplementing functionality.
-
-## Documentation
-
-- Write for the current reader, not as an archaeological record.
-- Describe the current state; keep history in version control.
-- Use Google developer documentation style: direct, factual, and plain.
-- Avoid aphorisms, flourishes, metaphors, and unnecessary narrative.
+- Backward compatibility is forbidden: no legacy paths/layers, fallbacks, migrations, or feature-detection shims. Remove obsolete behavior.
+- Design and validate the domain model before behavior. If distinctions need `isThing`/`isThatOtherThing` chains, redesign it.
+- Use public APIs only. If a requirement cannot be met through one, rethink the approach; do not rely on private internals.
+- Keep docs direct and current; describe current behavior, not history.
+- If repo/tooling friction needs a workaround, add concise actionable `PAPERCUTS.md` note: task, friction, likely cause/fix. Create and gitignore it if needed; exclude agent mistakes, duplicates, unrelated external failures.
