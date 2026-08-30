@@ -6,5 +6,5 @@ done
 
 # Machine-specific local overrides are loaded by .zshenv for all Zsh shells.
 
-# sparkrun tab-completion
-eval "$(_SPARKRUN_COMPLETE=zsh_source /home/morgoth/.cache/uv/archive-v0/lp6HPryajo9rroac/bin/sparkrun)"
+# Project-specific tools, including sparkrun, own their activation and
+# completion through the project's mise configuration.

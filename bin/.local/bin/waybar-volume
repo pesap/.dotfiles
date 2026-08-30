@@ -1,0 +1,65 @@
+#!/bin/sh
+set -eu
+
+meter_width=10
+runtime_dir="${XDG_RUNTIME_DIR:-/var/tmp}"
+state_file="$runtime_dir/waybar-volume-expanded-$(id -u)"
+
+case "${1:-status}" in
+    toggle)
+        if [ -e "$state_file" ]; then
+            rm -f -- "$state_file"
+        else
+            : >"$state_file"
+        fi
+        exit 0
+        ;;
+esac
+
+raw="$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || true)"
+volume="$(printf '%s\n' "$raw" | awk '$1 == "Volume:" { printf "%d", ($2 * 100) + 0.5; exit }')"
+volume=${volume:-0}
+[ "$volume" -ge 0 ] 2>/dev/null || volume=0
+[ "$volume" -le 100 ] 2>/dev/null || volume=100
+
+position=$(( (volume * (meter_width - 1) + 50) / 100 ))
+bar=''
+i=0
+while [ "$i" -lt "$meter_width" ]; do
+    if [ "$i" -eq "$position" ]; then
+        bar="${bar}●"
+    elif [ "$i" -lt "$position" ]; then
+        bar="${bar}━"
+    else
+        bar="${bar}─"
+    fi
+    i=$((i + 1))
+done
+
+expanded=0
+[ -e "$state_file" ] && expanded=1
+if printf '%s\n' "$raw" | grep -Fq '[MUTED]'; then
+    class=muted
+    if [ "$expanded" -eq 1 ]; then
+        class=muted-expanded
+        text="VOL $bar mute"
+    else
+        text='VOL mute'
+    fi
+    tooltip='Click to show or hide the volume slider. Middle-click to unmute.'
+else
+    class=volume
+    if [ "$expanded" -eq 1 ]; then
+        class=volume-expanded
+        text="VOL $bar $volume%"
+    else
+        text="VOL $volume%"
+    fi
+    tooltip='Click to show or hide the volume slider. Scroll to adjust volume.'
+fi
+
+jq -cn \
+    --arg text "$text" \
+    --arg class "$class" \
+    --arg tooltip "$tooltip" \
+    '{text:$text,class:$class,tooltip:$tooltip}'

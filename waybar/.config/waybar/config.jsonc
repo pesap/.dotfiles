@@ -5,10 +5,10 @@
     "exclusive": true,
     "passthrough": false,
     "gtk-layer-shell": true,
-    "height": 25,
-    "modules-left": ["custom/mango-tags", "custom/mango-layout"],
+    "height": 32,
+    "modules-left": ["custom/mango-tags", "custom/mango-layout", "custom/wallpaper"],
     "modules-center": ["custom/mango-window"],
-    "modules-right": ["custom/wallpaper", "custom/system", "custom/power", "wireplumber", "network", "bluetooth", "clock", "tray"],
+    "modules-right": ["group/system-usage", "custom/temperatures", "custom/power", "custom/volume", "network", "bluetooth", "clock", "tray"],
 
     "custom/mango-tags": {
         "exec": "~/.local/bin/waybar-mango watch tags",
@@ -39,13 +39,27 @@
         "interval": 10,
         "on-click": "~/.local/bin/wallpaperctl pick",
         "on-click-right": "~/.local/bin/wallpaperctl next",
+        "format": "WALL"
+    },
+
+    "custom/memory": {
+        "exec": "~/.local/bin/waybar-memory",
+        "return-type": "json",
+        "interval": 5,
         "format": "{}"
     },
 
-    "custom/system": {
-        "exec": "~/.local/bin/waybar-system",
+    "custom/disk": {
+        "exec": "~/.local/bin/waybar-disk",
         "return-type": "json",
-        "interval": 10,
+        "interval": 30,
+        "format": "{}"
+    },
+
+    "custom/gpu": {
+        "exec": "~/.local/bin/waybar-gpu",
+        "return-type": "json",
+        "interval": 5,
         "format": "{}"
     },
 
@@ -57,40 +71,56 @@
         "format": "{}"
     },
 
-    "wireplumber": {
-        "format": " {volume}%",
-        "format-muted": "",
-        "tooltip": false,
-        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "custom/volume": {
+        "exec": "~/.local/bin/waybar-volume",
+        "return-type": "json",
+        "interval": 1,
+        "on-click": "~/.local/bin/waybar-volume toggle",
+        "on-click-middle": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
         "on-right-click": "pavucontrol",
-        "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+        "on-scroll-up": "wpctl set-volume --limit 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
         "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
-        "scroll-step": 5
+        "format": "{}"
+    },
+
+    "custom/temperatures": {
+        "exec": "~/.local/bin/waybar-temperature",
+        "return-type": "json",
+        "interval": 5,
+        "on-click": "~/.local/bin/waybar-temperature notify",
+        "format": "{}"
+    },
+
+    "group/system-usage": {
+        "orientation": "horizontal",
+        "modules": ["custom/memory", "custom/disk", "custom/gpu"]
     },
 
     "bluetooth": {
-        "format": " {status}",
-        "format-connected": " {device_alias}",
+        "format": "",
+        "format-connected": "",
         "format-disabled": "",
-        "on-click": "~/.local/bin/bt-kbd toggle",
-        "tooltip-format": "{controller_alias}\t{controller_address}\n\n{num_connections} connected",
-        "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
-        "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
-        "tooltip-format-enumerate-disconnected": "{device_alias}\t{device_address} (disconnected)"
+        "format-off": "",
+        "format-no-controller": "",
+        "max-length": 1,
+        "tooltip-format": "{num_connections} connected",
+        "tooltip-format-connected": "{num_connections} connected",
+        "tooltip-format-enumerate-connected": "connected",
+        "tooltip-format-enumerate-disconnected": "disconnected"
     },
 
     "network": {
-        "format-wifi": " {signalStrength}%",
-        "format-ethernet": "",
-        "tooltip-format": "{essid} - {ifname} via {gwaddr}",
-        "format-linked": "{ifname} (No IP)",
-        "format-disconnected": "⚠",
-        "format-alt": "{ifname}: {essid} {ipaddr}"
+        "format-wifi": "NET {signalStrength}%",
+        "format-ethernet": "NET wired",
+        "tooltip-format": "network status",
+        "format-linked": "NET no link",
+        "format-disconnected": "NET down",
+        "format-alt": "NET"
     },
 
     "clock": {
-        "format": "󰃰 {:%a %b %e  %H:%M}",
-        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+        "format": "{:%H:%M}",
+        "tooltip-format": "<b>{:%A, %B %d, %Y}</b>\n\n<tt>{calendar}</tt>"
     },
 
     "tray": {

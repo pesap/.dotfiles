@@ -128,25 +128,6 @@ validate_keymap_docs() {
     local keymaps="$repo_root/KEYMAPS.md"
     grep -Fqx -- '- `<leader>gd` LSP definition' "$keymaps"
     grep -Fqx -- '- `<leader>gD` `:Gdiff`' "$keymaps"
-    grep -Fqx -- '| `s` | toggle active sync + Normal mode |' "$keymaps"
-    if grep -Eq 'layouts/(dev|pi|vibe)\.kdl|toggle active sync removed|open floating `zsh` pane' "$keymaps"; then
-        fail 'KEYMAPS.md contains stale Zellij documentation'
-    fi
-}
-
-validate_zellij() {
-    local zellij_bin="${ZELLIJ_BIN:-}"
-    if [[ -z "$zellij_bin" ]]; then
-        zellij_bin="$(command -v zellij || true)"
-    fi
-    [[ -n "$zellij_bin" ]] || fail 'zellij is required (or set ZELLIJ_BIN)'
-
-    local actual_version=''
-    actual_version="$("$zellij_bin" --version)"
-    [[ "$actual_version" == 'zellij 0.44.3' ]] ||
-        fail "expected zellij 0.44.3, found: $actual_version; run mise install or set ZELLIJ_BIN"
-
-    ZELLIJ_BIN="$zellij_bin" "$repo_root/zellij/.config/zellij/check-0.44.3.sh"
 }
 
 run_regression_tests() {
@@ -190,8 +171,6 @@ if command -v mango >/dev/null 2>&1; then
     mango -p -c "$repo_root/mango/.config/mango/config.conf"
 fi
 
-log 'Zellij'
-validate_zellij
 log 'regression tests'
 run_regression_tests
 log 'git whitespace'

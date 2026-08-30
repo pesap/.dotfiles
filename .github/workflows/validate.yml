@@ -9,36 +9,32 @@ permissions: {contents: read}
 jobs:
   checks:
     runs-on: ubuntu-24.04
+    env:
+      MISE_CONFIG_FILE: mise/.config/mise/config.toml
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
         with: {python-version: '3.12'}
-      - run: sudo apt-get update && sudo apt-get install --yes jq neovim ripgrep shellcheck shfmt zsh
-      - name: Install prek
+      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14
+        with:
+          version: 2026.7.14
+          sha256: fc96308f4fa085d7359892ac6351ededb35ecfabf1ddc34f5757bc755a2af8a6
+          install: false
+          cache: false
+      - run: sudo apt-get update && sudo apt-get install --yes zsh
+      - name: Install validation tools through mise
         run: |
-          curl --proto '=https' --tlsv1.2 -LsSf \
-            https://github.com/j178/prek/releases/download/v0.4.11/prek-installer.sh \
-            --output "$RUNNER_TEMP/prek-installer.sh"
-          echo '6047f371d588b19703129c40b72196ba68c628fd98574822bd50b112f60988a4  '"$RUNNER_TEMP"'/prek-installer.sh' |
-            sha256sum --check
-          sh "$RUNNER_TEMP/prek-installer.sh"
-      - name: Install Zellij
-        run: |
-          mkdir -p "$RUNNER_TEMP/zellij"
-          curl --proto '=https' --tlsv1.2 -LsSf \
-            https://github.com/zellij-org/zellij/releases/download/v0.44.3/zellij-x86_64-unknown-linux-musl.tar.gz \
-            --output "$RUNNER_TEMP/zellij.tar.gz"
-          echo '0f7c346788627f506c0a28296517768633cff24fc822a739f8264b640ecad751  '"$RUNNER_TEMP"'/zellij.tar.gz' |
-            sha256sum --check
-          tar --extract --gzip --file "$RUNNER_TEMP/zellij.tar.gz" --directory "$RUNNER_TEMP/zellij"
-          echo "$RUNNER_TEMP/zellij" >> "$GITHUB_PATH"
-      - run: rustup target add wasm32-wasip1
+          mise install gitleaks jq neovim ripgrep shellcheck shfmt prek
+          mise reshim
+          echo "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
       - run: prek run --all-files
       - run: ./scripts/validate.sh
 
   dependency-report:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
+    env:
+      MISE_CONFIG_FILE: mise/.config/mise/config.toml
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14

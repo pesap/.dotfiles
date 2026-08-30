@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+
+read_sensor_temp() {
+    sensor_name=$1
+    preferred_label=$2
+    for name_path in /sys/class/hwmon/hwmon*/name; do
+        [ -r "$name_path" ] || continue
+        IFS= read -r hwmon_name <"$name_path" || true
+        [ "${hwmon_name:-}" = "$sensor_name" ] || continue
+        hwmon_dir=${name_path%/name}
+        for temp_path in "$hwmon_dir"/temp*_input; do
+            [ -r "$temp_path" ] || continue
+            label_path="${temp_path%_input}_label"
+            if [ -r "$label_path" ]; then
+                IFS= read -r temp_label <"$label_path" || true
+                [ "${temp_label:-}" = "$preferred_label" ] || continue
+            fi
+            IFS= read -r temp_value <"$temp_path" || true
+            [ "${temp_value:-0}" -gt 0 ] 2>/dev/null || continue
+            printf '%s°C' "$((temp_value / 1000))"
+            return 0
+        done
+    done
+    printf '?'
+}
+
+show() {
+    cpu_temp=$(read_sensor_temp k10temp Tctl)
+    gpu_temp=$(read_sensor_temp amdgpu edge)
+    tooltip=$(printf 'CPU: %s\nGPU: %s\n\nClick to show component temperatures.' \
+        "$cpu_temp" "$gpu_temp")
+    jq -cn --arg text "󰔏 $cpu_temp $gpu_temp" --arg tooltip "$tooltip" \
+        '{text:$text,tooltip:$tooltip}'
+}
+
+notify() {
+    cpu_temp=$(read_sensor_temp k10temp Tctl)
+    gpu_temp=$(read_sensor_temp amdgpu edge)
+    body=$(printf 'CPU: %s\nGPU: %s' "$cpu_temp" "$gpu_temp")
+    notify-send --app-name=Waybar --urgency=low 'System temperatures' "$body"
+}
+
+case "${1:-show}" in
+    show) show ;;
+    notify) notify ;;
+    *)
+        printf 'usage: %s {show|notify}\n' "$0" >&2
+        exit 2
+        ;;
+esac

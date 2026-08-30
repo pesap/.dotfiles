@@ -1,3 +1,0 @@
-#!/bin/bash
-adb shell cmd package compile -m speed -f -a
-adb shell cmd package bg-dexopt-job

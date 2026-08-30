@@ -29,7 +29,7 @@ x = 10
 y = 10
 
 [scrolling]
-history = 10000                 # zellij owns scrollback; 10k is plenty for raw shells
+history = 10000                 # Keep a useful native scrollback buffer
 multiplier = 3
 
 [font]
@@ -63,7 +63,7 @@ blink_timeout = 5
 
 [cursor.style]
 shape = "Block"
-blinking = "Off"                # blinking competes with zellij status bar redraws
+blinking = "Off"
 
 [mouse]
 hide_when_typing = true
@@ -88,21 +88,6 @@ bindings = [
     # zsh launches herdr-project; inside Herdr, its native popup handles it.
     { key = "Backslash", mods = "Super", chars = "\u001c" },
 
-    # ── zellij tab switching from macOS ──────────────────────────────────────
-    # Cmd+1..4 -> ESC+1..4 (xterm Alt+N encoding). Zellij in Locked/Normal
-    # mode reads it as "GoToTab N". On Linux these never fire (no Command key);
-    # Ctrl+Alt+1..4 below covers Arch.
-    { key = "Key1", mods = "Command", chars = "\u001b1" },
-    { key = "Key2", mods = "Command", chars = "\u001b2" },
-    { key = "Key3", mods = "Command", chars = "\u001b3" },
-    { key = "Key4", mods = "Command", chars = "\u001b4" },
-
-    # Linux mirror.
-    { key = "Key1", mods = "Control|Alt", chars = "\u001b1" },
-    { key = "Key2", mods = "Control|Alt", chars = "\u001b2" },
-    { key = "Key3", mods = "Control|Alt", chars = "\u001b3" },
-    { key = "Key4", mods = "Control|Alt", chars = "\u001b4" },
-
     # ── Font size (live) ─────────────────────────────────────────────────────
     { key = "Equals", mods = "Command",       action = "IncreaseFontSize" },
     { key = "Minus",  mods = "Command",       action = "DecreaseFontSize" },
@@ -111,7 +96,7 @@ bindings = [
     { key = "Minus",  mods = "Control|Shift", action = "DecreaseFontSize" },
     { key = "Key0",   mods = "Control|Shift", action = "ResetFontSize"   },
 
-    # ── Scrollback search (Alacritty native, works outside zellij grab) ─────
+    # ── Native scrollback search ──────────────────────────────────────────────
     { key = "F", mods = "Command",       action = "SearchForward"  },
     { key = "B", mods = "Command",       action = "SearchBackward" },
     { key = "F", mods = "Control|Shift", action = "SearchForward"  },

@@ -21,15 +21,13 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 │       ├── harpoon.lua   # File marks
 │       ├── mini.lua      # Mini.statusline
 │       ├── mole.lua
-│       ├── slime.lua     # REPL integration (zellij)
 │       ├── tpope.lua     # Fugitive + tpope essentials
 │       ├── treesitter.lua
 │       ├── vim-maximizer.lua
 │       ├── whichkey.lua
 │       └── lsp/          # LSP-related plugins
 │           ├── blink.lua      # Completion
-│           ├── conform.lua    # Formatting
-│           └── mason.lua      # LSP installer
+│           └── conform.lua    # Formatting
 └── lsp/                  # Native LSP configs (0.11+)
     ├── bash.lua
     ├── julia.lua
@@ -44,7 +42,7 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 - **Plugin Manager**: [lazy.nvim](https://github.com/folke/lazy.nvim)
 - **File Picker**: [FFF](https://github.com/dmtrKovalenko/fff) for frecency-ranked file search
 - **Fuzzy Finder**: [fzf-lua](https://github.com/ibhagwan/fzf-lua) for non-FFF pickers (LSP, buffers, git branches, PR review)
-- **LSP**: Native 0.11+ (`vim.lsp.enable`) with [mason.nvim](https://github.com/williamboman/mason.nvim)
+- LSP: Native 0.11+ (`vim.lsp.enable`) with servers installed by mise
 - **Completion**: [blink.cmp](https://github.com/saghen/blink.cmp)
 - **Formatting**: [conform.nvim](https://github.com/stevearc/conform.nvim)
 - **Git**: [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) + [vim-fugitive](https://github.com/tpope/vim-fugitive)
@@ -83,7 +81,8 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 
 ## LSP Servers
 
-Enabled via `vim.lsp.enable()`:
+Install the configured servers with `loom tools install`. They are enabled via
+`vim.lsp.enable()`:
 - Lua (lua-language-server)
 - Python (pyright + ruff)
 - Julia (LanguageServer.jl)

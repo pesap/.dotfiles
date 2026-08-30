@@ -34,9 +34,6 @@ if (( $+commands[gh] )); then
     unset _gh_completion_available _gh_completion_dir
 fi
 
-# Cargo/Rust
-[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
-
 # Direnv
 command -v direnv >/dev/null && eval "$(direnv hook zsh)"
 

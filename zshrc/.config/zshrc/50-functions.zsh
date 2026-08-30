@@ -12,38 +12,6 @@ herdr() {
 }
 
 #=============================================================================
-# Zellij helpers
-#=============================================================================
-
-# Zellij session picker
-alias za=zession
-
-# Delete all zellij sessions
-zd() {
-    zellij delete-all-sessions --force --yes 2>/dev/null
-    zellij ls -n
-}
-
-# Zellij edit (renamed from `ze` to avoid conflict)
-alias zed='zellij edit'
-alias zedf='zellij edit --floating'
-alias zedi='zellij edit --in-place'
-
-# Zellij run: first arg is used as pane name, all args joined as the command
-zr()  { zellij run --name "${1:-cmd}"            -- zsh -c "$*"; }
-zrf() { zellij run --name "${1:-cmd}" --floating -- zsh -c "$*"; }
-zri() { zellij run --name "${1:-cmd}" --in-place -- zsh -c "$*"; }
-
-# Zellij pipe (forwards all args after the plugin name)
-zpipe() {
-    if (( $# == 0 )); then
-        zellij pipe
-    else
-        zellij pipe -p "$1" "${@:2}"
-    fi
-}
-
-#=============================================================================
 # Auto-activate .venv on cd
 #=============================================================================
 

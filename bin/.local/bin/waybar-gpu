@@ -3,26 +3,11 @@ set -eu
 
 busy=''
 for path in /sys/class/drm/card*/device/gpu_busy_percent; do
-	[ -r "$path" ] || continue
-	busy="$(cat "$path")"
-	break
+    [ -r "$path" ] || continue
+    IFS= read -r busy <"$path" || true
+    break
 done
 
-name='AMD GPU'
-for path in /sys/class/hwmon/hwmon*/name; do
-	[ -r "$path" ] || continue
-	if [ "$(cat "$path")" = amdgpu ]; then
-		hwmon_dir="${path%/name}"
-		for temp in "$hwmon_dir"/temp*_input; do
-			[ -r "$temp" ] || continue
-			value="$(cat "$temp")"
-			[ "$value" -gt 0 ] 2>/dev/null || continue
-			temp_c=$((value / 1000))
-			break 2
-		done
-	fi
-done
-
-text="󰢮 ${busy:-?}%"
-[ "${temp_c:-}" ] && text="$text ${temp_c}°C"
-jq -cn --arg text "$text" --arg tooltip "$name usage and temperature" '{text:$text,tooltip:$tooltip}'
+text="GFX ${busy:-?}%"
+jq -cn --arg text "$text" --arg tooltip 'GPU utilization' \
+    '{text:$text,tooltip:$tooltip}'

@@ -1,8 +1,6 @@
 #!/bin/sh
 set -eu
 
-profiles='performance balanced power-saver'
-
 case "${1:-status}" in
 	cycle)
 		current="$(powerprofilesctl get 2>/dev/null || printf balanced)"
@@ -18,8 +16,11 @@ esac
 
 profile="$(powerprofilesctl get 2>/dev/null || printf unknown)"
 case "$profile" in
-	performance) icon='󰓅' ;;
-	power-saver) icon='󰌪' ;;
-	*) icon='󰾅' ;;
+	performance) label='PERF' ;;
+	power-saver) label='SAVE' ;;
+	balanced) label='BAL' ;;
+	*) label='PWR' ;;
 esac
-jq -cn --arg text "$icon" --arg tooltip "Power profile: $profile" '{text:$text,tooltip:$tooltip}'
+jq -cn --arg text "$label" --arg profile "$profile" \
+	--arg tooltip "Power profile: $profile" \
+	'{text:$text,class:$profile,tooltip:$tooltip}'

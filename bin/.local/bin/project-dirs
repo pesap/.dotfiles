@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-roots_value="${PROJECT_ROOTS-${HERDR_PROJECT_ROOTS:-$HOME/dev:$HOME/work:$HOME/projects:$HOME/personal:$HOME/sandbox}}"
+roots_value="${PROJECT_ROOTS-${HERDR_PROJECT_ROOTS:-$HOME/dev:$HOME/work:$HOME:$HOME/personal:$HOME/sandbox}}"
 paths_value="${PROJECT_PATHS-$HOME/.dotfiles}"
 
 IFS=: read -r -a roots <<< "$roots_value"

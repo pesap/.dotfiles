@@ -37,11 +37,11 @@ mock_bin="$test_dir/mock-bin"
 mkdir -p -- "$home_dir" "$source_dir" "$mock_bin"
 
 cat >"$source_dir/packages.conf" <<'EOF'
-common alacritty atuin bin nvim personal pi starship worktrunk zellij zshrc mise
-linux-desktop alacritty atuin bin nvim personal pi starship worktrunk zellij zshrc mise linux mango waybar
-macos alacritty atuin bin nvim personal pi starship worktrunk zellij zshrc mise sketchybar skhd yabai
+common alacritty atuin bin nvim personal pi starship worktrunk zshrc mise
+linux-desktop alacritty atuin bin nvim personal pi starship worktrunk zshrc mise linux mango waybar
+macos alacritty atuin bin nvim personal pi starship worktrunk zshrc mise sketchybar skhd yabai
 EOF
-for package in alacritty atuin bin nvim pi starship worktrunk zellij zshrc mise; do
+for package in alacritty atuin bin nvim pi starship worktrunk zshrc mise; do
     mkdir -p -- "$source_dir/$package"
 done
 mkdir -p -- "$source_dir/alacritty/.config/alacritty"

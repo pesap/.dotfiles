@@ -77,31 +77,6 @@ if command -v wl-paste >/dev/null 2>&1 && command -v cliphist >/dev/null 2>&1; t
 	wl-paste --type image --watch cliphist store >>"$CLIPBOARD_LOG" 2>&1 &
 fi
 
-WEATHER_LOG="$LOG_DIR/weather-refresh.log"
-rotate_log "$WEATHER_LOG" 1048576
-if command -v waybar-weather >/dev/null 2>&1 && command -v flock >/dev/null 2>&1; then
-	if command -v systemd-run >/dev/null 2>&1 &&
-		command -v systemctl >/dev/null 2>&1; then
-		WEATHER_UNIT="waybar-weather-refresh.service"
-		if ! systemctl --user is-active --quiet "$WEATHER_UNIT"; then
-			systemctl --user reset-failed "$WEATHER_UNIT" >/dev/null 2>&1 || true
-			if ! systemd-run --user --collect \
-				--unit="$WEATHER_UNIT" \
-				--property=Description="Waybar weather cache refresher" \
-				--property=Restart=on-failure \
-				--property=RestartSec=30s \
-				"$(command -v waybar-weather)" watch >>"$WEATHER_LOG" 2>&1; then
-				log_msg "$WEATHER_LOG" "failed to start $WEATHER_UNIT"
-				waybar-weather watch >>"$WEATHER_LOG" 2>&1 &
-			fi
-		fi
-	else
-		waybar-weather watch >>"$WEATHER_LOG" 2>&1 &
-	fi
-else
-	log_msg "$WEATHER_LOG" "weather refresh requires waybar-weather and flock"
-fi
-
 WAYBAR_LOG="$LOG_DIR/waybar.log"
 rotate_log "$WAYBAR_LOG" 1048576
 if command -v waybar >/dev/null 2>&1; then

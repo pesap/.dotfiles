@@ -3,21 +3,15 @@
 > A quick reference for the shortcuts that make this setup feel like one
 > workspace instead of a collection of separate applications.
 
-Last updated: 2026-07-26 · Leader: `<Space>` in Neovim · Zellij starts locked
+Last updated: 2026-07-26 · Leader: `<Space>` in Neovim
 
 ## Find a shortcut
 
 - [Neovim](#neovim) — editing, search, LSP, Git, and review workflows
 - [Herdr](#herdr) — persistent project sessions and same-window switching
-- [Zellij](#zellij) — panes, tabs, modes, sessions, and floating tools
-- [Alacritty](#alacritty) — terminal shortcut translation
+- [Alacritty](#alacritty) — terminal configuration
 - [skhd](#skhd-macos) — macOS apps, spaces, and Yabai
 - [Mango](#mango-wm-linux) — Linux windows, tags, and screenshots
-
-> [!TIP]
-> Start with `Ctrl+l` in Zellij: it toggles between `locked` and `normal`.
-> Locked mode lets application shortcuts pass through; normal mode exposes the
-> Zellij controls listed below.
 
 ---
 
@@ -180,176 +174,10 @@ it prompts unless passed `--force`.
 
 ---
 
-## Zellij
-
-Sources:
-- `zellij/.config/zellij/config.kdl`
-- `zellij/.config/zellij/layouts/default.kdl`
-
-### Configured mode keymaps
-
-#### `normal`
-
-| Key | Action |
-|---|---|
-| `Ctrl+l` | switch to Locked mode |
-| `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
-| `Alt+1..4` | go to tab 1..4 + return to Locked mode |
-| `Alt+f` | toggle floating panes + return to Locked mode |
-| `Alt+p` | open floating pane inventory (`list-panes --all --json`) + return to Locked mode |
-| `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
-| `Alt+Shift+h` / `Alt+Shift+l` | resize decrease/increase |
-| `Alt+{` / `Alt+}` | move focus up/down + return to Locked mode |
-| `Alt+\\` | run floating `zellij-project` + return to Locked mode |
-| `Ctrl+y` | open layout picker plugin + return to Locked mode |
-
-#### `locked`
-
-| Key | Action |
-|---|---|
-| `Ctrl+l` | switch to Normal mode |
-| `Alt+d` | detach session |
-| `Alt+f` | toggle floating panes |
-| `Alt+1..4` | go to tab 1..4 + stay Locked |
-| `Alt+\\` | run floating `zellij-project` + stay Locked |
-
-#### `resize`
-
-| Key | Action |
-|---|---|
-| `Ctrl+n` / `Esc` / `Enter` | switch to Normal mode |
-| `Ctrl+l` | switch to Locked mode |
-| `h` / `Left` | resize increase left |
-| `j` / `Down` | resize increase down |
-| `k` / `Up` | resize increase up |
-| `l` / `Right` | resize increase right |
-| `H` | resize decrease left |
-| `J` | resize decrease down |
-| `K` | resize decrease up |
-| `L` | resize decrease right |
-| `=` / `+` | resize increase |
-| `-` | resize decrease |
-
-#### `pane`
-
-| Key | Action |
-|---|---|
-| `Ctrl+p` / `Esc` / `Enter` | switch to Normal mode |
-| `Ctrl+l` | switch to Locked mode |
-| `h` / `Left` | move focus left |
-| `l` / `Right` | move focus right |
-| `j` / `Down` | move focus down |
-| `k` / `Up` | move focus up |
-| `p` | switch focus |
-| `n` | new pane right + Normal mode |
-| `d` | new pane down + Normal mode |
-| `r` | new pane right + Normal mode |
-| `s` | new stacked pane + Normal mode |
-| `x` | close focused pane + Normal mode |
-| `f` | toggle pane fullscreen + Normal mode |
-| `w` | toggle floating panes + Normal mode |
-| `e` | toggle pane embed/floating + Normal mode |
-
-#### `move`
-
-| Key | Action |
-|---|---|
-| `Ctrl+h` / `Esc` / `Enter` | switch to Normal mode |
-| `Ctrl+l` | switch to Locked mode |
-| `n` / `Tab` | move pane |
-| `h` / `Left` | move pane left |
-| `j` / `Down` | move pane down |
-| `k` / `Up` | move pane up |
-| `l` / `Right` | move pane right |
-
-#### `tab`
-
-| Key | Action |
-|---|---|
-| `Ctrl+t` / `Esc` / `Enter` | switch to Normal mode |
-| `Ctrl+l` | switch to Locked mode |
-| `r` | rename tab mode |
-| `h` / `Left` / `Up` / `k` | go to previous tab |
-| `l` / `Right` / `Down` / `j` | go to next tab |
-| `n` | new tab + Normal mode |
-| `x` | close tab + Normal mode |
-| `s` | toggle active sync + Normal mode |
-| `1..4` | go to tab 1..4 + Locked mode |
-
-#### `renametab`
-
-| Key | Action |
-|---|---|
-| `Esc` | undo rename + Tab mode |
-| `Ctrl+c` | undo rename + Tab mode |
-| `Enter` | accept rename + Normal mode |
-
-#### `tmux`
-
-| Key | Action |
-|---|---|
-| `Ctrl+b` / `Esc` / `Enter` | switch to Normal mode |
-| `Ctrl+l` | switch to Locked mode |
-| `"` | new pane down + Normal mode |
-| `%` | new pane right + Normal mode |
-| `z` | toggle fullscreen + Normal mode |
-| `c` | new tab + Normal mode |
-| `,` | rename tab mode |
-| `p` | previous tab + Normal mode |
-| `n` | next tab + Normal mode |
-| `h/j/k/l` or arrows | move focus + Normal mode |
-| `d` | detach |
-
-### Zellij keymaps
-
-`keybinds clear-defaults=true` is intentional: only keys listed here are active, so hidden default bindings such as `Ctrl+g` are not present.
-
-| Mode | Key | Action |
-|---|---|---|
-| locked | `Ctrl+l` | unlock to Normal mode |
-| locked | `Alt+d` | detach |
-| locked/normal | `Alt+1..4` | go to tab 1..4 + return to Locked mode |
-| locked/normal | `Alt+\\` | run floating `zellij-project` |
-| normal | `Ctrl+l` | lock Zellij |
-| normal | `Ctrl+p` / `Ctrl+t` / `Ctrl+n` / `Ctrl+h` / `Ctrl+b` | enter Pane/Tab/Resize/Move/Tmux mode |
-| locked/normal | `Alt+f` | toggle floating panes |
-| normal | `Alt+p` | floating pane inventory + return to Locked mode |
-| normal | `Alt+t` | run floating pinned `just test` pane + return to Locked mode |
-| normal | `Ctrl+y` | open layout picker plugin + return to Locked mode |
-| tab | `1..4` | go to tab 1..4 + return to Locked mode |
-| pane/tab/resize/move/tmux | `Esc` / `Enter` or mode entry key | return to Normal mode |
-
-### Mode/keymap notes
-
-- Zellij starts in `locked` mode so app-level keys pass through by default.
-- `Ctrl+l` toggles between `locked` and `normal`; use it to unlock Zellij controls or lock back into app keymaps.
-- `Ctrl+o` is intentionally unbound globally so Pi can use it to expand tools.
-- `Alt+d` detaches directly from locked mode.
-- Zellij uses `zellij-project` through `Alt+\\`; `Ctrl+\\` is reserved for the Herdr project launcher.
-- `default.kdl` provides the status row, vertical tab list, and terminal pane.
-
-### Theme notes
-
-- Zellij theme is explicitly set to built-in `tokyo-night-storm`
-- This now matches the broader Tokyo Night terminal/editor palette better than the default theme
-
-### Layout-specific notes (`default.kdl`)
-
-- `term` tab: regular terminal only
-- Use `Alt+f` for a floating terminal pane
-
----
-
 ## Alacritty
 
 Source:
 - `alacritty/.config/alacritty/alacritty.toml`
-
-Keyboard handling:
-- `Cmd+1..4` in Alacritty sends `Alt+1..4` escape sequences to Zellij.
-- `Super+1..4` does the same on Linux when the window manager does not intercept it.
-- Zellij binds `Alt+1..4` directly in locked and normal modes.
-- Physical `Alt+1/2/3/9/0` and `` Alt+` `` on macOS belong to skhd app/space switching, not Zellij.
 
 Other Alacritty workflow settings:
 - `live_config_reload = true`
@@ -383,7 +211,6 @@ Notable launchers:
 - `Super+S` switches to tag 4 and launches Palworld through Steam
 - `Super+O` switches to tag 3 and opens the Bolt OSRS launcher
 
-Note: SUPER+1..4 is reserved for Alacritty/Zellij tab selection; Linux workspace switching uses the configured Ctrl/Alt bindings instead.
 
 ---
 
@@ -396,12 +223,6 @@ Neovim keymaps:
 
 ```bash
 grep -R "vim.keymap.set" nvim/.config/nvim -n
-```
-
-Zellij bindings:
-
-```bash
-grep -n "bind \"" zellij/.config/zellij/config.kdl
 ```
 
 macOS `skhd` bindings:

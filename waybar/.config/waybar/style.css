@@ -1,62 +1,214 @@
 * {
     font-family: "JetBrainsMono Nerd Font Mono";
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 600;
     color: #edf2f4;
+    min-height: 0;
 }
 
 window#waybar {
-    background: rgba(39, 53, 61, 0.94);
-    border: 1px solid rgba(80, 132, 207, 0.45);
-    border-radius: 7px;
-    padding: 2px 4px;
-    margin: 4px;
+    background: rgba(24, 32, 38, 0.96);
+    border: 1px solid rgba(128, 203, 196, 0.30);
+    border-radius: 14px;
+    padding: 3px 6px;
+    margin: 6px;
 }
 
 #waybar > * {
-    padding: 0 4px;
+    padding: 0;
     margin: 0;
 }
 
-#custom-mango-tags {
-    color: #f8ae3b;
-    min-width: 4em;
+#custom-mango-tags,
+#custom-mango-layout,
+#custom-mango-window,
+#custom-wallpaper,
+#custom-power,
+#custom-memory,
+#custom-disk,
+#custom-gpu,
+#custom-temperatures,
+#custom-volume,
+#network,
+#bluetooth,
+#clock {
+    min-height: 22px;
+    min-width: 5em;
+    padding: 0 7px;
+    margin: 0 1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 7px;
+    background: transparent;
 }
 
-#custom-mango-layout,
-#custom-power,
-#custom-wallpaper {
+#custom-mango-tags {
+    min-width: 5.5em;
     color: #f8ae3b;
-    padding: 0 7px;
-    margin-right: 5px;
-    border-right: 1px solid rgba(237, 242, 244, 0.25);
+    background: rgba(248, 174, 59, 0.12);
+    border-bottom-color: rgba(248, 174, 59, 0.70);
+}
+
+#custom-mango-layout {
+    min-width: 2.2em;
+    color: #80cbc4;
+    background: rgba(128, 203, 196, 0.10);
+    border-bottom-color: rgba(128, 203, 196, 0.60);
 }
 
 #custom-mango-window {
+    min-width: 12em;
     color: #c7d8de;
-    min-width: 10em;
+    border-bottom-color: rgba(199, 216, 222, 0.30);
 }
 
-#custom-system {
+#custom-wallpaper {
+    min-width: 5em;
+    color: #f8ae3b;
+    border-bottom-color: rgba(248, 174, 59, 0.55);
+}
+
+#custom-power {
+    min-width: 5em;
     color: #80cbc4;
-    font-size: 12px;
-    padding: 0 7px;
-    margin-right: 5px;
-    border-right: 1px solid rgba(237, 242, 244, 0.25);
+    border-bottom-color: rgba(128, 203, 196, 0.55);
 }
 
-#wireplumber,
-#network {
+#custom-power.performance {
+    color: #f8ae3b;
+    border-bottom-color: #f8ae3b;
+}
+
+#custom-power.balanced {
+    color: #80cbc4;
+    border-bottom-color: #80cbc4;
+}
+
+#custom-power.power-saver {
+    color: #90d7a3;
+    border-bottom-color: #90d7a3;
+}
+
+#system-usage {
+    min-height: 24px;
+    padding: 1px 2px;
+    margin: 0 3px;
+    border: 1px solid rgba(199, 167, 232, 0.38);
+    border-radius: 9px;
+    background: rgba(199, 167, 232, 0.07);
+}
+
+#custom-memory,
+#custom-disk,
+#custom-gpu {
+    min-width: 5.1em;
+}
+
+#custom-temperatures {
+    min-width: 5.5em;
+    padding: 0 9px;
+    color: #f8ae3b;
+    border: 1px solid rgba(248, 174, 59, 0.38);
+    border-bottom: 2px solid rgba(248, 174, 59, 0.70);
+    border-radius: 9px;
+    background: rgba(248, 174, 59, 0.07);
+}
+
+
+#custom-memory {
+    color: #c7a7e8;
+    border-bottom-color: rgba(199, 167, 232, 0.75);
+}
+
+#custom-disk {
+    color: #80cbc4;
+    border-bottom-color: rgba(128, 203, 196, 0.75);
+}
+
+#custom-gpu {
+    color: #8fb9e8;
+    border-bottom-color: rgba(143, 185, 232, 0.75);
+}
+
+#custom-memory.warning,
+#custom-disk.warning {
+    color: #f8ae3b;
+    background: rgba(248, 174, 59, 0.12);
+    border-bottom-color: #f8ae3b;
+}
+
+#custom-memory.critical,
+#custom-disk.critical {
+    color: #ff7b8a;
+    background: rgba(217, 93, 93, 0.14);
+    border-bottom-color: #ff7b8a;
+}
+
+#custom-volume {
+    min-width: 6.2em;
     color: #c7d8de;
+    border-bottom-color: rgba(199, 216, 222, 0.45);
+}
+
+#custom-volume.volume-expanded,
+#custom-volume.muted-expanded {
+    min-width: 17em;
+}
+
+#custom-volume.muted {
+    color: #ff7b8a;
+    border-bottom-color: #ff7b8a;
+}
+
+#network {
+    color: #8fb9e8;
+    border-bottom-color: rgba(143, 185, 232, 0.55);
+}
+
+#bluetooth {
+    min-width: 2.2em;
     padding: 0 7px;
+    color: #9bd7c3;
+    font-size: 22px;
+    border-bottom-color: rgba(155, 215, 195, 0.55);
 }
 
 #clock {
+    min-width: 5.5em;
     color: #80cbc4;
-    padding: 0 7px;
-    margin-right: 4px;
+    border-bottom-color: rgba(128, 203, 196, 0.55);
+}
+
+#custom-mango-tags:hover,
+#custom-mango-layout:hover,
+#custom-mango-window:hover,
+#custom-wallpaper:hover,
+#custom-power:hover,
+#system-usage:hover,
+#custom-temperatures:hover,
+#custom-memory:hover,
+#custom-disk:hover,
+#custom-gpu:hover,
+#custom-volume:hover,
+#network:hover,
+#bluetooth:hover,
+#clock:hover {
+    background: rgba(237, 242, 244, 0.08);
 }
 
 #tray {
     background: transparent;
-    padding: 0 2px;
+    padding: 0 6px;
+    margin-left: 3px;
+}
+
+tooltip {
+    background: rgba(24, 32, 38, 0.98);
+    border: 1px solid rgba(128, 203, 196, 0.35);
+    border-radius: 8px;
+}
+
+tooltip label {
+    color: #edf2f4;
+    padding: 4px;
 }

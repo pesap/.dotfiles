@@ -1,6 +1,33 @@
 #!/bin/sh
 set -eu
 
-usage="$(df -P "$HOME" 2>/dev/null | awk 'NR==2 {print $5}')"
-usage="${usage:-?}"
-jq -cn --arg text "󰋊 $usage" --arg tooltip "Home filesystem usage" '{text:$text,tooltip:$tooltip}'
+disk="$(df -hP "$HOME" 2>/dev/null | awk 'NR == 2 { print $2, $3, $4, $5 }')"
+total='?'
+used='?'
+free='?'
+percentage=0
+if [ -n "$disk" ]; then
+    set -- $disk
+    total=${1:-?}
+    used=${2:-?}
+    free=${3:-?}
+    percentage=${4%%%}
+fi
+
+[ "$percentage" -ge 0 ] 2>/dev/null || percentage=0
+[ "$percentage" -le 100 ] 2>/dev/null || percentage=100
+
+class=normal
+if [ "$percentage" -ge 90 ]; then
+    class=critical
+elif [ "$percentage" -ge 70 ]; then
+    class=warning
+fi
+
+tooltip="$(printf '%s used of %s (%s%%)\n%s free on %s' \
+    "$used" "$total" "$percentage" "$free" "$HOME")"
+jq -cn \
+    --arg text "DSK $percentage%" \
+    --arg class "$class" \
+    --arg tooltip "$tooltip" \
+    '{text:$text,class:$class,tooltip:$tooltip}'

@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+
+memory="$(awk '
+/^MemTotal:/ { total = $2 }
+/^MemAvailable:/ { available = $2 }
+END {
+    if (total > 0) {
+        used = total - available
+        percentage = int((used * 100 / total) + 0.5)
+        printf "%d %d %d\n", used, total, percentage
+    }
+}' /proc/meminfo)"
+
+used_kib=0
+total_kib=0
+percentage=0
+if [ -n "$memory" ]; then
+    set -- $memory
+    used_kib=${1:-0}
+    total_kib=${2:-0}
+    percentage=${3:-0}
+fi
+
+[ "$percentage" -ge 0 ] 2>/dev/null || percentage=0
+[ "$percentage" -le 100 ] 2>/dev/null || percentage=100
+
+used_gib="$(awk -v kib="$used_kib" 'BEGIN { printf "%.1f GiB", kib / 1048576 }')"
+total_gib="$(awk -v kib="$total_kib" 'BEGIN { printf "%.1f GiB", kib / 1048576 }')"
+class=normal
+if [ "$percentage" -ge 90 ]; then
+    class=critical
+elif [ "$percentage" -ge 70 ]; then
+    class=warning
+fi
+
+jq -cn \
+    --arg text "RAM $percentage%" \
+    --arg class "$class" \
+    --arg tooltip "$used_gib used of $total_gib ($percentage%)" \
+    '{text:$text,class:$class,tooltip:$tooltip}'

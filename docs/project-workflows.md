@@ -12,7 +12,7 @@ first level under these roots:
 ```text
 ~/dev
 ~/work
-~/projects
+~ (home-level project directories)
 ~/personal
 ~/sandbox
 ```
@@ -20,19 +20,17 @@ first level under these roots:
 `~/.dotfiles` is included as an explicit project. Override the lists with
 `PROJECT_ROOTS` and `PROJECT_PATHS`, using colon-separated values.
 
-The multiplexer launchers all consume the same selected directory:
+Herdr is the only project sessionizer. It consumes the shared selected
+directory:
 
 ```text
-tmux-project [DIRECTORY]
-zellij-project [DIRECTORY]
 herdr-project [DIRECTORY]
 ```
 
-Without an argument they open the shared picker. With an argument they skip
-selection. Each launcher creates or reuses a session named after the project
-basename, then attaches or switches according to the current multiplexer
-context.
+Without an argument it opens the shared picker. With an argument it skips
+selection and opens the project in a Herdr workspace.
 
 Herdr needs a small amount of additional handoff logic because nested Herdr
 clients are not supported. Its project launcher uses the native Herdr popup to
-ask the outer launcher to switch sessions cleanly.
+ask the outer launcher to switch sessions cleanly. Other sessionizers are not
+part of this configuration.

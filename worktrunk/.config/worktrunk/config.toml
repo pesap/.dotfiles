@@ -4,37 +4,13 @@
 worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize }}"
 
 [commit.generation]
-command = "CLAUDECODE= MAX_THINKING_TOKENS=0 claude -p --no-session-persistence --model=haiku --tools='' --disable-slash-commands --setting-sources='' --system-prompt=''"
+# Worktrunk passes its rendered prompt on stdin. Use the mise-managed Pi CLI
+# instead of an unmanaged provider-specific executable.
+command = "pi --no-session --no-tools --no-extensions --no-skills --no-context-files --system-prompt='' --print"
 
-# Multiplexer hooks own navigation; don't also cd the invoking shell.
+# Herdr owns workspace navigation; don't also cd the invoking shell.
 [switch]
 cd = false
-
-# ----------------------------------------------------------------------------
-# Zellij integration — each worktree gets its own tab in the current session.
-# ----------------------------------------------------------------------------
-# Hooks no-op when not inside Zellij ($ZELLIJ is set by the session).
-# Tab name format: "<repo>/<branch>" so multiple repos don't collide.
-
-[pre-switch]
-zellij-focus = """
-[ -z "$ZELLIJ" ] && exit 0
-NAME={{ repo ~ '/' ~ (branch | sanitize) }}
-zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME" || exit 0
-zellij action go-to-tab-name "$NAME"
-"""
-
-[post-switch]
-zellij-tab = """
-[ -z "$ZELLIJ" ] && exit 0
-NAME={{ repo ~ '/' ~ (branch | sanitize) }}
-if zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME"; then
-  zellij action go-to-tab-name "$NAME"
-else
-  zellij action new-tab --layout default --name "$NAME" --cwd {{ worktree_path }}
-  zellij action go-to-tab-name "$NAME"
-fi
-"""
 
 # Herdr integration — one workspace per worktree. Herdr requires worktree
 # actions to start from the primary workspace, so resolve it from that checkout.
@@ -51,26 +27,6 @@ herdr worktree open \
   --path {{ worktree_path }} \
   --label {{ repo ~ '/' ~ (branch | sanitize) }} \
   --focus
-"""
-
-[pre-start]
-zellij-tab = """
-[ -z "$ZELLIJ" ] && exit 0
-NAME={{ repo ~ '/' ~ (branch | sanitize) }}
-if zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME"; then
-  zellij action go-to-tab-name "$NAME"
-else
-  zellij action new-tab --layout default --name "$NAME" --cwd {{ worktree_path }}
-  zellij action go-to-tab-name "$NAME"
-fi
-"""
-
-[pre-remove]
-zellij-close = """
-[ -z "$ZELLIJ" ] && exit 0
-NAME={{ repo ~ '/' ~ (branch | sanitize) }}
-zellij action query-tab-names 2>/dev/null | grep -Fxq "$NAME" || exit 0
-zellij action go-to-tab-name "$NAME" && zellij action close-tab
 """
 
 # ----------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 Personal macOS and Linux workstation configuration managed with [GNU Stow](https://www.gnu.org/software/stow/) and [mise](https://mise.jdx.dev/). Stow links configuration from this repository into `$HOME`; mise installs the pinned command-line tools.
 
-`loom` is the command-line interface for installing, applying, checking, and maintaining the configuration.
+`loom` is the command-line interface for installing, applying, checking, and maintaining the configuration. `mise` is the tool registry; shell integrations, Neovim tooling, CI checks, and Worktrunk use its managed binaries.
 
 ## Quick start
 
@@ -34,6 +34,28 @@ Check the installed machine:
 
 The check succeeds when required dependencies and the selected profile are available. Optional tools may still be reported as missing. Use the absolute path until a new shell loads the configuration that adds `~/.local/bin` to `PATH`.
 
+## Spark deployment
+
+Sparkrun is project-scoped because it deploys to a specific Spark environment. It
+is managed by that project's `mise.toml`, not by this workstation manifest. From
+the Spark deployment checkout:
+
+```sh
+mise install
+```
+
+Check the configured cluster without starting a workload:
+
+```sh
+mise run spark-status
+```
+
+Deploy a validated recipe when you are ready to start a workload:
+
+```sh
+mise run spark-deploy -- recipes/example.yaml
+```
+
 ## Existing checkout
 
 Run these commands from the repository root. Preview changes before applying them:
@@ -60,10 +82,11 @@ Check both the machine and repository:
 ./bin/.local/bin/loom check
 ```
 
-Use `loom check --machine` for only the installed-machine check or `loom check --repo` for repository validation. Run the formatting and secret checks separately when needed:
+Use `loom check --machine` for only the installed-machine check or `loom check --repo` for repository validation. Run the formatting and secret checks separately when needed. Hook executables
+are installed by mise:
 
 ```sh
-prek run --all-files
+./bin/.local/bin/loom tools install && prek run --all-files
 ```
 
 ## Profiles
@@ -72,7 +95,7 @@ Profiles are defined in [`packages.conf`](packages.conf):
 
 | Profile | Includes |
 | --- | --- |
-| `common` | Shell, terminal, editor, tools, Pi, Zellij, helper scripts, and optional personal configuration. |
+| `common` | Shell, terminal, editor, tools, Pi, helper scripts, and private personal configuration when the submodule is available. |
 | `linux-desktop` | `common` plus Linux settings, Mango, and Waybar. |
 | `macos` | `common` plus SketchyBar, skhd, and yabai. |
 
@@ -99,13 +122,15 @@ Run `loom --help` or `loom COMMAND --help` for the current options.
 - Setup backs up replaced files under `~/.stow-backup/<timestamp>/`.
 - `loom apply` refuses `--adopt`; existing files are not copied into the repository.
 - Runtime state under `~/.rustup`, `~/.cargo`, and `~/.local/share/mise` is not tracked.
+- Public defaults and private provider configuration are separated; see [Private configuration](docs/private-configuration.md).
 - `loom desktop` requires a clean worktree. It runs smoke checks and rolls back when the checks fail or the confirmation gate expires.
 - The streamed installer follows `main`. For a reproducible tagged install, set both `INSTALLER_VERSION` and `INSTALLER_SHA256`; see [`bootstrap.sh`](bootstrap.sh).
 
 ## Further reading
 
-- [Project workflows](docs/project-workflows.md) — shared project picker and multiplexer launchers.
-- [Keymaps](KEYMAPS.md) — Neovim, Zellij, Mango, Alacritty, and macOS shortcuts.
+- [Project workflows](docs/project-workflows.md) — Herdr project picker and sessionizer.
+- [Private configuration](docs/private-configuration.md) — private providers, identities, and secrets boundary.
+- [Keymaps](KEYMAPS.md) — Neovim, Herdr, Mango, Alacritty, and macOS shortcuts.
 - [Neovim configuration](nvim/.config/nvim/README.md) — structure, plugins, LSP, and key mappings.
 - [`packages.conf`](packages.conf) — profile package allowlist.
 - [`loom`](bin/.local/bin/loom) — command implementation and help text.
