@@ -2,6 +2,11 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+if [[ ! -f "$repo_root/personal/.gitconfig" ]]; then
+    printf 'git sync tests: skipped (private personal package unavailable)\n'
+    exit 0
+fi
+
 test_dir="$(mktemp -d /var/tmp/dotfiles-test.git-worktree-sync.XXXXXX)"
 
 cleanup() {
@@ -12,7 +17,10 @@ cleanup() {
         resolved="$(realpath "$test_dir")"
         case "$resolved" in
         /var/tmp/dotfiles-test.git-worktree-sync.*) rm -rf -- "$resolved" ;;
-        *) printf 'refusing to clean unexpected path: %s\n' "$resolved" >&2; status=1 ;;
+        *)
+            printf 'refusing to clean unexpected path: %s\n' "$resolved" >&2
+            status=1
+            ;;
         esac
     fi
     exit "$status"

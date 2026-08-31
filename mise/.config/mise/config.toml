@@ -43,3 +43,15 @@ ollama = "0.32.14"
 [tasks."dotfiles:check"]
 description = "Run the dotfiles repository validation suite."
 run = "bash \"$HOME/.dotfiles/scripts/validate.sh\""
+
+[tasks."dotfiles:test:fresh"]
+description = "Benchmark a full install in a disposable Ubuntu container."
+run = "bash \"$HOME/.dotfiles/scripts/test-podman.sh\" --scenario fresh --with-tools"
+
+[tasks."dotfiles:test:existing"]
+description = "Benchmark adoption over existing files in a disposable Ubuntu container."
+run = "bash \"$HOME/.dotfiles/scripts/test-podman.sh\" --scenario existing --with-tools"
+
+[tasks."dotfiles:test:matrix"]
+description = "Benchmark full installs across the supported Linux distro matrix."
+run = "bash \"$HOME/.dotfiles/scripts/test-podman.sh\" --matrix --with-tools"

@@ -16,14 +16,27 @@ private_ipv4 = re.compile(
     r"192\.168\.(?:[0-9]{1,3}\.)[0-9]{1,3})(?![0-9])"
 )
 
-paths = subprocess.check_output(
-    ["git", "-C", str(root), "ls-files", "-z"], text=False
-).split(b"\0")
+try:
+    tracked_paths = subprocess.check_output(
+        ["git", "-C", str(root), "ls-files", "-z"],
+        stderr=subprocess.DEVNULL,
+        text=False,
+    ).split(b"\0")
+    paths = [root / raw_path.decode() for raw_path in tracked_paths if raw_path]
+except subprocess.CalledProcessError:
+    # Release archives and disposable local-source copies do not contain Git
+    # metadata. In those trees every file outside the private package is part
+    # of the public input and must still be checked.
+    paths = [
+        path
+        for path in root.rglob("*")
+        if path.is_file()
+        and ".git" not in path.relative_to(root).parts
+        and "personal" not in path.relative_to(root).parts
+    ]
+
 violations: list[tuple[str, str]] = []
-for raw_path in paths:
-    if not raw_path:
-        continue
-    path = root / raw_path.decode()
+for path in paths:
     if not path.is_file():
         continue
     try:

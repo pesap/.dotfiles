@@ -2,6 +2,9 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+# Keep mise shims pointed at the validation environment when individual
+# widget checks override HOME with their own disposable fixture.
+export MISE_DATA_DIR="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
 mango_script="$repo_root/bin/.local/bin/waybar-mango"
 memory_script="$repo_root/bin/.local/bin/waybar-memory"
 disk_script="$repo_root/bin/.local/bin/waybar-disk"

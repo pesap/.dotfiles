@@ -107,9 +107,9 @@ for tool in "$mock_bin"/*; do
     chmod +x "$tool"
 done
 
-if PATH="$mock_bin:/bin" HOME="$home_dir" \
+if PATH="$mock_bin" HOME="$home_dir" \
     DOTFILES_RAW_BASE='https://example.invalid/dotfiles' \
-    sh "$bootstrap_script" --local --profile common >"$test_dir/missing-prereqs.out" 2>"$test_dir/missing-prereqs.err"; then
+    /bin/sh "$bootstrap_script" --local --profile common >"$test_dir/missing-prereqs.out" 2>"$test_dir/missing-prereqs.err"; then
     fail 'bootstrap accepted a missing system prerequisite without administrator access'
 fi
 grep -F -- 'failed to install system prerequisites; install them with sudo, then rerun bootstrap' "$test_dir/missing-prereqs.err" >/dev/null ||

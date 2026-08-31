@@ -127,20 +127,76 @@ install_mise() {
     [ -x "$HOME/.local/bin/mise" ] || err "mise installation did not create $HOME/.local/bin/mise"
 }
 
+has_libatomic() {
+    check_cmd ldconfig && ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'
+}
+
+install_build_prereqs() {
+    os="$(uname -s 2>/dev/null || echo unknown)"
+    [ "$os" = Linux ] || return 0
+
+    if check_cmd apt-get; then
+        maybe_sudo apt-get update
+        maybe_sudo apt-get install -y build-essential libatomic1
+    elif check_cmd dnf; then
+        maybe_sudo dnf install -y gcc gcc-c++ make libatomic
+    elif check_cmd pacman; then
+        maybe_sudo pacman -Syu --noconfirm base-devel
+    elif check_cmd zypper; then
+        maybe_sudo zypper install -y gcc gcc-c++ make libatomic1
+    else
+        err "No supported package manager found for the Linux build prerequisites"
+    fi
+}
+
+check_prereq() {
+    case "$1" in
+    findutils) check_cmd find ;;
+    *) check_cmd "$1" ;;
+    esac
+}
+
 ensure_prereqs() {
     missing=""
-    for tool in git curl rsync tar unzip; do
-        if ! check_cmd "$tool"; then
-            missing="$missing $tool"
+    for package in git curl rsync tar unzip findutils; do
+        if ! check_prereq "$package"; then
+            missing="$missing $package"
         fi
     done
 
     if [ -n "$missing" ]; then
         say "Installing system prerequisites:$missing"
         install_packages "$missing"
-        for tool in $missing; do
-            check_cmd "$tool" || err "required system prerequisite is still missing after installation: $tool"
+        for package in $missing; do
+            check_prereq "$package" || err "required system prerequisite is still missing after installation: $package"
         done
+    fi
+
+    # install.sh builds GNU Stow when no system or user-local Stow is present.
+    # Keep these dependencies conditional so machines with Stow do not receive
+    # an unnecessary compiler toolchain or Perl runtime.
+    if ! check_cmd stow && [ ! -x "$HOME/.local/bin/stow" ]; then
+        missing=""
+        for tool in make perl; do
+            if ! check_cmd "$tool"; then
+                missing="$missing $tool"
+            fi
+        done
+        if [ -n "$missing" ]; then
+            say "Installing Stow build prerequisites:$missing"
+            install_packages "$missing"
+            for tool in $missing; do
+                check_cmd "$tool" || err "required Stow prerequisite is still missing after installation: $tool"
+            done
+        fi
+    fi
+
+    if [ "$(uname -s 2>/dev/null || echo unknown)" = Linux ] &&
+        { ! check_cmd cc || ! has_libatomic; }; then
+        say "Installing Linux build prerequisites for mise-managed tools"
+        install_build_prereqs
+        check_cmd cc || err "C compiler is still missing after installing Linux build prerequisites"
+        has_libatomic || err "libatomic is still missing after installing Linux build prerequisites"
     fi
 }
 

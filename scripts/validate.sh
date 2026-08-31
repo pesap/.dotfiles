@@ -9,6 +9,8 @@ export MISE_TASK_RUN_AUTO_INSTALL=0
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 validation_temp_dir=''
+export MISE_CONFIG_FILE="$repo_root/mise/.config/mise/config.toml"
+export MISE_TRUSTED_CONFIG_PATHS="$repo_root/mise/.config/mise${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
 
 log() {
     printf 'validate: %s\n' "$*"
@@ -80,6 +82,15 @@ validate_shell_syntax() {
     done < <(find "$repo_root/zshrc" -type f \( -name '*.zsh' -o -name '.zshrc' -o -name '.zprofile' -o -name '.zshenv' \) -print0)
 }
 
+validate_bash_startup() {
+    local file=''
+    while IFS= read -r -d '' file; do
+        bash -n "$file"
+    done < <(
+        find "$repo_root/bash" -type f \( -name '.bash_profile' -o -name '.bashrc' -o -name '*.sh' \) -print0
+    )
+}
+
 validate_json() {
     local file=''
     while IFS= read -r -d '' file; do
@@ -113,8 +124,10 @@ PY
 
 validate_neovim_lua() {
     local file=''
+    local mise_data_dir="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
     while IFS= read -r -d '' file; do
-        XDG_CACHE_HOME="$validation_temp_dir/cache" \
+        MISE_DATA_DIR="$mise_data_dir" \
+            XDG_CACHE_HOME="$validation_temp_dir/cache" \
             XDG_DATA_HOME="$validation_temp_dir/data" \
             XDG_STATE_HOME="$validation_temp_dir/state" \
             nvim --clean --headless -u NONE -i NONE \
@@ -151,10 +164,20 @@ need_command python3
 need_command nvim
 need_command realpath
 
+validate_git_whitespace() {
+    if git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        git -C "$repo_root" diff --check
+    else
+        log 'git whitespace skipped (source has no Git metadata)'
+    fi
+}
+
 validation_temp_dir="$(mktemp -d /var/tmp/dotfiles-test.validate.XXXXXX)"
 
 log 'shell syntax'
 validate_shell_syntax
+log 'Bash startup'
+validate_bash_startup
 log 'JSON'
 validate_json
 log 'Waybar config'
@@ -174,5 +197,5 @@ fi
 log 'regression tests'
 run_regression_tests
 log 'git whitespace'
-git -C "$repo_root" diff --check
+validate_git_whitespace
 log 'all checks passed'

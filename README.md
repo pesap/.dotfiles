@@ -40,7 +40,59 @@ Check the installed machine:
 "$HOME/.local/bin/loom" check --machine
 ```
 
-The check succeeds when required dependencies and the selected profile are available. Optional tools may still be reported as missing. Use the absolute path until a new shell loads the configuration that adds `~/.local/bin` to `PATH`.
+The check succeeds when required dependencies and the selected profile are available. Optional tools may still be reported as missing. Use the absolute path until a new Bash or Zsh shell loads the configuration that adds `~/.local/bin` and mise-managed tools to `PATH`.
+
+## Disposable Linux installation tests
+
+Podman is used as a disposable test harness, not as a mise-managed workstation
+runtime. Each run creates a new container with an isolated home directory and
+removes that container on exit. Existing Podman containers are not stopped or
+pruned.
+
+Run a full fresh-machine benchmark from the repository checkout:
+
+```sh
+mise run dotfiles:test:fresh
+```
+
+Benchmark setup over pre-existing shell and Alacritty files:
+
+```sh
+mise run dotfiles:test:existing
+```
+
+Run the same full benchmark across Ubuntu, Debian, Fedora, Arch, and openSUSE:
+
+```sh
+mise run dotfiles:test:matrix
+```
+
+The tasks include locked mise tool installation and use the current checkout.
+For a faster configuration-only run, omit `--with-tools` when invoking the
+script directly:
+
+```sh
+./scripts/test-podman.sh --scenario fresh --distro ubuntu
+```
+
+To exercise the public bootstrap URL instead of the current checkout, select
+release mode:
+
+```sh
+./scripts/test-podman.sh --source release --scenario fresh --distro ubuntu
+```
+
+The full tool run also starts a clean interactive Bash with no profile files,
+loads the installed `.bashrc`, and verifies every expected mise-managed command
+resolves through `PATH`. It therefore tests Bash-only machines without relying
+on Zsh. The benchmark reports prerequisite, bootstrap or setup, mise,
+repository-check, and reapply durations. When NetworkManager is available, the harness passes its
+active non-Tailscale DNS servers to the container so parallel downloads do not
+funnel through a Tailscale DNS forwarder. Override that selection with a
+comma-separated list such as `DOTFILES_TEST_DNS=1.1.1.1,8.8.8.8`. Without
+NetworkManager, Podman selects the DNS configuration normally. Container images
+can be overridden with `DOTFILES_TEST_<DISTRO>_IMAGE`; use immutable image
+digests for reproducible CI runs.
 
 ## Spark deployment
 
