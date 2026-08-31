@@ -1,9 +1,6 @@
 # Tool integrations and hooks
 if command -v mise >/dev/null 2>&1; then eval "$(mise activate zsh)"; fi
 
-# Bun completion must load after compinit, which is initialized by 20-plugins.zsh.
-[[ -s "$HOME/.bun/_bun" ]] && source "$HOME/.bun/_bun"
-
 # Starship prompt
 command -v starship >/dev/null && eval "$(starship init zsh)"
 
@@ -16,7 +13,6 @@ command -v navi >/dev/null && eval "$(navi widget zsh)"
 
 # Atuin shell history
 if command -v atuin >/dev/null 2>&1; then
-    [[ -f "$HOME/.atuin/bin/env" ]] && . "$HOME/.atuin/bin/env"
     eval "$(atuin init zsh --disable-up-arrow)"
 fi
 

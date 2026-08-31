@@ -22,16 +22,4 @@ export NODE_USE_SYSTEM_CA=1
 # Homebrew (macOS)
 [[ -d /opt/homebrew/bin ]] && path=(/opt/homebrew/bin $path)
 
-# Bun
-if [[ -d "$HOME/.bun" ]]; then
-    export BUN_INSTALL="$HOME/.bun"
-    path=("$BUN_INSTALL/bin" $path)
-fi
-
-# OpenCode
-[[ -d "$HOME/.opencode/bin" ]] && path=("$HOME/.opencode/bin" $path)
-
-# Pixi
-[[ -d "$HOME/.pixi/bin" ]] && path=("$HOME/.pixi/bin" $path)
-
 export PATH

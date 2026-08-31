@@ -18,10 +18,18 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 
 The command changes your home directory and may prompt before replacing existing files. Replaced files are backed up under `~/.stow-backup/<timestamp>/`. It may use `sudo` to install missing system prerequisites; it does not need `sudo` when those prerequisites are already installed.
 
-Install the versions pinned in the mise manifest:
+Install the locked versions from the mise manifest:
 
 ```sh
 "$HOME/.local/bin/loom" tools install
+```
+
+The checked-in lockfile covers Linux x64, macOS Intel, and macOS Apple Silicon.
+It records platform-specific download URLs, checksums, and provenance. Refresh
+it from this checkout with:
+
+```sh
+mise lock --global --platform linux-x64,macos-arm64,macos-x64
 ```
 
 This downloads the configured tools, including Pi, and can take several minutes.
@@ -41,7 +49,7 @@ is managed by that project's `mise.toml`, not by this workstation manifest. From
 the Spark deployment checkout:
 
 ```sh
-mise install
+mise install --locked
 ```
 
 Check the configured cluster without starting a workload:
@@ -70,10 +78,16 @@ The preview does not change your home directory. Apply the profile after reviewi
 ./bin/.local/bin/loom setup --local --profile common
 ```
 
-Install or update the pinned tools:
+Install or update the locked tools:
 
 ```sh
 ./bin/.local/bin/loom tools install
+```
+
+Run the repository checks through the global mise task:
+
+```sh
+mise run dotfiles:check
 ```
 
 Check both the machine and repository:
@@ -111,7 +125,7 @@ Run `loom --help` or `loom COMMAND --help` for the current options.
 | `loom apply` | Apply packages from an existing checkout. It always runs a Stow preflight and accepts only packages declared in `packages.conf`. |
 | `loom check` | Check the installed machine, the repository, or both. |
 | `loom desktop` | Apply desktop-window-manager configuration with smoke checks and rollback. It requires a clean Git worktree. |
-| `loom tools install` | Install the tool versions pinned in the mise manifest. |
+| `loom tools install` | Install the locked tool versions from the mise manifest. |
 | `loom tools outdated` | Report available tool updates without installing them. |
 | `loom profiles` | List supported profiles. |
 | `loom version` | Show the checkout version. |

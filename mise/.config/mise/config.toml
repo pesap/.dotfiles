@@ -1,5 +1,7 @@
 # Global workstation tool registry. Project-specific tools belong in the
 # project's own mise.toml instead of being copied here.
+min_version = "2026.7.14"
+
 [tools]
 starship = "1.26.0"
 ripgrep = "15.2.0"
@@ -31,11 +33,13 @@ node = "26.7.0"
 prettier = "3.9.6"
 ruff = "0.16.5"
 "github:vicinaehq/vicinae" = { version = "0.25.0", asset_pattern = "vicinae-linux-x86_64-v{version}.tar.gz", os = ["linux"] }
-"cargo:cargo-edit" = "0.13.13"
 "cargo:stylua" = "2.5.2"
 "lua-language-server" = "3.19.1"
 just = "1.58.0"
 rust = "1.97.1"
 "rust-analyzer" = "2026-08-24"
-"github:astral-sh/hawk" = { version = "0.1.12", version_prefix = "" }
 ollama = "0.32.14"
+
+[tasks."dotfiles:check"]
+description = "Run the dotfiles repository validation suite."
+run = "bash \"$HOME/.dotfiles/scripts/validate.sh\""

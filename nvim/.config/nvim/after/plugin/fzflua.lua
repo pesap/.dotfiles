@@ -1,1 +1,0 @@
--- fzf-lua is configured from lua/plugins/fzflua.lua.

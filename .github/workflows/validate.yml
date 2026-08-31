@@ -24,7 +24,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install --yes zsh
       - name: Install validation tools through mise
         run: |
-          mise install gitleaks jq neovim ripgrep shellcheck shfmt prek
+          mise install --locked gitleaks jq neovim ripgrep shellcheck shfmt prek
           mise reshim
           echo "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
       - run: prek run --all-files

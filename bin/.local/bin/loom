@@ -232,7 +232,7 @@ tools)
     case "${1:-help}" in
     install)
         shift
-        exec mise install "$@"
+        exec mise install --locked "$@"
         ;;
     outdated)
         shift
@@ -243,7 +243,7 @@ tools)
 Usage: loom tools COMMAND [OPTIONS]
 
 Commands:
-  install     Install versions pinned in the mise manifest
+  install     Install locked versions from the mise manifest
   outdated    Report available updates without installing them
 EOF
         ;;
