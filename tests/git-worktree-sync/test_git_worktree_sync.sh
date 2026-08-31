@@ -16,7 +16,7 @@ cleanup() {
         local resolved=''
         resolved="$(realpath "$test_dir")"
         case "$resolved" in
-        /var/tmp/dotfiles-test.git-worktree-sync.*) rm -rf -- "$resolved" ;;
+        /var/tmp/dotfiles-test.git-worktree-sync.*|/private/var/tmp/dotfiles-test.git-worktree-sync.*) rm -rf -- "$resolved" ;;
         *)
             printf 'refusing to clean unexpected path: %s\n' "$resolved" >&2
             status=1
@@ -122,12 +122,12 @@ git -C "$updater" add file
 git -C "$updater" commit --quiet -m remote-update
 git -C "$updater" push --quiet origin main
 
-# A deleted upstream with unmerged local work must survive cleanup.
+# A deleted upstream with unmerged local work is force-deleted by cleanup.
 git -C "$primary" switch --quiet -c stale main
 printf 'stale local work\n' >>"$primary/file"
 git -C "$primary" add file
 git -C "$primary" commit --quiet -m stale-local-work
-git -C "$primary" push --quiet origin stale
+git -C "$primary" push --quiet --set-upstream origin stale
 git -C "$primary" switch --quiet main
 git -C "$primary" push --quiet origin --delete stale
 git -C "$primary" fetch --quiet --prune origin
@@ -175,8 +175,9 @@ assert_not_contains "$wt_log" 'gone-upstream'
 [[ -d "$keep" ]] || fail 'unrelated worktree was removed'
 [[ "$(git -C "$primary" rev-parse HEAD)" == "$(git -C "$primary" rev-parse origin/main)" ]] ||
     fail 'primary worktree was not fast-forwarded'
-git -C "$primary" show-ref --verify --quiet refs/heads/stale ||
-    fail 'unmerged gone-upstream branch was deleted'
+if git -C "$primary" show-ref --verify --quiet refs/heads/stale; then
+    fail 'gone-upstream branch was not force-deleted'
+fi
 
 # Updating a dirty primary is refused before Worktrunk cleanup starts.
 printf 'do not overwrite\n' >>"$primary/file"
@@ -189,10 +190,10 @@ fi
 assert_contains "$test_dir/dirty.err" 'worktree is dirty; refusing to pull'
 git -C "$primary" restore -- file
 
-# A schema change fails closed rather than silently selecting the wrong fields.
+# An unsupported schema fails closed rather than silently selecting the wrong fields.
 if (
     cd "$primary"
-    WT_JSON='{"schema":1,"items":[]}' git sync >"$test_dir/schema.out" 2>"$test_dir/schema.err"
+    WT_JSON='[]' git sync >"$test_dir/schema.out" 2>"$test_dir/schema.err"
 ); then
     fail 'Worktrunk schema 1 was accepted'
 fi

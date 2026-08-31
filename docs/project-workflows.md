@@ -68,8 +68,10 @@ The private `git sync` alias keeps the original inline Git-config workflow.
 Run it from the primary worktree. It refuses a dirty worktree, switches to
 `main`, pulls with `--prune --ff-only`, and removes only clean Worktrunk
 worktrees marked integrated or empty. It uses Worktrunk JSON schema 2 and
-foreground removal. The companion `git rm-merged` alias now considers only
-already-merged branches and uses normal `git branch -d`, never force deletion.
+removes them in the foreground. The companion `git rm-merged` alias force-deletes
+local branches whose upstream is gone, including unmerged branches. A branch
+still checked out in another worktree is retained because Git will not delete an
+attached branch.
 
 `git-checkouts` is a separate deployment boundary. Use `git push checkouts`
 explicitly when a push should materialize a remote checkout; synchronization
