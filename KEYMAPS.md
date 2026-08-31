@@ -159,6 +159,11 @@ Sources:
 | `Ctrl+\\` | open Herdr project picker from a terminal |
 | `Ctrl+b`, then `q` | detach Herdr and return to the shell |
 | `Cmd+1..9` / `Super+1..9` | switch directly to Herdr workspace 1..9 |
+| `Ctrl+b`, then `Shift+G` | switch or create a Worktrunk worktree |
+| `Ctrl+b`, then `Shift+C` | create a Worktrunk worktree from the current branch |
+| `Ctrl+b`, then `Shift+R` | switch or create from remote branches |
+| `Ctrl+b`, then `Shift+D` | remove a Worktrunk worktree |
+| `Ctrl+b`, then `Shift+M` | merge a Worktrunk worktree |
 
 `project-picker` discovers first-level projects under the shared project roots
 with `fd`, and includes `~/.dotfiles` as an explicit project. It uses `fzf`

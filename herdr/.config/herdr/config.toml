@@ -15,6 +15,39 @@ description = "switch Herdr project"
 width = "80%"
 height = "70%"
 
+# Worktrunk owns Git worktree lifecycle; Herdr owns workspace presentation.
+# The plugin runs `wt` with structured output, then opens the checkout as a
+# native Herdr worktree workspace.
+[[keys.command]]
+key = "prefix+shift+g"
+type = "plugin_action"
+command = "worktrunk.open"
+description = "switch or create Worktrunk worktree"
+
+[[keys.command]]
+key = "prefix+shift+c"
+type = "plugin_action"
+command = "worktrunk.open-current"
+description = "create Worktrunk worktree from current branch"
+
+[[keys.command]]
+key = "prefix+shift+r"
+type = "plugin_action"
+command = "worktrunk.open-with-remotes"
+description = "switch or create Worktrunk worktree from remote branches"
+
+[[keys.command]]
+key = "prefix+shift+d"
+type = "plugin_action"
+command = "worktrunk.remove"
+description = "remove Worktrunk worktree"
+
+[[keys.command]]
+key = "prefix+shift+m"
+type = "plugin_action"
+command = "worktrunk.merge"
+description = "merge Worktrunk worktree"
+
 [ui]
 agent_panel_sort = "spaces"
 

@@ -1,33 +1,18 @@
 # ~/.config/worktrunk/config.toml
 # Managed via dotfiles — symlinked by stow
 
-worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize }}"
+# Preserve distinct Git refs even when sanitizing would collapse their names.
+worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize_hash }}"
 
 [commit.generation]
 # Worktrunk passes its rendered prompt on stdin. Use the mise-managed Pi CLI
 # instead of an unmanaged provider-specific executable.
 command = "pi --no-session --no-tools --no-extensions --no-skills --no-context-files --system-prompt='' --print"
 
-# Herdr owns workspace navigation; don't also cd the invoking shell.
+# Worktrunk owns shell directory changes. Herdr's Worktrunk plugin uses
+# --no-cd and registers the resulting checkout as a workspace explicitly.
 [switch]
-cd = false
-
-# Herdr integration — one workspace per worktree. Herdr requires worktree
-# actions to start from the primary workspace, so resolve it from that checkout.
-# `worktree open` then focuses an already-open path or opens the new worktree.
-herdr-worktree = """
-[ "${HERDR_ENV:-}" = 1 ] || exit 0
-command -v herdr >/dev/null 2>&1 || exit 0
-PARENT_WORKSPACE_ID="$(
-  herdr worktree list --cwd {{ primary_worktree_path }} |
-    jq -er '.result.source.source_workspace_id'
-)" || exit 1
-herdr worktree open \
-  --workspace "$PARENT_WORKSPACE_ID" \
-  --path {{ worktree_path }} \
-  --label {{ repo ~ '/' ~ (branch | sanitize) }} \
-  --focus
-"""
+cd = true
 
 # ----------------------------------------------------------------------------
 # Aliases
@@ -58,3 +43,6 @@ gh repo clone "$me/$repo" -- --origin origin && cd "$repo" && \
 git remote add upstream "git@github.com:$upstream_owner/$repo.git" && \
 git fetch upstream
 """
+
+[list]
+json-schema = 2

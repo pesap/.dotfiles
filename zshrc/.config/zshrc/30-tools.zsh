@@ -30,6 +30,13 @@ if (( $+commands[gh] )); then
     unset _gh_completion_available _gh_completion_dir
 fi
 
+# Worktrunk shell integration changes the parent shell directory after wt switch.
+# Keep it after compinit so its lazy completions can register, and source the
+# generated integration instead of letting wt edit this managed Zsh config.
+if command -v wt >/dev/null 2>&1; then
+    eval "$(wt config shell init zsh)"
+fi
+
 # Direnv
 command -v direnv >/dev/null && eval "$(direnv hook zsh)"
 

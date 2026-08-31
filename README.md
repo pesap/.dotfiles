@@ -142,7 +142,7 @@ Run `loom --help` or `loom COMMAND --help` for the current options.
 
 ## Further reading
 
-- [Project workflows](docs/project-workflows.md) — Herdr project picker and sessionizer.
+- [Project workflows](docs/project-workflows.md) — Herdr project picker, Worktrunk worktrees, and safe synchronization.
 - [Private configuration](docs/private-configuration.md) — private providers, identities, and secrets boundary.
 - [Keymaps](KEYMAPS.md) — Neovim, Herdr, Mango, Alacritty, and macOS shortcuts.
 - [Neovim configuration](nvim/.config/nvim/README.md) — structure, plugins, LSP, and key mappings.
