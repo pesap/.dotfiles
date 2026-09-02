@@ -15,7 +15,7 @@
 "~/.config/worktrunk" = { source = "../../worktrunk", mode = "symlink-each", manifest = "git" }
 "~/.config/zshrc" = { source = "../../zshrc/config", mode = "symlink-each", manifest = "git" }
 "~/.local/bin" = { source = "../../bin", mode = "symlink-each", manifest = "git" }
-"~/.pi" = { source = "../../pi/.pi", mode = "symlink-each", manifest = "git" }
+"~/.pi" = { source = "../../pi", mode = "symlink-each", manifest = "git" }
 "~/.bash_profile" = "../../bash/.bash_profile"
 "~/.bashrc" = "../../bash/.bashrc"
 "~/.config/starship.toml" = "../../starship/starship.toml"

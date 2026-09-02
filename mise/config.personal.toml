@@ -1,4 +1,7 @@
 # Optional private workstation configuration. Apply explicitly with -E personal.
 [dotfiles]
-"~/.gitconfig" = "../personal/.gitconfig"
-"~/.gitconfig-work" = "../personal/.gitconfig-work"
+"~/.gitconfig" = "../personal/gitconfig"
+"~/.gitconfig-work" = "../personal/gitconfig-work"
+"~/.local/bin/codex-litellm" = "../personal/codex-litellm"
+"~/.pi/agent/extensions/dgx-spark.ts" = "../personal/dgx-spark.ts"
+"~/.config/dotfiles/private.env" = { source = "../personal/private.env", mode = "copy" }

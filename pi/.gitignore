@@ -1,14 +1,14 @@
 # Auth secrets - never commit
-.pi/agent/auth.json
+agent/auth.json
 
 # Runtime state
-.pi/agent/run-history.jsonl
-.pi/agent/git/
-.pi/agent/npm/
-.pi/khala/memory/
-.pi/khala/runs/
-.pi/khala/rules/active.jsonl
-.pi/khala/rules/candidates.jsonl
-.pi/khala/rules/audit.jsonl
-.pi/khala/rules/session.jsonl
-.pi/khala/state.json
+agent/run-history.jsonl
+agent/git/
+agent/npm/
+khala/memory/
+khala/runs/
+khala/rules/active.jsonl
+khala/rules/candidates.jsonl
+khala/rules/audit.jsonl
+khala/rules/session.jsonl
+khala/state.json

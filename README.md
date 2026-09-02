@@ -18,11 +18,17 @@ dotfiles, and installs the shell configuration. It may use `sudo` to install
 declared system packages. Review the dry run first by replacing `--yes` with
 `--dry-run`.
 
-After the checkout exists, apply private configuration explicitly when needed:
+After the checkout exists, initialize and apply private configuration when
+needed:
 
 ```sh
-mise -E personal bootstrap --yes
+git submodule update --init personal && mise -E personal bootstrap --only dotfiles --yes
 ```
+
+Private files are kept in the flat `personal/` submodule and mapped to their
+home-directory locations by `mise/config.personal.toml`. See
+[Private configuration](docs/private-configuration.md) for the layout and
+secret-handling rules.
 
 The checked-in lockfile covers Linux x64, macOS Intel, and macOS Apple Silicon.
 It records platform-specific download URLs, checksums, and provenance. Refresh
@@ -45,28 +51,6 @@ The check succeeds when required dependencies and the selected mise environment 
 Mise activation is shell-specific: Bash loads `.bashrc` and Zsh loads `.zshrc`.
 The configuration does not assume Zsh, so Bash-only machines and containers use
 Bash activation normally.
-
-## Spark deployment
-
-Sparkrun is project-scoped because it deploys to a specific Spark environment. It
-is managed by that project's `mise.toml`, not by this workstation manifest. From
-the Spark deployment checkout:
-
-```sh
-mise install --locked
-```
-
-Check the configured cluster without starting a workload:
-
-```sh
-mise run spark-status
-```
-
-Deploy a validated recipe when you are ready to start a workload:
-
-```sh
-mise run spark-deploy -- recipes/example.yaml
-```
 
 ## Existing checkout
 
@@ -111,7 +95,15 @@ mise -E macos bootstrap --yes
 mise -E linux bootstrap --yes
 ```
 
-The common dotfiles are declared in [`mise.toml`](mise.toml). Linux, macOS, and private configuration are separate mise environments. Apply private configuration explicitly with `mise -E personal bootstrap --yes` when the private submodule is available.
+The common dotfiles are declared in [`mise.toml`](mise.toml). Linux, macOS,
+and private configuration are separate mise environments. Apply private
+configuration explicitly with:
+
+```sh
+mise -E personal bootstrap --only dotfiles --yes
+```
+
+The private submodule must be initialized first.
 
 ## Mise commands
 
