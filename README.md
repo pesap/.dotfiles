@@ -52,22 +52,22 @@ pruned.
 Run a full fresh-machine benchmark from the repository checkout:
 
 ```sh
-mise run dotfiles:test:fresh
+./scripts/test-podman.sh --scenario fresh --distro ubuntu --with-tools
 ```
 
 Benchmark setup over pre-existing shell and Alacritty files:
 
 ```sh
-mise run dotfiles:test:existing
+./scripts/test-podman.sh --scenario existing --distro ubuntu --with-tools
 ```
 
 Run the same full benchmark across Ubuntu, Debian, Fedora, Arch, and openSUSE:
 
 ```sh
-mise run dotfiles:test:matrix
+./scripts/test-podman.sh --matrix --with-tools
 ```
 
-The tasks include locked mise tool installation and use the current checkout.
+The full runs include locked mise tool installation and use the current checkout.
 For a faster configuration-only run, omit `--with-tools` when invoking the
 script directly:
 
@@ -136,10 +136,10 @@ Install or update the locked tools:
 ./bin/.local/bin/loom tools install
 ```
 
-Run the repository checks through the global mise task:
+Run the repository checks:
 
 ```sh
-mise run dotfiles:check
+./scripts/validate.sh
 ```
 
 Check both the machine and repository:

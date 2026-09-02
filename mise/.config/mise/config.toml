@@ -21,17 +21,13 @@ yazi = "26.5.6"
 neovim = "0.12.4"
 uv = "0.12.3"
 julia = "1.12.7"
-"pipx:hermes-agent" = "0.19.0"
 prek = "0.4.13"
 shellcheck = "0.11.0"
 shfmt = "3.14.0"
 gh = "2.97.0"
 node = "26.7.0"
 npm = "11.19.0"
-"npm:@earendil-works/pi-coding-agent" = "0.84.1"
-"npm:bash-language-server" = "5.6.0"
-"npm:pyright" = "1.1.413"
-prettier = "3.9.6"
+pi = "0.84.1"
 ruff = "0.16.5"
 "github:vicinaehq/vicinae" = { version = "0.25.0", asset_pattern = "vicinae-linux-x86_64-v{version}.tar.gz", os = ["linux"] }
 "cargo:stylua" = "2.5.2"
@@ -40,19 +36,3 @@ just = "1.58.0"
 rust = "1.97.1"
 "rust-analyzer" = "2026-08-24"
 ollama = "0.32.14"
-
-[tasks."dotfiles:check"]
-description = "Run the dotfiles repository validation suite."
-run = "bash \"$HOME/.dotfiles/scripts/validate.sh\""
-
-[tasks."dotfiles:test:fresh"]
-description = "Benchmark a full install in a disposable Ubuntu container."
-run = "bash \"$HOME/.dotfiles/scripts/test-podman.sh\" --scenario fresh --with-tools"
-
-[tasks."dotfiles:test:existing"]
-description = "Benchmark adoption over existing files in a disposable Ubuntu container."
-run = "bash \"$HOME/.dotfiles/scripts/test-podman.sh\" --scenario existing --with-tools"
-
-[tasks."dotfiles:test:matrix"]
-description = "Benchmark full installs across the supported Linux distro matrix."
-run = "bash \"$HOME/.dotfiles/scripts/test-podman.sh\" --matrix --with-tools"

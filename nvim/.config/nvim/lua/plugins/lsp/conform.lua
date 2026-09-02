@@ -4,9 +4,6 @@ return {
 	tag = "stable",
 	opts = {
 		formatters_by_ft = {
-			json = { "prettier" },
-			yaml = { "prettier" },
-			markdown = { "prettier" },
 			lua = { "stylua" },
 			python = { "ruff_organize_imports", "ruff_fix", "ruff_format" },
 			sh = { "shfmt" },

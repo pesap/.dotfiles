@@ -9,8 +9,8 @@ export MISE_TASK_RUN_AUTO_INSTALL=0
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 validation_temp_dir=''
-export MISE_CONFIG_FILE="$repo_root/mise/.config/mise/config.toml"
-export MISE_TRUSTED_CONFIG_PATHS="$repo_root/mise/.config/mise${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
+export MISE_CONFIG_FILE="$repo_root/mise.toml"
+export MISE_TRUSTED_CONFIG_PATHS="$repo_root${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
 
 log() {
     printf 'validate: %s\n' "$*"

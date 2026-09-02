@@ -120,9 +120,8 @@ run_healthcheck() {
         check_required "$tool"
     done
     check_bootstrap_tool pi
-    for tool in nvim rg cargo zsh fzf zoxide atuin uv wt prettier ruff \
-        pyright-langserver bash-language-server lua-language-server rust-analyzer \
-        shellcheck shfmt gitleaks jq julia; do
+    for tool in nvim rg cargo zsh fzf zoxide atuin uv wt ruff \
+        lua-language-server rust-analyzer shellcheck shfmt gitleaks jq julia; do
         check_optional "$tool"
     done
 

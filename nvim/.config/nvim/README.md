@@ -84,9 +84,8 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 Install the configured servers with `loom tools install`. They are enabled via
 `vim.lsp.enable()`:
 - Lua (lua-language-server)
-- Python (pyright + ruff)
+- Python (ruff)
 - Julia (LanguageServer.jl)
-- Bash (bash-language-server)
 - Rust (rust-analyzer)
 
 ## Formatters (conform.nvim)
@@ -95,7 +94,6 @@ Install the configured servers with `loom tools install`. They are enabled via
 |----------|-----------|
 | Python | ruff_organize_imports → ruff_fix → ruff_format |
 | Lua | stylua |
-| JSON/YAML/Markdown | prettier |
 | Shell | shfmt |
 
 Auto-format on save is enabled.

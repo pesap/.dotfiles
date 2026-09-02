@@ -397,10 +397,10 @@ verify_bash_tool_path() {
     local test_home='/home/dotfiles-test'
     local check_script=''
     local -a tools=(
-        atuin bat bash-language-server cargo codex fd fzf gitleaks gh hermes
-        hermes-acp hermes-agent herdr jq julia just lsd lua-language-server navi
-        node npm nvim ollama pi prek prettier pyright pyright-langserver rg ruff
-        rust-analyzer rustc rustup shellcheck shfmt starship stylua uv vicinae wt
+        atuin bat cargo codex fd fzf gitleaks gh hermes hermes-acp hermes-agent
+        herdr jq julia just lsd lua-language-server navi node npm nvim ollama pi
+        prek rg ruff rust-analyzer rustc rustup shellcheck shfmt starship stylua
+        uv vicinae wt
         yazi zoxide
     )
 
