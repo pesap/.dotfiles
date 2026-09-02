@@ -45,11 +45,9 @@ if command -v wt >/dev/null 2>&1; then
         unfunction wt
         wt() {
             if [[ "${HERDR_ENV:-}" != 1 && "${1:-}" == switch ]]; then
-                local previous_pwd="$PWD"
                 _wt_worktrunk_shell "$@"
                 local status=$?
                 (( status == 0 )) || return "$status"
-                [[ "$PWD" != "$previous_pwd" ]] || return 0
                 herdr-project "$PWD"
                 return $?
             fi
