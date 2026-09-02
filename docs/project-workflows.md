@@ -38,10 +38,13 @@ part of this configuration.
 ## Worktrunk and Herdr
 
 Worktrunk owns Git worktree creation, paths, hooks, merges, and cleanup. Herdr
-owns workspace presentation and focus. The Worktrunk plugin runs `wt` with
-structured output, then registers the resulting checkout as a native Herdr
-worktree workspace. The project picker above remains separate from worktree
-selection.
+owns workspace presentation and focus. From a normal Zsh terminal, the managed
+`wt` wrapper keeps Worktrunk's interactive switch and directory-change flow,
+then opens the resulting directory through `herdr-project`. From inside a
+Herdr-managed pane, the wrapper delegates unchanged; the installed Worktrunk
+plugin runs `wt` with `--no-cd` and registers the resulting checkout as a
+native Herdr worktree workspace. The project picker above remains separate
+from worktree selection.
 
 Install the reviewed plugin revision after installing the locked tools:
 
@@ -58,9 +61,10 @@ herdr server reload-config
 Inside Herdr, use the Worktrunk actions bound in `herdr/.config/herdr/config.toml`:
 `prefix+shift+g` opens the default-branch picker, `prefix+shift+c` creates from
 the current branch, `prefix+shift+r` includes remote branches, `prefix+shift+d`
-removes a worktree, and `prefix+shift+m` merges one. Worktrunk's Zsh shell
-integration owns directory changes for plain `wt switch`; the plugin passes
-`--no-cd` and lets Herdr focus the workspace instead.
+removes a worktree, and `prefix+shift+m` merges one. Worktrunk's Zsh shell integration owns directory changes for plain `wt switch`,
+and the managed wrapper then hands the selected checkout to Herdr. Inside
+Herdr, the plugin passes `--no-cd` and lets Herdr focus and register the
+workspace instead.
 
 ## Safe worktree synchronization
 
