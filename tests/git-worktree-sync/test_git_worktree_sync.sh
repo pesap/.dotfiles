@@ -16,7 +16,7 @@ cleanup() {
         local resolved=''
         resolved="$(realpath "$test_dir")"
         case "$resolved" in
-        /var/tmp/dotfiles-test.git-worktree-sync.*|/private/var/tmp/dotfiles-test.git-worktree-sync.*) rm -rf -- "$resolved" ;;
+        /var/tmp/dotfiles-test.git-worktree-sync.* | /private/var/tmp/dotfiles-test.git-worktree-sync.*) rm -rf -- "$resolved" ;;
         *)
             printf 'refusing to clean unexpected path: %s\n' "$resolved" >&2
             status=1

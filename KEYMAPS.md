@@ -18,16 +18,16 @@ Last updated: 2026-07-26 · Leader: `<Space>` in Neovim
 ## Neovim
 
 Sources:
-- `nvim/.config/nvim/lua/keymaps.lua`
-- `nvim/.config/nvim/lua/plugins/fff.lua`
-- `nvim/.config/nvim/lua/plugins/fzflua.lua`
-- `nvim/.config/nvim/lua/plugins/harpoon.lua`
-- `nvim/.config/nvim/lua/plugins/mole.lua`
-- `nvim/.config/nvim/lua/plugins/tpope.lua`
-- `nvim/.config/nvim/lua/plugins/gitsigns.lua`
-- `nvim/.config/nvim/lua/plugins/vim-maximizer.lua`
-- `nvim/.config/nvim/lua/plugins/colorscheme.lua`
-- `nvim/.config/nvim/after/plugin/reviewer.lua`
+- `nvim/lua/keymaps.lua`
+- `nvim/lua/plugins/fff.lua`
+- `nvim/lua/plugins/fzflua.lua`
+- `nvim/lua/plugins/harpoon.lua`
+- `nvim/lua/plugins/mole.lua`
+- `nvim/lua/plugins/tpope.lua`
+- `nvim/lua/plugins/gitsigns.lua`
+- `nvim/lua/plugins/vim-maximizer.lua`
+- `nvim/lua/plugins/colorscheme.lua`
+- `nvim/after/plugin/reviewer.lua`
 
 Leader is `<Space>`.
 
@@ -148,10 +148,10 @@ Leader is `<Space>`.
 ## Herdr
 
 Sources:
-- `herdr/.config/herdr/config.toml`
-- `bin/.local/bin/herdr-project`
-- `zshrc/.config/zshrc/50-functions.zsh`
-- `alacritty/.config/alacritty/alacritty.toml`
+- `herdr/config.toml`
+- `bin/herdr-project`
+- `zshrc/config/50-functions.zsh`
+- `alacritty/alacritty.toml`
 
 | Key | Action |
 |---|---|
@@ -182,7 +182,7 @@ it prompts unless passed `--force`.
 ## Alacritty
 
 Source:
-- `alacritty/.config/alacritty/alacritty.toml`
+- `alacritty/alacritty.toml`
 
 Other Alacritty workflow settings:
 - `live_config_reload = true`
@@ -194,7 +194,7 @@ Other Alacritty workflow settings:
 ## skhd (macOS)
 
 Source:
-- `skhd/.config/skhd/skhdrc`
+- `skhd/skhdrc`
 
 Configured hotkeys include:
 - App/space switching: `alt-1/2/3/9/0` and `` alt-` `` (Ghostty)
@@ -207,7 +207,7 @@ Configured hotkeys include:
 ## Mango WM (Linux)
 
 Source:
-- `mango/.config/mango/config-bindings.conf`
+- `mango/config-bindings.conf`
 
 This file contains the full Linux keymap set (window focus/move/resize/layout/tags/screenshots/mouse/gestures), using ALT number bindings for workspace navigation.
 
@@ -227,17 +227,17 @@ prints the relevant source file or matching lines; none changes files.
 Neovim keymaps:
 
 ```bash
-grep -R "vim.keymap.set" nvim/.config/nvim -n
+grep -R "vim.keymap.set" nvim -n
 ```
 
 macOS `skhd` bindings:
 
 ```bash
-cat skhd/.config/skhd/skhdrc
+cat skhd/skhdrc
 ```
 
 Mango bindings:
 
 ```bash
-cat mango/.config/mango/config-bindings.conf
+cat mango/config-bindings.conf
 ```

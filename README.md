@@ -1,27 +1,27 @@
 # .dotfiles
 
-Personal macOS and Linux workstation configuration managed with [GNU Stow](https://www.gnu.org/software/stow/) and [mise](https://mise.jdx.dev/). Stow links configuration from this repository into `$HOME`; mise installs the pinned command-line tools.
+Personal macOS and Linux workstation configuration managed with [mise](https://mise.jdx.dev/). Mise applies configuration files and installs the pinned command-line tools.
 
-`loom` is the command-line interface for installing, applying, checking, and maintaining the configuration. `mise` is the tool registry; shell integrations, Neovim tooling, CI checks, and Worktrunk use its managed binaries.
+`mise` is the registry and provisioning interface; shell integrations, Neovim tooling, CI checks, and Worktrunk use its managed binaries.
 
-## Quick start
+## New machine setup
 
-Use this on a new macOS or Linux machine. The bootstrap script downloads the current `main` branch, installs missing foundational tools, installs mise when needed, applies the `common` profile, and installs `loom` in `~/.local/bin`.
-
-Review [`bootstrap.sh`](bootstrap.sh) before running the streamed installer:
+Install mise and bootstrap the repository in one command. Mise detects the
+operating system automatically and applies the matching configuration:
 
 ```console
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://raw.githubusercontent.com/pesap/.dotfiles/main/bootstrap.sh \
-  | sh -s -- --profile common
+curl --proto '=https' --tlsv1.2 -LsSf https://mise.run | sh && MISE_AUTO_ENV=1 "$HOME/.local/bin/mise" bootstrap --from https://github.com/pesap/.dotfiles.git --from-dir "$HOME/.dotfiles" --yes
 ```
 
-The command changes your home directory and may prompt before replacing existing files. Replaced files are backed up under `~/.stow-backup/<timestamp>/`. It may use `sudo` to install missing system prerequisites; it does not need `sudo` when those prerequisites are already installed.
+Mise installs the configured tools, applies common and platform-specific
+dotfiles, and installs the shell configuration. It may use `sudo` to install
+declared system packages. Review the dry run first by replacing `--yes` with
+`--dry-run`.
 
-Install the locked versions from the mise manifest:
+After the checkout exists, apply private configuration explicitly when needed:
 
 ```sh
-"$HOME/.local/bin/loom" tools install
+mise -E personal bootstrap --yes
 ```
 
 The checked-in lockfile covers Linux x64, macOS Intel, and macOS Apple Silicon.
@@ -37,62 +37,14 @@ This downloads the configured tools, including Pi, and can take several minutes.
 Check the installed machine:
 
 ```sh
-"$HOME/.local/bin/loom" check --machine
+mise bootstrap status
 ```
 
-The check succeeds when required dependencies and the selected profile are available. Optional tools may still be reported as missing. Use the absolute path until a new Bash or Zsh shell loads the configuration that adds `~/.local/bin` and mise-managed tools to `PATH`.
+The check succeeds when required dependencies and the selected mise environment are available. Use the absolute path until a new Bash or Zsh shell loads the configuration that adds `~/.local/bin` and mise-managed tools to `PATH`.
 
-## Disposable Linux installation tests
-
-Podman is used as a disposable test harness, not as a mise-managed workstation
-runtime. Each run creates a new container with an isolated home directory and
-removes that container on exit. Existing Podman containers are not stopped or
-pruned.
-
-Run a full fresh-machine benchmark from the repository checkout:
-
-```sh
-./scripts/test-podman.sh --scenario fresh --distro ubuntu --with-tools
-```
-
-Benchmark setup over pre-existing shell and Alacritty files:
-
-```sh
-./scripts/test-podman.sh --scenario existing --distro ubuntu --with-tools
-```
-
-Run the same full benchmark across Ubuntu, Debian, Fedora, Arch, and openSUSE:
-
-```sh
-./scripts/test-podman.sh --matrix --with-tools
-```
-
-The full runs include locked mise tool installation and use the current checkout.
-For a faster configuration-only run, omit `--with-tools` when invoking the
-script directly:
-
-```sh
-./scripts/test-podman.sh --scenario fresh --distro ubuntu
-```
-
-To exercise the public bootstrap URL instead of the current checkout, select
-release mode:
-
-```sh
-./scripts/test-podman.sh --source release --scenario fresh --distro ubuntu
-```
-
-The full tool run also starts a clean interactive Bash with no profile files,
-loads the installed `.bashrc`, and verifies every expected mise-managed command
-resolves through `PATH`. It therefore tests Bash-only machines without relying
-on Zsh. The benchmark reports prerequisite, bootstrap or setup, mise,
-repository-check, and reapply durations. When NetworkManager is available, the harness passes its
-active non-Tailscale DNS servers to the container so parallel downloads do not
-funnel through a Tailscale DNS forwarder. Override that selection with a
-comma-separated list such as `DOTFILES_TEST_DNS=1.1.1.1,8.8.8.8`. Without
-NetworkManager, Podman selects the DNS configuration normally. Container images
-can be overridden with `DOTFILES_TEST_<DISTRO>_IMAGE`; use immutable image
-digests for reproducible CI runs.
+Mise activation is shell-specific: Bash loads `.bashrc` and Zsh loads `.zshrc`.
+The configuration does not assume Zsh, so Bash-only machines and containers use
+Bash activation normally.
 
 ## Spark deployment
 
@@ -121,85 +73,74 @@ mise run spark-deploy -- recipes/example.yaml
 Run these commands from the repository root. Preview changes before applying them:
 
 ```sh
-./bin/.local/bin/loom setup --local --dry-run --profile common
+mise -C . bootstrap --dry-run
 ```
 
-The preview does not change your home directory. Apply the profile after reviewing it:
+The preview does not change your home directory. Apply the configuration after reviewing it:
 
 ```sh
-./bin/.local/bin/loom setup --local --profile common
+mise -C . bootstrap --yes
 ```
 
-Install or update the locked tools:
+Install or update the locked tools only:
 
 ```sh
-./bin/.local/bin/loom tools install
+mise -C . install --locked
 ```
 
-Run the repository checks:
+Check the complete bootstrap state:
 
 ```sh
-./scripts/validate.sh
+mise -C . bootstrap status
 ```
 
-Check both the machine and repository:
+Hook executables are installed by mise:
 
 ```sh
-./bin/.local/bin/loom check
+mise -C . run hooks
 ```
 
-Use `loom check --machine` for only the installed-machine check or `loom check --repo` for repository validation. Run the formatting and secret checks separately when needed. Hook executables
-are installed by mise:
+## Platform environments
+
+The common registry is in [`mise.toml`](mise.toml); its native fragments live in
+[`mise/conf.d/`](mise/conf.d/). Use the explicit platform environment when
+applying from the global mise configuration:
 
 ```sh
-./bin/.local/bin/loom tools install && prek run --all-files
+mise -E macos bootstrap --yes
+mise -E linux bootstrap --yes
 ```
 
-## Profiles
+The common dotfiles are declared in [`mise.toml`](mise.toml). Linux, macOS, and private configuration are separate mise environments. Apply private configuration explicitly with `mise -E personal bootstrap --yes` when the private submodule is available.
 
-Profiles are defined in [`packages.conf`](packages.conf):
+## Mise commands
 
-| Profile | Includes |
-| --- | --- |
-| `common` | Shell, terminal, editor, tools, Pi, helper scripts, and private personal configuration when the submodule is available. |
-| `linux-desktop` | `common` plus Linux settings, Mango, and Waybar. |
-| `macos` | `common` plus SketchyBar, skhd, and yabai. |
-
-The desktop profiles are available only on their matching operating system. The optional `personal` package is skipped when it is not present.
-
-## Loom commands
-
-Run `loom --help` or `loom COMMAND --help` for the current options.
+Run `mise help bootstrap` or `mise COMMAND --help` for current options.
 
 | Command | Purpose |
 | --- | --- |
-| `loom setup` | Install or update a profile from a release or an existing checkout. Use `--local` for the current checkout and `--dry-run` to preview it. |
-| `loom apply` | Apply packages from an existing checkout. It always runs a Stow preflight and accepts only packages declared in `packages.conf`. |
-| `loom check` | Check the installed machine, the repository, or both. |
-| `loom desktop` | Apply desktop-window-manager configuration with smoke checks and rollback. It requires a clean Git worktree. |
-| `loom tools install` | Install the locked tool versions from the mise manifest. |
-| `loom tools outdated` | Report available tool updates without installing them. |
-| `loom profiles` | List supported profiles. |
-| `loom version` | Show the checkout version. |
+| `mise bootstrap` | Provision packages, tools, and dotfiles. |
+| `mise bootstrap dotfiles status` | Show dotfile ownership and drift. |
+| `mise bootstrap status` | Show complete machine bootstrap state. |
+| `mise install --locked` | Install the pinned tool registry. |
+| `mise run hooks` | Run all repository hooks. |
+| `mise doctor` | Diagnose the mise installation. |
 
 ## Safety and limits
 
-- Read the `--dry-run` output before applying a profile.
-- Setup backs up replaced files under `~/.stow-backup/<timestamp>/`.
-- `loom apply` refuses `--adopt`; existing files are not copied into the repository.
+- Read the `mise bootstrap --dry-run` output before applying configuration.
+- Mise refuses to replace dotfile conflicts unless explicitly forced.
 - Runtime state under `~/.rustup`, `~/.cargo`, and `~/.local/share/mise` is not tracked.
 - Public defaults and private provider configuration are separated; see [Private configuration](docs/private-configuration.md).
-- `loom desktop` requires a clean worktree. It runs smoke checks and rolls back when the checks fail or the confirmation gate expires.
-- The streamed installer follows `main`. For a reproducible tagged install, set both `INSTALLER_VERSION` and `INSTALLER_SHA256`; see [`bootstrap.sh`](bootstrap.sh).
+- `mise run desktop:apply` requires a clean worktree. It runs smoke checks and rolls back when the checks fail or the confirmation gate expires.
 
 ## Further reading
 
 - [Project workflows](docs/project-workflows.md) — Herdr project picker, Worktrunk worktrees, and safe synchronization.
 - [Private configuration](docs/private-configuration.md) — private providers, identities, and secrets boundary.
 - [Keymaps](KEYMAPS.md) — Neovim, Herdr, Mango, Alacritty, and macOS shortcuts.
-- [Neovim configuration](nvim/.config/nvim/README.md) — structure, plugins, LSP, and key mappings.
-- [`packages.conf`](packages.conf) — profile package allowlist.
-- [`loom`](bin/.local/bin/loom) — command implementation and help text.
+- [Neovim configuration](nvim/README.md) — structure, plugins, LSP, and key mappings.
+
 
 ## License
 

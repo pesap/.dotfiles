@@ -1,0 +1,9 @@
+# macOS workstation dotfiles and platform-specific resources.
+[vars]
+platform = "macos"
+
+[dotfiles]
+"~/.aliases.os" = "../aliases/macos"
+"~/.config/sketchybar" = { source = "../sketchybar", mode = "symlink-each", manifest = "git" }
+"~/.config/skhd" = { source = "../skhd", mode = "symlink-each", manifest = "git" }
+"~/.config/yabai" = { source = "../yabai", mode = "symlink-each", manifest = "git" }

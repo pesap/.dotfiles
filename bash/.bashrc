@@ -15,5 +15,6 @@ for config_file in "$HOME"/.config/bashrc/[0-9]*.sh; do
     source "$config_file"
 done
 
+# Interactive-only local overrides stay outside the repository and load last.
 # shellcheck source=/dev/null
 [[ -r "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"

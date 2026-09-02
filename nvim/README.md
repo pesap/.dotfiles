@@ -81,7 +81,7 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 
 ## LSP Servers
 
-Install the configured servers with `loom tools install`. They are enabled via
+Install the configured servers with `mise install --locked`. They are enabled via
 `vim.lsp.enable()`:
 - Lua (lua-language-server)
 - Python (ruff)

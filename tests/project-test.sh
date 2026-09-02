@@ -55,29 +55,29 @@ chmod +x "$test_dir/fake-bin/fd" "$test_dir/fake-bin/fzf" "$test_dir/fake-bin/he
 paths=$(HOME="$test_dir/home" PATH="$test_dir/fake-bin:$PATH" \
     PROJECT_ROOTS="$test_dir/home/dev:$test_dir/home/work" \
     PROJECT_PATHS="$test_dir/home/.dotfiles" \
-    "$repo_root/bin/.local/bin/project-dirs")
+    "$repo_root/bin/project-dirs")
 
 [[ "$(printf '%s\n' "$paths" | grep -c '^')" == 3 ]]
 grep -Fxq "$test_dir/home/.dotfiles" <<<"$paths"
 grep -Fxq "$test_dir/home/dev/alpha" <<<"$paths"
 grep -Fxq "$test_dir/home/work/beta" <<<"$paths"
 
-selected=$(HOME="$test_dir/home" "$repo_root/bin/.local/bin/project-picker" "$test_dir/home/.dotfiles")
+selected=$(HOME="$test_dir/home" "$repo_root/bin/project-picker" "$test_dir/home/.dotfiles")
 [[ "$selected" == "$test_dir/home/.dotfiles" ]]
 
-name=$("$repo_root/bin/.local/bin/project-name" "$test_dir/home/.dotfiles")
+name=$("$repo_root/bin/project-name" "$test_dir/home/.dotfiles")
 [[ "$name" == dotfiles ]]
 
 selected=$(HOME="$test_dir/home" PATH="$test_dir/fake-bin:$PATH" \
     PROJECT_ROOTS="$test_dir/home/dev:$test_dir/home/work" \
     PROJECT_PATHS="$test_dir/home/.dotfiles" \
-    "$repo_root/bin/.local/bin/project-picker")
+    "$repo_root/bin/project-picker")
 [[ "$selected" == "$test_dir/home/.dotfiles" ]]
 
 env -u HERDR_ENV HOME="$test_dir/home" XDG_RUNTIME_DIR="$test_dir/home/runtime" \
     PATH="$test_dir/fake-bin:$PATH" HERDR_TEST_RESULT="$test_dir/herdr-result" \
-    HERDR_PROJECT_NAME="$repo_root/bin/.local/bin/project-name" \
-    "$repo_root/bin/.local/bin/herdr-project" "$test_dir/home/.dotfiles"
+    HERDR_PROJECT_NAME="$repo_root/bin/project-name" \
+    "$repo_root/bin/herdr-project" "$test_dir/home/.dotfiles"
 [[ "$(<"$test_dir/herdr-result")" == '--session dotfiles' ]]
 
 printf 'project tests: ok\n'

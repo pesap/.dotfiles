@@ -1,0 +1,7 @@
+# Native mise bootstrap packages required by selected workstation tools.
+[bootstrap.packages]
+"apt:build-essential" = "latest"
+"apt:libatomic1" = "latest"
+"dnf:gcc" = "latest"
+"dnf:libatomic" = "latest"
+"pacman:base-devel" = "latest"

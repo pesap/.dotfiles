@@ -55,7 +55,7 @@ Reload Herdr after changing its configuration:
 herdr server reload-config
 ```
 
-Inside Herdr, use the Worktrunk actions bound in `herdr/.config/herdr/config.toml`:
+Inside Herdr, use the Worktrunk actions bound in `herdr/config.toml`:
 `prefix+shift+g` opens the default-branch picker, `prefix+shift+c` creates from
 the current branch, `prefix+shift+r` includes remote branches, `prefix+shift+d`
 removes a worktree, and `prefix+shift+m` merges one. Worktrunk's Zsh shell

@@ -9,7 +9,7 @@ the private `personal` submodule.
 From an existing checkout with access to the private repository:
 
 ```sh
-git submodule update --init personal && ./bin/.local/bin/loom setup --local --profile common
+git submodule update --init personal && mise -E personal bootstrap --yes
 ```
 
 The private package currently supplies:

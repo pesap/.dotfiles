@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
-script="$repo_root/bin/.local/bin/git-checkouts"
+script="$repo_root/bin/git-checkouts"
 test_dir=''
 
 fail() {

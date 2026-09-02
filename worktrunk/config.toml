@@ -1,5 +1,5 @@
 # ~/.config/worktrunk/config.toml
-# Managed via dotfiles — symlinked by stow
+# Managed via mise dotfiles
 
 # Preserve distinct Git refs even when sanitizing would collapse their names.
 worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize_hash }}"

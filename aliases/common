@@ -1,0 +1,22 @@
+# Shared aliases for Bash and Zsh.
+alias h='cd ~'
+alias c='cd ~/dev'
+alias w='cd ~/work'
+alias dotfiles='cd ~/.dotfiles/'
+alias n='cd ~/notes'
+alias vim='nvim'
+alias v='nvim'
+alias s='cd ~/sandbox/'
+alias nconf='cd ~/.config/nvim/; nvim .'
+alias cronjobs='cd ~/cronjobs/'
+alias rsyncgit="rsync -avzh --filter=':- .gitignore'"
+alias ll='ls -la'
+alias rsync='rsync -avz --progress -h'
+alias zshrc='vim ~/.zshrc'
+alias vp='source ./.venv/bin/activate && nvim .'
+alias tmp='d="/tmp/daily-$(date +%F)"; mkdir -p "$d"; cd "$d"'
+
+unalias gcf 2>/dev/null || true
+gcf() {
+    git commit --fixup="$(git rev-parse --short HEAD)"
+}

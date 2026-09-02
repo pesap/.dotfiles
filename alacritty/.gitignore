@@ -1,2 +1,2 @@
 # Per-host override file; copy local.macos.toml or local.linux.toml into place.
-.config/alacritty/local.toml
+local.toml

@@ -16,14 +16,14 @@ repos:
         language: system
         args: [-x]
         # ShellCheck does not parse Zsh; maintained entry points remain gated.
-        files: ^(bootstrap\.sh|install\.sh|scripts/|tests/|bin/\.local/bin/(loom|git-checkouts)$)
+        files: ^(scripts/|tests/|bin/\.local/bin/git-checkouts$)
       - id: shfmt
         name: shfmt (mise)
         entry: shfmt
         language: system
         args: [-d, -i, '4']
         # Advanced Zsh is checked with zsh -n because shfmt cannot parse it.
-        files: ^(bootstrap\.sh|install\.sh|scripts/|tests/|bin/\.local/bin/(loom|git-checkouts)$)
+        files: ^(scripts/|tests/|bin/\.local/bin/git-checkouts$)
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:

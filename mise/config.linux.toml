@@ -1,0 +1,13 @@
+# Linux workstation dotfiles and platform-specific resources.
+[vars]
+platform = "linux"
+
+[dotfiles]
+"~/.aliases.os" = "../aliases/linux"
+"~/.Xresources" = "../linux/.Xresources"
+"~/.gtkrc-2.0" = "../linux/.gtkrc-2.0"
+"~/.config/chromium-flags.conf" = "../linux/.config/chromium-flags.conf"
+"~/.config/edge-flags.conf" = "../linux/.config/edge-flags.conf"
+"~/.config/fontconfig" = { source = "../linux/.config/fontconfig", mode = "symlink-each", manifest = "git" }
+"~/.config/mango" = { source = "../mango", mode = "symlink-each", manifest = "git" }
+"~/.config/waybar" = { source = "../waybar", mode = "symlink-each", manifest = "git" }

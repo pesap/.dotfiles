@@ -1,8 +1,8 @@
 # Canonical workstation configuration managed by mise.
 # Run `mise -C ~/.dotfiles bootstrap dotfiles apply` from this checkout after
 # reviewing the dry run. Platform-specific and optional personal files belong
-# in mise.linux.toml, mise.macos.toml, and mise.personal.toml.
-min_version = "2026.7.14"
+# in the matching config.linux.toml and config.macos.toml environments.
+min_version = "2026.8.15"
 
 [tools]
 starship = "1.26.0"
@@ -44,29 +44,8 @@ ollama = "0.32.14"
 [settings]
 dotfiles.root = "~/.dotfiles"
 dotfiles.default_mode = "symlink"
+lockfile = true
+lockfile_platforms = ["linux-x64", "macos-arm64", "macos-x64"]
 
-[dotfiles]
-# Directory entries use individual links so mise preserves unrelated runtime
-# files already present in these directories. The Git manifest excludes local
-# and untracked files from ownership.
-"~/.config/alacritty" = { source = "~/.dotfiles/alacritty/.config/alacritty", mode = "symlink-each", manifest = "git" }
-"~/.config/atuin" = { source = "~/.dotfiles/atuin/.config/atuin", mode = "symlink-each", manifest = "git" }
-"~/.config/bashrc" = { source = "~/.dotfiles/bash/.config/bashrc", mode = "symlink-each", manifest = "git" }
-"~/.config/herdr" = { source = "~/.dotfiles/herdr/.config/herdr", mode = "symlink-each", manifest = "git" }
-"~/.config/mise/config.toml" = "~/.dotfiles/mise.toml"
-"~/.config/mise/mise.lock" = "~/.dotfiles/mise.lock"
-"~/.config/nvim" = { source = "~/.dotfiles/nvim/.config/nvim", mode = "symlink-each", manifest = "git" }
-"~/.config/worktrunk" = { source = "~/.dotfiles/worktrunk/.config/worktrunk", mode = "symlink-each", manifest = "git" }
-"~/.config/zshrc" = { source = "~/.dotfiles/zshrc/.config/zshrc", mode = "symlink-each", manifest = "git" }
-"~/.local/bin" = { source = "~/.dotfiles/bin/.local/bin", mode = "symlink-each", manifest = "git" }
-"~/.pi" = { source = "~/.dotfiles/pi/.pi", mode = "symlink-each", manifest = "git" }
-
-# Whole-file entries are appropriate for standalone files.
-"~/.bash_profile" = "~/.dotfiles/bash/.bash_profile"
-"~/.bashrc" = "~/.dotfiles/bash/.bashrc"
-"~/.config/starship.toml" = "~/.dotfiles/starship/.config/starship.toml"
-"~/.hermes/config.yaml" = "~/.dotfiles/hermes/.hermes/config.yaml"
-"~/.zprofile" = "~/.dotfiles/zshrc/.zprofile"
-"~/.zsh_plugins.txt" = "~/.dotfiles/zshrc/.zsh_plugins.txt"
-"~/.zshenv" = "~/.dotfiles/zshrc/.zshenv"
-"~/.zshrc" = "~/.dotfiles/zshrc/.zshrc"
+[tool_config]
+locked = true

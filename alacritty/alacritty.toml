@@ -1,7 +1,7 @@
 # Base Alacritty config (shared between macOS and Arch).
 # Per-host overrides live in ~/.config/alacritty/local.toml — copy one of:
-#   alacritty/.config/alacritty/local.macos.toml
-#   alacritty/.config/alacritty/local.linux.toml
+#   alacritty/local.macos.toml
+#   alacritty/local.linux.toml
 # Missing imports are silently skipped, so an absent local.toml is fine.
 
 [general]

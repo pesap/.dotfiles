@@ -1,0 +1,4 @@
+# macOS-only aliases.
+alias brewup='brew update; brew upgrade; brew prune; brew cleanup; brew doctor'
+alias rsync-reeds='rsync -vmPh --include="*/" --include="*/meta.csv" --include="*/outputs/*" --include="*/inputs_case/*" --exclude="*" --exclude="*/**/*"'
+alias rsync-plexos='rsync --include="/*/" --include="**/solutions/***" --exclude="*"'

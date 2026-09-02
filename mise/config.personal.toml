@@ -1,0 +1,4 @@
+# Optional private workstation configuration. Apply explicitly with -E personal.
+[dotfiles]
+"~/.gitconfig" = "../personal/.gitconfig"
+"~/.gitconfig-work" = "../personal/.gitconfig-work"

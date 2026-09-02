@@ -5,13 +5,13 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # Keep mise shims pointed at the validation environment when individual
 # widget checks override HOME with their own disposable fixture.
 export MISE_DATA_DIR="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
-mango_script="$repo_root/bin/.local/bin/waybar-mango"
-memory_script="$repo_root/bin/.local/bin/waybar-memory"
-disk_script="$repo_root/bin/.local/bin/waybar-disk"
-gpu_script="$repo_root/bin/.local/bin/waybar-gpu"
-temperature_script="$repo_root/bin/.local/bin/waybar-temperature"
-waybar_config="$repo_root/waybar/.config/waybar/config.jsonc"
-autostart_script="$repo_root/mango/.config/mango/autostart.sh"
+mango_script="$repo_root/bin/waybar-mango"
+memory_script="$repo_root/bin/waybar-memory"
+disk_script="$repo_root/bin/waybar-disk"
+gpu_script="$repo_root/bin/waybar-gpu"
+temperature_script="$repo_root/bin/waybar-temperature"
+waybar_config="$repo_root/waybar/config.jsonc"
+autostart_script="$repo_root/mango/autostart.sh"
 test_dir=''
 
 fail() {
