@@ -35,6 +35,25 @@ fi
 # generated integration instead of letting wt edit this managed Zsh config.
 if command -v wt >/dev/null 2>&1; then
     eval "$(wt config shell init zsh)"
+
+    # A plain switch from a terminal should enter the resulting worktree in
+    # Herdr. Keep the generated function intact so Worktrunk still owns the
+    # picker, worktree lifecycle, and cd operation. The Herdr plugin invokes wt
+    # with --no-cd inside a Herdr pane, so delegate all nested calls unchanged.
+    if (( $+functions[wt] )); then
+        functions -c wt _wt_worktrunk_shell
+        unfunction wt
+        wt() {
+            if [[ "${HERDR_ENV:-}" != 1 && "${1:-}" == switch ]]; then
+                _wt_worktrunk_shell "$@"
+                local status=$?
+                (( status == 0 )) || return "$status"
+                herdr-project "$PWD"
+                return $?
+            fi
+            _wt_worktrunk_shell "$@"
+        }
+    fi
 fi
 
 # Direnv
