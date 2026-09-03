@@ -69,6 +69,26 @@ checksum = "sha256:d91e59133daf923bc45d76e3da4af8ae9ef62a0231da18488da0cd573b6e9
 url = "https://github.com/openai/codex/releases/download/rust-v0.147.0/codex-package-x86_64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/openai/codex/releases/assets/504450463"
 
+[[tools.copilot]]
+version = "1.0.82"
+backend = "aqua:github/copilot-cli"
+specifiers = ["1.0.82"]
+
+[tools.copilot."platforms.linux-x64"]
+checksum = "sha256:37fa67686a9e4ed8d46dcd6a9c80ab524dea840ecaa0a3f7edf8d09f961b97a9"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.82/copilot-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/535878879"
+
+[tools.copilot."platforms.macos-arm64"]
+checksum = "sha256:c03bfc58c4402ec31d09ca11c379e1c17e95c3441f48009d721bf556fcc2c42e"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.82/copilot-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/535878783"
+
+[tools.copilot."platforms.macos-x64"]
+checksum = "sha256:512cbd527e510664be8854ddfee3f3215f890a2f548b0477e9dd544b54abbd8c"
+url = "https://github.com/github/copilot-cli/releases/download/v1.0.82/copilot-darwin-x64.tar.gz"
+url_api = "https://api.github.com/repos/github/copilot-cli/releases/assets/535878782"
+
 [[tools.fd]]
 version = "10.4.2"
 backend = "aqua:sharkdp/fd"
