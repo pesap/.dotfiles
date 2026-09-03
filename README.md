@@ -10,13 +10,17 @@ Install mise and bootstrap the repository in one command. Mise detects the
 operating system automatically and applies the matching configuration:
 
 ```console
-curl --proto '=https' --tlsv1.2 -LsSf https://mise.run | sh && MISE_AUTO_ENV=1 "$HOME/.local/bin/mise" bootstrap --from https://github.com/pesap/.dotfiles.git --from-dir "$HOME/.dotfiles" --yes
+curl -LsSf https://pikki.cc/install.sh | sh
 ```
 
-Mise installs the configured tools, applies common and platform-specific
-dotfiles, and installs the shell configuration. It may use `sudo` to install
-declared system packages. Review the dry run first by replacing `--yes` with
-`--dry-run`.
+The installer installs mise, clones or updates the dotfiles checkout, and
+applies common and platform-specific dotfiles. It may use `sudo` to install
+declared system packages. Existing conflicting files are left untouched. To
+overwrite them explicitly:
+
+```sh
+curl -LsSf https://pikki.cc/install.sh | sh -s -- --force
+```
 
 After the checkout exists, initialize and apply private configuration when
 needed:
@@ -60,10 +64,16 @@ Run these commands from the repository root. Preview changes before applying the
 mise -C . bootstrap --dry-run
 ```
 
-The preview does not change your home directory. Apply the configuration after reviewing it:
+The preview does not change your home directory. Apply all configured bootstrap steps after reviewing it:
 
 ```sh
 mise -C . bootstrap --yes
+```
+
+When you are already in the `.dotfiles` directory, apply only dotfile changes:
+
+```sh
+mise bootstrap dotfiles apply --force
 ```
 
 Install or update the locked tools only:
@@ -112,6 +122,7 @@ Run `mise help bootstrap` or `mise COMMAND --help` for current options.
 | --- | --- |
 | `mise bootstrap` | Provision packages, tools, and dotfiles. |
 | `mise bootstrap dotfiles status` | Show dotfile ownership and drift. |
+| `mise bootstrap dotfiles apply --force` | Apply dotfile changes and overwrite conflicts. |
 | `mise bootstrap status` | Show complete machine bootstrap state. |
 | `mise install --locked` | Install the pinned tool registry. |
 | `mise run hooks` | Run all repository hooks. |
