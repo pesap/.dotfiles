@@ -9,5 +9,5 @@ platform = "linux"
 "~/.config/chromium-flags.conf" = "../linux/.config/chromium-flags.conf"
 "~/.config/edge-flags.conf" = "../linux/.config/edge-flags.conf"
 "~/.config/fontconfig" = { source = "../linux/.config/fontconfig", mode = "symlink-each", manifest = "git" }
-"~/.config/mango" = { source = "../mango", mode = "symlink", manifest = "git" }
-"~/.config/waybar" = { source = "../waybar", mode = "symlink", manifest = "git" }
+"~/.config/mango" = { source = "../mango", mode = "symlink" }
+"~/.config/waybar" = { source = "../waybar", mode = "symlink" }

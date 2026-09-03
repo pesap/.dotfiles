@@ -4,6 +4,6 @@ platform = "macos"
 
 [dotfiles]
 "~/.aliases.os" = "../aliases/macos"
-"~/.config/sketchybar" = { source = "../sketchybar", mode = "symlink", manifest = "git" }
-"~/.config/skhd" = { source = "../skhd", mode = "symlink", manifest = "git" }
-"~/.config/yabai" = { source = "../yabai", mode = "symlink", manifest = "git" }
+"~/.config/sketchybar" = { source = "../sketchybar", mode = "symlink" }
+"~/.config/skhd" = { source = "../skhd", mode = "symlink" }
+"~/.config/yabai" = { source = "../yabai", mode = "symlink" }
