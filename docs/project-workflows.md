@@ -38,12 +38,19 @@ part of this configuration.
 ## Worktrunk and Herdr
 
 Worktrunk owns Git worktree creation, paths, hooks, merges, and cleanup. Herdr
-owns workspace presentation and focus. The Worktrunk plugin runs `wt` with
-structured output, then registers the resulting checkout as a native Herdr
-worktree workspace. The project picker above remains separate from worktree
-selection.
+owns workspace presentation and focus. The user Worktrunk hooks call Herdr's
+public worktree/workspace CLI so direct Worktrunk commands stay visible in
+Herdr:
 
-Install the reviewed plugin revision after installing the locked tools:
+- `post-switch` opens or focuses the matching native Herdr worktree workspace.
+- `post-remove` closes Herdr panes whose cwd is the removed worktree.
+
+The hooks skip operations launched by the Herdr Worktrunk plugin, which
+already performs the same UI registration. The project picker above remains
+separate from worktree selection.
+
+Install the reviewed plugin revision after installing the locked tools if you
+want its Herdr picker and merge actions:
 
 ```sh
 herdr plugin install devashish2203/herdr-worktrunk --ref 9cde723b7c6ea5d3f4de94760888de0e4090727b --yes
@@ -58,9 +65,10 @@ herdr server reload-config
 Inside Herdr, use the Worktrunk actions bound in `herdr/config.toml`:
 `prefix+shift+g` opens the default-branch picker, `prefix+shift+c` creates from
 the current branch, `prefix+shift+r` includes remote branches, `prefix+shift+d`
-removes a worktree, and `prefix+shift+m` merges one. Worktrunk's Zsh shell
-integration owns directory changes for plain `wt switch`; the plugin passes
-`--no-cd` and lets Herdr focus the workspace instead.
+removes a worktree, and `prefix+shift+m` merges one. These actions use
+Worktrunk's hooks and the plugin's `--no-cd`/native workspace handoff. For a
+plain `wt switch` in a normal Herdr pane, the post-switch hook opens or focuses
+the destination workspace without needing the picker.
 
 ## Safe worktree synchronization
 
@@ -68,10 +76,11 @@ The private `git sync` alias keeps the original inline Git-config workflow.
 Run it from the primary worktree. It refuses a dirty worktree, switches to
 `main`, pulls with `--prune --ff-only`, and removes only clean Worktrunk
 worktrees marked integrated or empty. It uses Worktrunk JSON schema 2 and
-removes them in the foreground. The companion `git rm-merged` alias force-deletes
-local branches whose upstream is gone, including unmerged branches. A branch
-still checked out in another worktree is retained because Git will not delete an
-attached branch.
+removes them in the foreground; each `wt remove` therefore runs the
+post-remove hook and closes panes for the stale worktree. The
+companion `git rm-merged` alias force-deletes local branches whose upstream is
+gone, including unmerged branches. A branch still checked out in another
+worktree is retained because Git will not delete an attached branch.
 
 `git-checkouts` is a separate deployment boundary. Use `git push checkouts`
 explicitly when a push should materialize a remote checkout; synchronization

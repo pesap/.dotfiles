@@ -9,10 +9,35 @@ worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize_hash }}"
 # instead of an unmanaged provider-specific executable.
 command = "pi --no-session --no-tools --no-extensions --no-skills --no-context-files --system-prompt='' --print"
 
-# Worktrunk owns shell directory changes. Herdr's Worktrunk plugin uses
-# --no-cd and registers the resulting checkout as a workspace explicitly.
+# Worktrunk owns shell directory changes. These hooks keep Herdr's public
+# worktree panes in step with direct `wt` commands. The plugin-owned guard keeps
+# its own UI handoff from running twice.
 [switch]
 cd = true
+
+[post-switch]
+herdr = "if [ \"${HERDR_PLUGIN_ID:-}\" != worktrunk ]; then herdr worktree open --cwd {{ repo_path }} --path {{ worktree_path }} --focus; fi"
+
+[post-remove]
+herdr = """
+if [ \"${HERDR_PLUGIN_ID:-}\" != worktrunk ]; then
+    herdr pane list |
+        jq -r --arg path {{ worktree_path }} --arg repo {{ repo_path }} '
+            def under:
+                type == \"string\" and (
+                    . == $path
+                    or startswith($path + \"/\")
+                    or (startswith($repo + \"/.git/wt/trash/\") and endswith(\" (deleted)\"))
+                );
+            .result.panes[]?
+            | select((.cwd? | under) or (.foreground_cwd? | under))
+            | .pane_id
+        ' |
+        while IFS= read -r pane_id; do
+            [ -n \"$pane_id\" ] && herdr pane close \"$pane_id\"
+        done
+fi
+"""
 
 # ----------------------------------------------------------------------------
 # Aliases

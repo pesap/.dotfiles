@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
-if [[ ! -f "$repo_root/personal/.gitconfig" ]]; then
+if [[ ! -f "$repo_root/personal/gitconfig" ]]; then
     printf 'git sync tests: skipped (private personal package unavailable)\n'
     exit 0
 fi
@@ -61,9 +61,9 @@ mkdir -p -- "$mock_bin"
 export GIT_CONFIG_GLOBAL="$test_dir/gitconfig"
 git config --global user.name 'Worktree Sync Test'
 git config --global user.email worktree-sync-test@example.invalid
-sync_alias="$(git -C "$repo_root/personal" config --file .gitconfig --get alias.sync)" ||
+sync_alias="$(git -C "$repo_root/personal" config --file gitconfig --get alias.sync)" ||
     fail 'could not read the configured git sync alias'
-rm_merged_alias="$(git -C "$repo_root/personal" config --file .gitconfig --get alias.rm-merged)" ||
+rm_merged_alias="$(git -C "$repo_root/personal" config --file gitconfig --get alias.rm-merged)" ||
     fail 'could not read the configured git rm-merged alias'
 git config --global alias.sync "$sync_alias"
 git config --global alias.rm-merged "$rm_merged_alias"
