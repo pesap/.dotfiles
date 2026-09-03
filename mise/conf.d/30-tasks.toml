@@ -1,5 +1,2 @@
 [tasks.hooks]
 run = "prek run --all-files"
-
-[tasks."desktop:apply"]
-run = "./scripts/desktop-apply.sh run"
