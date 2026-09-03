@@ -4,6 +4,7 @@
 "~/.config/mise/mise.local.lock" = "../personal/mise.local.lock"
 "~/.gitconfig" = "../personal/gitconfig"
 "~/.gitconfig-work" = "../personal/gitconfig-work"
+"~/.hermes/config.yaml" = "../personal/hermes.yaml"
 "~/.local/bin/codex-litellm" = "../personal/codex-litellm"
 "~/.pi/agent/extensions/dgx-spark.ts" = "../personal/dgx-spark.ts"
 "~/.config/dotfiles/private.env" = { source = "../personal/private.env", mode = "copy" }

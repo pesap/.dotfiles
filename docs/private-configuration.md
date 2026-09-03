@@ -22,6 +22,7 @@ personal/
 ├── dgx-spark.ts
 ├── gitconfig
 ├── gitconfig-work
+├── hermes.yaml
 ├── mise.local.lock
 └── private.env
 ```
@@ -37,6 +38,7 @@ The private package supplies:
 
 - `~/.pi/agent/extensions/dgx-spark.ts` for the private Pi provider; it only
   registers when `DGX_SPARK_BASE_URL` is set
+- `~/.hermes/config.yaml` for the private Hermes configuration
 - `~/.config/dotfiles/private.env` for private Hermes and local-provider
   environment variables
 - personal Git identity and aliases through `~/.gitconfig` and
