@@ -124,7 +124,6 @@ Run `mise help bootstrap` or `mise COMMAND --help` for current options.
 - Mise refuses to replace dotfile conflicts unless explicitly forced.
 - Runtime state under `~/.rustup`, `~/.cargo`, and `~/.local/share/mise` is not tracked.
 - Public defaults and private provider configuration are separated; see [Private configuration](docs/private-configuration.md).
-- `mise run desktop:apply` requires a clean worktree. It runs smoke checks and rolls back when the checks fail or the confirmation gate expires.
 
 ## Further reading
 
