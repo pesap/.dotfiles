@@ -22,7 +22,7 @@ After the checkout exists, initialize and apply private configuration when
 needed:
 
 ```sh
-git submodule update --init personal && mise -E personal bootstrap --only dotfiles --yes
+git submodule update --init personal && mise -C ~/.dotfiles -E personal bootstrap --only dotfiles --yes
 ```
 
 Private files are kept in the flat `personal/` submodule and mapped to their
@@ -86,21 +86,20 @@ mise -C . run hooks
 
 ## Platform environments
 
-The common registry is in [`mise.toml`](mise.toml); its native fragments live in
-[`mise/conf.d/`](mise/conf.d/). Use the explicit platform environment when
-applying from the global mise configuration:
+The common tool registry is in [`mise.toml`](mise.toml); shared dotfiles,
+bootstrap packages, and tasks are in [`mise/config.toml`](mise/config.toml).
+Use the explicit platform environment from the repository checkout:
 
 ```sh
-mise -E macos bootstrap --yes
-mise -E linux bootstrap --yes
+mise -C ~/.dotfiles -E macos bootstrap --yes
+mise -C ~/.dotfiles -E linux bootstrap --yes
 ```
 
-The common dotfiles are declared in [`mise.toml`](mise.toml). Linux, macOS,
-and private configuration are separate mise environments. Apply private
-configuration explicitly with:
+Linux, macOS, and private configuration are separate mise environments. Apply
+private configuration explicitly with:
 
 ```sh
-mise -E personal bootstrap --only dotfiles --yes
+mise -C ~/.dotfiles -E personal bootstrap --only dotfiles --yes
 ```
 
 The private submodule must be initialized first.

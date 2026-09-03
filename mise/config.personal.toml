@@ -1,5 +1,7 @@
 # Optional private workstation configuration. Apply explicitly with -E personal.
 [dotfiles]
+"~/.config/mise/config.local.toml" = "../personal/config.personal.toml"
+"~/.config/mise/mise.local.lock" = "../personal/mise.local.lock"
 "~/.gitconfig" = "../personal/gitconfig"
 "~/.gitconfig-work" = "../personal/gitconfig-work"
 "~/.local/bin/codex-litellm" = "../personal/codex-litellm"

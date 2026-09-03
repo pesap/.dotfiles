@@ -10,21 +10,25 @@ From the dotfiles repository root, initialize the private submodule and apply
 its mise environment:
 
 ```sh
-git submodule update --init personal && mise -E personal bootstrap --only dotfiles --yes
+git submodule update --init personal && mise -C ~/.dotfiles -E personal bootstrap --only dotfiles --yes
 ```
 
 The personal package uses a flat layout so its files are easy to inspect:
 
 ```text
 personal/
+├── config.personal.toml
 ├── codex-litellm
 ├── dgx-spark.ts
 ├── gitconfig
 ├── gitconfig-work
+├── mise.local.lock
 └── private.env
 ```
 
-Mise maps these files to their required home-directory locations. `private.env`
+Mise maps these files to their required home-directory locations. The private
+Mise overlay and lockfile are installed as `config.local.toml` and
+`mise.local.lock` under `~/.config/mise`. `private.env`
 is copied rather than symlinked so private environment configuration stays
 local to the machine. Re-run the same command after pulling changes to either
 the public repository or the private submodule.

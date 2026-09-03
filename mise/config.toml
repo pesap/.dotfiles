@@ -1,0 +1,34 @@
+# Common dotfiles, bootstrap packages, and tasks.
+[dotfiles]
+"~/.config/alacritty" = { source = "../alacritty", mode = "symlink" }
+"~/.config/atuin" = { source = "../atuin", mode = "symlink" }
+"~/.config/bashrc" = { source = "../bash/config", mode = "symlink" }
+"~/.aliases" = "../aliases/common"
+"~/.config/herdr" = { source = "../herdr", mode = "symlink" }
+"~/.config/mise/config.toml" = "../mise.toml"
+"~/.config/mise/mise.lock" = "../mise.lock"
+"~/.config/mise/config.linux.toml" = "config.linux.toml"
+"~/.config/mise/config.macos.toml" = "config.macos.toml"
+"~/.config/mise/config.personal.toml" = "config.personal.toml"
+"~/.config/nvim" = { source = "../nvim", mode = "symlink" }
+"~/.config/worktrunk" = { source = "../worktrunk", mode = "symlink" }
+"~/.config/zshrc" = { source = "../zshrc/config", mode = "symlink" }
+"~/.local/bin" = { source = "../bin", mode = "symlink-each", manifest = "git" }
+"~/.pi" = { source = "../pi", mode = "symlink-each", manifest = "git" }
+"~/.bash_profile" = "../bash/.bash_profile"
+"~/.bashrc" = "../bash/.bashrc"
+"~/.config/starship.toml" = "../starship/starship.toml"
+"~/.hermes/config.yaml" = "../hermes/.hermes/config.yaml"
+"~/.zprofile" = "../zshrc/.zprofile"
+"~/.zsh_plugins.txt" = "../zshrc/.zsh_plugins.txt"
+"~/.zshenv" = "../zshrc/.zshenv"
+
+[bootstrap.packages]
+"apt:build-essential" = "latest"
+"apt:libatomic1" = "latest"
+"dnf:gcc" = "latest"
+"dnf:libatomic" = "latest"
+"pacman:base-devel" = "latest"
+
+[tasks.hooks]
+run = "prek run --all-files"

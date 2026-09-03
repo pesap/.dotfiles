@@ -1,2 +1,0 @@
-[tasks.hooks]
-run = "prek run --all-files"

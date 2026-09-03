@@ -1,7 +1,7 @@
 # Canonical workstation configuration managed by mise.
 # Run `mise -C ~/.dotfiles bootstrap dotfiles apply` from this checkout after
-# reviewing the dry run. Platform-specific and optional personal files belong
-# in the matching config.linux.toml and config.macos.toml environments.
+# reviewing the dry run. Shared dotfiles and bootstrap settings live in
+# mise/config.toml; platform-specific and optional personal files use matching environments.
 min_version = "2026.8.15"
 
 [tools]
