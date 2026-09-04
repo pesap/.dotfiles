@@ -19,10 +19,11 @@ working_directory = "None"
 TERM = "alacritty"
 
 [window]
-startup_mode = "Maximized"
+startup_mode = "SimpleFullscreen"
 dynamic_padding = true
 dynamic_title = true
 resize_increments = true        # snap window resize to cell boundaries
+decorations = "None"
 
 [window.padding]
 x = 10
