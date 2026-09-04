@@ -45,9 +45,10 @@ Herdr:
 - `post-switch` opens or focuses the matching native Herdr worktree workspace.
 - `post-remove` closes Herdr panes whose cwd is the removed worktree.
 
-The hooks skip operations launched by the Herdr Worktrunk plugin, which
-already performs the same UI registration. The project picker above remains
-separate from worktree selection.
+The post-switch hook runs for both direct and plugin-launched `wt switch`
+operations. Herdr's open operation is idempotent, so an existing workspace is
+focused rather than duplicated. The project picker above remains separate from
+worktree selection.
 
 Install the reviewed plugin revision after installing the locked tools if you
 want its Herdr picker and merge actions:
@@ -69,6 +70,43 @@ removes a worktree, and `prefix+shift+m` merges one. These actions use
 Worktrunk's hooks and the plugin's `--no-cd`/native workspace handoff. For a
 plain `wt switch` in a normal Herdr pane, the post-switch hook opens or focuses
 the destination workspace without needing the picker.
+
+### Agent-first worktrees
+
+The user alias `wt agent BRANCH` creates a new worktree and launches the
+mise-managed Pi CLI inside it:
+
+```sh
+wt agent feature-name
+```
+
+For a one-off prompt, use Worktrunk directly:
+
+```sh
+wt switch --create feature-name --execute pi -- "Implement the requested change"
+```
+
+### Worktree dashboard
+
+Worktrunk is configured to generate branch summaries using the existing Pi
+commit-generation command. View summaries, CI state, PRs, and worktree status
+with:
+
+```sh
+wt list --full
+```
+
+### Pull request worktrees
+
+Switch directly to a pull request branch, or browse open pull requests in the
+interactive picker:
+
+```sh
+wt switch pr:123
+wt switch --prs
+```
+
+The PR picker requires an authenticated forge CLI such as `gh` or `glab`.
 
 ## Safe worktree synchronization
 

@@ -11,8 +11,8 @@ fd = "10"
 fzf = "0.74"
 gitleaks = "8"
 jq = "1"
-herdr = "0.8"
-worktrunk = "0.75"
+herdr = "0.8.2"
+worktrunk = "0.75.0"
 codex = "0.147"
 copilot = "1"
 bat = "0.26"
@@ -42,6 +42,9 @@ just = "1"
 rust = "1"
 "rust-analyzer" = "2026-08"
 ollama = "0.32"
+
+[shell_alias]
+miseup = 'mise -C "$HOME/.dotfiles" upgrade'
 
 [settings]
 dotfiles.root = "~/.dotfiles"

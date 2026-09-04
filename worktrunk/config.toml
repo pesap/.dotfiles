@@ -10,18 +10,17 @@ worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize_hash }}"
 command = "pi --no-session --no-tools --no-extensions --no-skills --no-context-files --system-prompt='' --print"
 
 # Worktrunk owns shell directory changes. These hooks keep Herdr's public
-# worktree panes in step with direct `wt` commands. The plugin-owned guard keeps
-# its own UI handoff from running twice.
+# worktree panes in step with every switch and removal, including plugin-launched
+# operations. Herdr's open and close operations are idempotent.
 [switch]
 cd = true
 
 [post-switch]
-herdr = "if [ \"${HERDR_PLUGIN_ID:-}\" != worktrunk ]; then herdr worktree open --cwd {{ repo_path }} --path {{ worktree_path }} --focus; fi"
+herdr = "herdr worktree open --cwd {{ repo_path }} --path {{ worktree_path }} --focus"
 
 [post-remove]
 herdr = """
-if [ \"${HERDR_PLUGIN_ID:-}\" != worktrunk ]; then
-    herdr pane list |
+herdr pane list |
         jq -r --arg path {{ worktree_path }} --arg repo {{ repo_path }} '
             def under:
                 type == \"string\" and (
@@ -36,7 +35,6 @@ if [ \"${HERDR_PLUGIN_ID:-}\" != worktrunk ]; then
         while IFS= read -r pane_id; do
             [ -n \"$pane_id\" ] && herdr pane close \"$pane_id\"
         done
-fi
 """
 
 # ----------------------------------------------------------------------------
@@ -44,6 +42,9 @@ fi
 # ----------------------------------------------------------------------------
 
 [aliases]
+# wt agent BRANCH → create a worktree and launch Pi in it
+agent = "switch --create {{ args[0] }} --execute pi"
+
 # wt nuke → restore tracked files + remove all untracked/ignored files
 nuke = """
 git reset --hard HEAD &&
@@ -71,3 +72,4 @@ git fetch upstream
 
 [list]
 json-schema = 2
+summary = true

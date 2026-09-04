@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 test_dir=$(mktemp -d /var/tmp/dotfiles-test.worktrunk-herdr.XXXXXX)
+test_dir=$(cd -- "$test_dir" && pwd -P)
 
 cleanup() {
     local status=$?
@@ -11,7 +12,7 @@ cleanup() {
     logical_test_dir=$(cd "$test_dir" && pwd -L)
     resolved_test_dir=$(cd "$test_dir" && pwd -P)
     case "$logical_test_dir:$resolved_test_dir" in
-    /var/tmp/dotfiles-test.worktrunk-herdr.*:/var/tmp/dotfiles-test.worktrunk-herdr.*)
+    /var/tmp/dotfiles-test.worktrunk-herdr.*:/var/tmp/dotfiles-test.worktrunk-herdr.* | /var/tmp/dotfiles-test.worktrunk-herdr.*:/private/var/tmp/dotfiles-test.worktrunk-herdr.* | /private/var/tmp/dotfiles-test.worktrunk-herdr.*:/private/var/tmp/dotfiles-test.worktrunk-herdr.*)
         [[ -d "$test_dir" && ! -L "$test_dir" ]] || exit 1
         rm -rf -- "$test_dir"
         ;;
@@ -102,20 +103,25 @@ done
 [[ $(grep -c '^worktree open ' "$herdr_log") -eq 2 ]]
 [[ -d "$test_dir/worktrees/repo/plain-herdr" ]]
 
-# The Herdr Worktrunk plugin owns UI registration when it runs wt itself;
-# the hook must not open the same worktree a second time.
+# Direct wt switches must register worktrees even when launched by Herdr's
+# Worktrunk plugin. Opening an existing Herdr worktree is idempotent, so the
+# hook is safe when the plugin also performs its own handoff.
 before_count=$(grep -c '^worktree open ' "$herdr_log")
 env HERDR_ENV=1 HERDR_PLUGIN_ID=worktrunk PATH="$test_dir/bin:$PATH" \
     WORKTRUNK_CONFIG_PATH="$test_dir/config.toml" HERDR_REPO_ROOT="$test_dir/repo" \
     HERDR_WORKTREE_PATH="$test_dir/worktrees/repo/plugin-owned" HERDR_LOG="$herdr_log" \
     "$wt_bin" -C "$test_dir/repo" switch --create plugin-owned >/dev/null
-sleep 0.2
+for _ in {1..20}; do
+    [[ $(grep -c '^worktree open ' "$herdr_log" 2>/dev/null || true) -eq $((before_count + 1)) ]] && break
+    sleep 0.1
+done
 after_count=$(grep -c '^worktree open ' "$herdr_log")
-[[ "$after_count" == "$before_count" ]]
+[[ "$after_count" == $((before_count + 1)) ]]
 [[ -d "$test_dir/worktrees/repo/plugin-owned" ]]
 
-# The remove hook closes panes whose cwd is the removed worktree.
-env HERDR_ENV=1 PATH="$test_dir/bin:$PATH" \
+# The remove hook closes panes whose cwd is the removed worktree, including
+# removals launched by Herdr's Worktrunk plugin.
+env HERDR_ENV=1 HERDR_PLUGIN_ID=worktrunk PATH="$test_dir/bin:$PATH" \
     WORKTRUNK_CONFIG_PATH="$test_dir/config.toml" HERDR_REPO_ROOT="$test_dir/repo" \
     HERDR_WORKTREE_PATH="$test_dir/worktrees/repo/plugin-owned" HERDR_LOG="$herdr_log" \
     "$wt_bin" -C "$test_dir/repo" -y remove --foreground plugin-owned >/dev/null
