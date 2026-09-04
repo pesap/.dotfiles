@@ -38,16 +38,21 @@ part of this configuration.
 ## Worktrunk and Herdr
 
 Worktrunk owns Git worktree creation, paths, hooks, merges, and cleanup. Herdr
-owns workspace presentation and focus. The user Worktrunk hooks call Herdr's
-public worktree/workspace CLI so direct Worktrunk commands stay visible in
-Herdr:
+owns workspace presentation, navigation, and focus. The user Worktrunk hooks
+call Herdr's public worktree/workspace CLI so direct Worktrunk commands stay
+visible in Herdr:
 
+- `[switch] cd = false` leaves the invoking Herdr pane in its source workspace.
 - `post-switch` opens or focuses the matching native Herdr worktree workspace.
 - `post-remove` closes Herdr panes whose cwd is the removed worktree.
 
 The post-switch hook runs for both direct and plugin-launched `wt switch`
 operations. Herdr's open operation is idempotent, so an existing workspace is
-focused rather than duplicated. The project picker above remains separate from
+focused rather than duplicated. Keeping directory changes with Herdr is
+important: a detached post-switch hook must not see the invoking pane already
+at the destination and mistake it for the destination workspace. From a
+non-Herdr shell, pass Worktrunk's explicit `--cd` option when you want that
+shell to change directory. The project picker above remains separate from
 worktree selection.
 
 Install the reviewed plugin revision after installing the locked tools if you
@@ -68,8 +73,10 @@ Inside Herdr, use the Worktrunk actions bound in `herdr/config.toml`:
 the current branch, `prefix+shift+r` includes remote branches, `prefix+shift+d`
 removes a worktree, and `prefix+shift+m` merges one. These actions use
 Worktrunk's hooks and the plugin's `--no-cd`/native workspace handoff. For a
-plain `wt switch` in a normal Herdr pane, the post-switch hook opens or focuses
-the destination workspace without needing the picker.
+plain `wt switch` in a Herdr pane, the post-switch hook opens or focuses the
+destination workspace without needing the picker. The destination workspace
+becomes the visible Herdr workspace; the source pane remains available in its
+original workspace.
 
 ### Agent-first worktrees
 

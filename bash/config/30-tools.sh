@@ -4,7 +4,7 @@ if command -v mise >/dev/null 2>&1; then
     eval "$(mise activate bash)"
 fi
 
-# Worktrunk needs shell integration to change the parent shell directory.
+# Worktrunk shell integration handles explicit --cd switches and execution.
 if command -v wt >/dev/null 2>&1; then
     eval "$(wt config shell init bash)"
 fi

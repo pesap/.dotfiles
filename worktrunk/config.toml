@@ -9,11 +9,11 @@ worktree-path = "~/worktrees/{{ repo }}/{{ branch | sanitize_hash }}"
 # instead of an unmanaged provider-specific executable.
 command = "pi --no-session --no-tools --no-extensions --no-skills --no-context-files --system-prompt='' --print"
 
-# Worktrunk owns shell directory changes. These hooks keep Herdr's public
-# worktree panes in step with every switch and removal, including plugin-launched
-# operations. Herdr's open and close operations are idempotent.
+# Herdr owns workspace navigation. Leaving the invoking pane in place lets the
+# detached post-switch hook open the destination as a separate Herdr workspace
+# instead of seeing the Worktrunk-changed cwd as already open.
 [switch]
-cd = true
+cd = false
 
 [post-switch]
 herdr = "herdr worktree open --cwd {{ repo_path }} --path {{ worktree_path }} --focus"
