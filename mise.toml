@@ -44,7 +44,7 @@ rust = "1"
 ollama = "0.32"
 
 [shell_alias]
-miseup = 'mise -C "$HOME/.dotfiles" upgrade'
+miseup = 'mise -C "$HOME/.dotfiles" upgrade --bump'
 
 [settings]
 dotfiles.root = "~/.dotfiles"
