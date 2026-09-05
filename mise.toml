@@ -12,8 +12,8 @@ fzf = "0.74"
 gitleaks = "8"
 jq = "1"
 herdr = "0.8.2"
-worktrunk = "0.75.0"
-codex = "0.147"
+worktrunk = "0.76.0"
+codex = "0.152"
 copilot = "1"
 bat = "0.26"
 lsd = "1"
@@ -22,26 +22,24 @@ atuin = "18"
 "cargo:navi" = "2"
 yazi = "26"
 neovim = "0.12"
-tree-sitter = "0.26"
+tree-sitter = "0.27"
 uv = "latest"
 julia = "1"
-prek = "0.4"
+prek = "0.5"
 shellcheck = "0.11"
 shfmt = "3"
 gh = "2"
 node = "26"
-npm = "11"
+npm = "12"
 pi = "latest"
 ruff = "0.16"
-"github:vicinaehq/vicinae" = { version = "0.25", asset_pattern = "vicinae-linux-x86_64-v{version}.tar.gz", os = [
-  "linux",
-] }
+"github:vicinaehq/vicinae" = { version = "0.28", asset_pattern = "vicinae-linux-x86_64-v{version}.tar.gz", os = ["linux"] }
 "cargo:stylua" = "2"
 "lua-language-server" = "3"
 just = "1"
 rust = "1"
 "rust-analyzer" = "2026-08"
-ollama = "0.32"
+ollama = "0.33"
 
 [shell_alias]
 miseup = 'mise -C "$HOME/.dotfiles" upgrade --bump'
@@ -51,6 +49,3 @@ dotfiles.root = "~/.dotfiles"
 dotfiles.default_mode = "symlink"
 lockfile = true
 lockfile_platforms = ["linux-x64", "macos-arm64", "macos-x64"]
-
-[tool_config]
-locked = true
