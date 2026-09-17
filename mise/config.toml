@@ -4,14 +4,14 @@
 "~/.config/atuin" = { source = "../atuin", mode = "symlink" }
 "~/.config/bashrc" = { source = "../bash/config", mode = "symlink" }
 "~/.aliases" = "../aliases/common"
-"~/.config/herdr" = { source = "../herdr", mode = "symlink" }
+"~/.config/herdr/config.toml" = { source = "../herdr/config.toml", mode = "symlink" }
 "~/.config/mise/config.toml" = "../mise.toml"
 "~/.config/mise/mise.lock" = "../mise.lock"
 "~/.config/mise/config.linux.toml" = "config.linux.toml"
 "~/.config/mise/config.macos.toml" = "config.macos.toml"
 "~/.config/mise/config.personal.toml" = "config.personal.toml"
 "~/.config/nvim" = { source = "../nvim", mode = "symlink" }
-"~/.config/worktrunk" = { source = "../worktrunk", mode = "symlink" }
+"~/.config/worktrunk/config.toml" = { source = "../worktrunk/config.toml", mode = "symlink" }
 "~/.config/zshrc" = { source = "../zshrc/config", mode = "symlink" }
 "~/.local/bin" = { source = "../bin", mode = "symlink-each", manifest = "git" }
 "~/.pi" = { source = "../pi", mode = "symlink-each", manifest = "git" }

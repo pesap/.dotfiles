@@ -103,6 +103,17 @@ done
 [[ $(grep -c '^worktree open ' "$herdr_log") -eq 2 ]]
 [[ -d "$test_dir/worktrees/repo/plain-herdr" ]]
 
+# A delayed post-switch hook may run after its worktree was removed. Exercise
+# the missing-path guard directly instead of depending on scheduler timing.
+before_count=$(grep -c '^worktree open ' "$herdr_log")
+env HERDR_ENV=1 PATH="$test_dir/bin:$PATH" \
+    WORKTRUNK_CONFIG_PATH="$test_dir/config.toml" HERDR_REPO_ROOT="$test_dir/repo" \
+    HERDR_LOG="$herdr_log" "$wt_bin" -C "$test_dir/repo" \
+    hook post-switch --foreground \
+    --branch=removed --worktree-path="$test_dir/worktrees/repo/removed" \
+    --repo-path="$test_dir/repo" >/dev/null
+[[ $(grep -c '^worktree open ' "$herdr_log") -eq "$before_count" ]]
+
 # Direct wt switches must register worktrees even when launched by Herdr's
 # Worktrunk plugin. Opening an existing Herdr worktree is idempotent, so the
 # hook is safe when the plugin also performs its own handoff.

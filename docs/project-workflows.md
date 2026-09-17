@@ -37,13 +37,23 @@ part of this configuration.
 
 ## Worktrunk and Herdr
 
+The mise entries link only each tool's declarative `config.toml`. Herdr
+sessions, plugin state, logs, and Worktrunk approvals remain beside those files
+in the runtime config directories, outside the dotfiles checkout. If an
+existing machine still has `~/.config/herdr` or `~/.config/worktrunk` as a
+directory symlink to this checkout, stop its Herdr sessions and move the
+non-config contents into real config directories before applying the file
+entries. Applying the file entries while those parent symlinks remain would
+create nested links in the checkout instead of moving the runtime state.
+
 Worktrunk owns Git worktree creation, paths, hooks, merges, and cleanup. Herdr
 owns workspace presentation, navigation, and focus. The user Worktrunk hooks
 call Herdr's public worktree/workspace CLI so direct Worktrunk commands stay
 visible in Herdr:
 
 - `[switch] cd = false` leaves the invoking Herdr pane in its source workspace.
-- `post-switch` opens or focuses the matching native Herdr worktree workspace.
+- `post-switch` opens or focuses the matching native Herdr worktree workspace
+  only if the checkout still exists when the hook runs.
 - `post-remove` closes Herdr panes whose cwd is the removed worktree.
 
 The post-switch hook runs for both direct and plugin-launched `wt switch`
@@ -121,11 +131,11 @@ The private `git sync` alias keeps the original inline Git-config workflow.
 Run it from the primary worktree. It refuses a dirty worktree, switches to
 `main`, pulls with `--prune --ff-only`, and removes only clean Worktrunk
 worktrees marked integrated or empty. It uses Worktrunk JSON schema 2 and
-removes them in the foreground; each `wt remove` therefore runs the
-post-remove hook and closes panes for the stale worktree. The
-companion `git rm-merged` alias force-deletes local branches whose upstream is
-gone, including unmerged branches. A branch still checked out in another
-worktree is retained because Git will not delete an attached branch.
+removes them in the foreground. Worktrunk still runs `post-remove` hooks in the
+background; that hook closes panes for the removed worktree. The companion
+`git rm-merged` alias force-deletes local branches whose upstream is gone,
+including unmerged branches. A branch still checked out in another worktree is
+retained because Git will not delete an attached branch.
 
 `git-checkouts` is a separate deployment boundary. Use `git push checkouts`
 explicitly when a push should materialize a remote checkout; synchronization
