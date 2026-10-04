@@ -6,14 +6,13 @@
     "blockImages": false
   },
   "packages": [
-    "npm:pi-web-access@0.14.0",
+    "npm:pi-web-access@0.32.0",
     "git:github.com/crustyhacker/pi-thinking-steps",
     "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.6",
     "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
-    "git:github.com/pesap/khala",
-    "npm:pi-clarify"
+    "git:github.com/pesap/khala"
   ],
-  "quiteStartup": true,
+  "quietStartup": true,
   "showCacheMissNotices": true,
   "steeringMode": "all",
   "terminal": {
@@ -21,8 +20,12 @@
   },
   "theme": "rose-pine-moon",
   "transport": "auto",
-  "lastChangelogVersion": "0.84.1",
-  "tuiMode": "regular",
+  "lastChangelogVersion": "1.0.0",
+  "tuiMode": "fullscreen",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.3-codex-spark"
+  "modelThinkingLevels": {
+    "openai-codex/gpt-6-luna": "max",
+    "openai-codex/gpt-6.1-sol": "xhigh"
+  },
+  "defaultModel": "gpt-6-luna"
 }

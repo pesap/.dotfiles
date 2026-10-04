@@ -3,7 +3,7 @@
 > A quick reference for the shortcuts that make this setup feel like one
 > workspace instead of a collection of separate applications.
 
-Last updated: 2026-07-26 · Leader: `<Space>` in Neovim
+Last updated: 2026-09-24 · Leader: `<Space>` in Neovim
 
 ## Find a shortcut
 
@@ -25,11 +25,12 @@ Sources:
 - `nvim/lua/plugins/mole.lua`
 - `nvim/lua/plugins/tpope.lua`
 - `nvim/lua/plugins/gitsigns.lua`
+- `nvim/lua/plugins/treesitter.lua`
 - `nvim/lua/plugins/vim-maximizer.lua`
 - `nvim/lua/plugins/colorscheme.lua`
 - `nvim/after/plugin/reviewer.lua`
 
-Leader is `<Space>`.
+Leader is `<Space>`. This page lists explicit custom mappings; plugin defaults are not exhaustive.
 
 ### Core (`lua/keymaps.lua`)
 
@@ -127,6 +128,17 @@ Leader is `<Space>`.
 - `]h` next hunk
 - `[h` previous hunk
 
+### Tree-sitter textobjects (`plugins/treesitter.lua`)
+
+- `aa` / `ia` select outer/inner parameter
+- `af` / `if` select outer/inner function
+- `ac` / `ic` select outer/inner class
+- `ao` selects outer comment
+- `]m` / `[m` next/previous function start
+- `]M` / `[M` next/previous function end
+- `]]` / `[[` next/previous class start
+- `][` / `[]` next/previous class end
+
 ### Theme picker (`plugins/colorscheme.lua`)
 
 - `<leader>tc` open theme selector (fzf-lua colorschemes or `vim.ui.select` fallback)
@@ -138,10 +150,6 @@ Leader is `<Space>`.
 ### Window maximize (`plugins/vim-maximizer.lua`)
 
 - `<leader>wm` toggle maximizer
-
-### Neovim mapping collisions to be aware of
-
-- No known duplicate mappings in the edited Neovim files.
 
 ---
 
@@ -155,8 +163,8 @@ Sources:
 
 | Key | Action |
 |---|---|
-| `Cmd+\\` (macOS) / `Super+\\` (Linux) | open Herdr project picker |
-| `Ctrl+\\` | open Herdr project picker from a terminal |
+| `Cmd+\\` (macOS) / `Super+\\` (Linux) in Alacritty | sends `Ctrl+\\`; Zsh opens the picker, Herdr uses its native popup |
+| `Ctrl+\\` in Zsh | open Herdr project picker; inside Herdr, the native popup handles it |
 | `Ctrl+b`, then `q` | detach Herdr and return to the shell |
 | `Cmd+1..9` / `Super+1..9` | switch directly to Herdr workspace 1..9 |
 | `Ctrl+b`, then `Shift+G` | switch or create a Worktrunk worktree |
@@ -212,7 +220,7 @@ Source:
 This file contains the full Linux keymap set (window focus/move/resize/layout/tags/screenshots/mouse/gestures), using ALT number bindings for workspace navigation.
 
 Notable launchers:
-- `Alt+Return` launches Alacritty
+- `Alt+Return` and `Super+Return` launch Alacritty
 - `Super+S` switches to tag 4 and launches Palworld through Steam
 - `Super+O` switches to tag 3 and opens the Bolt OSRS launcher
 

@@ -1,40 +1,22 @@
-# NVim Config
+# Neovim configuration
 
-Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
+Modern Neovim configuration using native LSP (0.12+) and lazy.nvim.
 
 ## Structure
 
 ```
 ~/.config/nvim/
-├── init.lua              # Entry point (Lazy bootstrap)
-├── lazy-lock.json        # Lockfile for reproducible builds
-├── lua/
-│   ├── opts.lua          # Core vim options
-│   ├── keymaps.lua       # General keymaps
-│   ├── prefs.lua         # LSP enable list + diagnostics
-│   └── plugins/          # Plugin specs (Lazy.nvim)
-│       ├── colorscheme.lua
-│       ├── commenter.lua
-│       ├── fff.lua       # FFF file picker + keymaps
-│       ├── fzflua.lua    # LSP/buffer/git branch pickers + PR review workflow
-│       ├── gitsigns.lua  # Git signs
-│       ├── harpoon.lua   # File marks
-│       ├── mini.lua      # Mini.statusline
-│       ├── mole.lua
-│       ├── tpope.lua     # Fugitive + tpope essentials
-│       ├── treesitter.lua
-│       ├── vim-maximizer.lua
-│       ├── whichkey.lua
-│       └── lsp/          # LSP-related plugins
-│           ├── blink.lua      # Completion
-│           └── conform.lua    # Formatting
-└── lsp/                  # Native LSP configs (0.11+)
-    ├── bash.lua
-    ├── julia.lua
-    ├── lua.lua
-    ├── pyright.lua
-    ├── ruff.lua
-    └── rust.lua
+├── after/       # Runtime integrations, filetype settings, and Julia LSP script
+├── init.lua     # Entry point and Lazy.nvim bootstrap
+├── lazy-lock.json
+├── lsp/         # Native LSP server configs
+└── lua/
+    ├── keymaps.lua
+    ├── opts.lua
+    ├── prefs.lua
+    ├── plugins/ # Lazy.nvim plugin specs and setup
+    │   └── lsp/ # Completion and formatting specs
+    └── utils/   # Shared helpers
 ```
 
 ## Key Features
@@ -42,7 +24,7 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 - **Plugin Manager**: [lazy.nvim](https://github.com/folke/lazy.nvim)
 - **File Picker**: [FFF](https://github.com/dmtrKovalenko/fff) for frecency-ranked file search
 - **Fuzzy Finder**: [fzf-lua](https://github.com/ibhagwan/fzf-lua) for non-FFF pickers (LSP, buffers, git branches, PR review)
-- LSP: Native 0.11+ (`vim.lsp.enable`) with servers installed by mise
+- LSP: Native Neovim 0.12+ (`vim.lsp.enable`); managed server executables come from mise
 - **Completion**: [blink.cmp](https://github.com/saghen/blink.cmp)
 - **Formatting**: [conform.nvim](https://github.com/stevearc/conform.nvim)
 - **Git**: [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) + [vim-fugitive](https://github.com/tpope/vim-fugitive)
@@ -81,12 +63,26 @@ Modern Neovim configuration using native LSP (0.11+) and lazy.nvim.
 
 ## LSP Servers
 
-Install the configured servers with `mise install --locked`. They are enabled via
-`vim.lsp.enable()`:
-- Lua (lua-language-server)
-- Python (ruff)
-- Julia (LanguageServer.jl)
-- Rust (rust-analyzer)
+From the dotfiles repository root, install the managed tools:
+
+```sh
+mise -C . install --locked
+```
+
+The enabled servers are selected in `lua/prefs.lua`:
+- Lua (`lua-language-server`)
+- Python (Ruff)
+- Julia (`LanguageServer.jl`)
+- Rust (`rust-analyzer`)
+
+Mise installs Julia itself, not its `LanguageServer` package. Add that package
+to Julia's default environment once; this changes Julia state under `$HOME/.julia`:
+
+```sh
+mise -C . exec -- julia --startup-file=no -e 'using Pkg; Pkg.add("LanguageServer")'
+```
+
+`lsp/bash.lua` and `lsp/pyright.lua` are present but are not enabled.
 
 ## Formatters (conform.nvim)
 
@@ -104,7 +100,8 @@ Auto-format on save is enabled.
 
 ## Maintenance Notes
 
-- All plugin configuration lives in `lua/plugins/` with `config()` functions
-- `after/plugin/` contains small runtime integrations; formatter setup lives in `lua/plugins/lsp/conform.lua`
-- LSP configs are in `lsp/` using native 0.11+ format
-- Keymaps are either in `keymaps.lua` (general) or plugin `config()` functions
+- Lazy.nvim plugin specs live in `lua/plugins/` and use `opts`, `config`, or plugin defaults as appropriate.
+- `after/` contains runtime integrations and filetype settings; Julia LSP startup is in `after/julia-ls.jl`.
+- Formatter setup lives in `lua/plugins/lsp/conform.lua`.
+- Native LSP configs are in `lsp/` and are enabled from `lua/prefs.lua`.
+- General keymaps live in `lua/keymaps.lua`; plugin mappings are defined with plugin setup or in `after/plugin/` integrations.
