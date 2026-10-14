@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exclude_default=false
+case "${1:-}" in
+    "")
+        ;;
+    --exclude-default)
+        [[ $# -eq 1 ]] || {
+            printf 'Usage: herdr-session-rows [--exclude-default]\n' >&2
+            exit 2
+        }
+        exclude_default=true
+        ;;
+    *)
+        printf 'Usage: herdr-session-rows [--exclude-default]\n' >&2
+        exit 2
+        ;;
+esac
+
+session_refs=$(jq -c --argjson exclude_default "$exclude_default" '
+    if (.sessions | type) != "array" then error("invalid session list") else .sessions end
+    | map(select((.name | type) == "string"))
+    | map(select(.name != "" and ((.name | test("[\\r\\n]")) | not)))
+    | if $exclude_default then map(select(.name != "default")) else . end
+    | sort_by(.name)
+    | map({
+        token: (.name | @base64),
+        running: (if (.running | type) == "boolean" then (.running | tostring) else "" end),
+        session_dir: (if (.session_dir | type) == "string" then .session_dir else "" end)
+    })
+') || {
+    printf 'herdr-session-rows: invalid Herdr session list\n' >&2
+    exit 1
+}
+
+session_project_fields() {
+    local session_file=$1 display_path project_path_json
+    exec 3< <(jq -j '
+        (.workspaces[.active].identity_cwd // "") as $raw_path
+        | (if ($raw_path | type) == "string" then $raw_path else "" end) as $path
+        | select($path | startswith("/"))
+        | ($path | gsub("[\\t\\r\\n]"; " ")), "\u0000", ($path | @json), "\u0000"
+    ' "$session_file" 2>/dev/null) || return 1
+    if ! IFS= read -r -d '' display_path <&3 || \
+        ! IFS= read -r -d '' project_path_json <&3; then
+        exec 3<&-
+        return 1
+    fi
+    exec 3<&-
+    printf '%s\t%s\n' "$display_path" "$project_path_json"
+}
+
+rows=''
+while IFS= read -r -d '' name_token && \
+    IFS= read -r -d '' running_state && \
+    IFS= read -r -d '' session_dir; do
+    [[ -n "$name_token" && -n "$session_dir" && -r "$session_dir/session.json" ]] || continue
+    metadata=$(session_project_fields "$session_dir/session.json") || continue
+    IFS=$'\t' read -r display_path project_path_json <<<"$metadata"
+    [[ -n "$display_path" ]] || continue
+
+    if [[ -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+        case "$running_state" in
+            true) display_path=$'\033[32m'"$display_path"$'\033[0m' ;;
+            false) display_path=$'\033[90m'"$display_path"$'\033[0m' ;;
+        esac
+    fi
+    rows+="$name_token"$'\t'"$display_path"$'\t'"$project_path_json"$'\n'
+done < <(jq -j '
+    .[]
+    | .token, "\u0000", .running, "\u0000", .session_dir, "\u0000"
+' <<<"$session_refs")
+
+if [[ -n "$rows" ]]; then
+    printf '%s' "$rows" | sort -t $'\t' -k3,3
+fi

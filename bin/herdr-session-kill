@@ -1,0 +1,262 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+state_dir="${XDG_RUNTIME_DIR:-$HOME/.cache}/herdr-project"
+active_file="$state_dir/active"
+session_file="$state_dir/session"
+kill_request_file="$state_dir/kill-request"
+
+usage() {
+    printf 'Usage: herdr-session-kill [--confirm SESSION | --yes SESSION]\n'
+    printf 'Stop a named Herdr session and delete it after confirmation.\n'
+    printf 'Use --confirm SESSION to confirm deletion of one selected session.\n'
+    printf 'Use --yes SESSION to skip the picker and confirmation.\n'
+}
+
+session_presence() {
+    local sessions_json=$1 session_name=$2
+    jq -er --arg name "$session_name" \
+        'if (.sessions | type) != "array" then error("invalid session list") else any(.sessions[]; .name == $name) | tostring end' \
+        <<<"$sessions_json"
+}
+
+session_running() {
+    local sessions_json=$1 session_name=$2
+    jq -r --arg name "$session_name" \
+        '[.sessions[]? | select(.name == $name)] | if length == 1 then .[0].running else error("session not found or ambiguous") end' \
+        <<<"$sessions_json"
+}
+
+stop_and_delete_session() {
+    local session_name=$1 sessions_json running
+
+    command -v herdr >/dev/null 2>&1 || {
+        printf 'herdr-session-kill: herdr is required\n' >&2
+        return 1
+    }
+    command -v jq >/dev/null 2>&1 || {
+        printf 'herdr-session-kill: jq is required\n' >&2
+        return 1
+    }
+    [[ "$session_name" != *$'\n'* && "$session_name" != *$'\r'* ]] || {
+        printf 'herdr-session-kill: session names containing line breaks are unsupported\n' >&2
+        return 1
+    }
+    [[ "$session_name" != default ]] || {
+        printf 'herdr-session-kill: refusing to delete the default session\n' >&2
+        return 1
+    }
+    [[ "$session_name" != -* ]] || {
+        printf 'herdr-session-kill: Herdr 0.9.0 cannot safely address a session name beginning with -\n' >&2
+        return 1
+    }
+
+    if ! sessions_json=$(herdr session list --json); then
+        printf 'herdr-session-kill: could not list Herdr sessions\n' >&2
+        return 1
+    fi
+    if ! present=$(session_presence "$sessions_json" "$session_name"); then
+        printf 'herdr-session-kill: invalid session list from Herdr\n' >&2
+        return 1
+    fi
+    if [[ "$present" != true ]]; then
+        printf 'herdr-session-kill: session not found: %q\n' "$session_name" >&2
+        return 1
+    fi
+    if ! running=$(session_running "$sessions_json" "$session_name"); then
+        printf 'herdr-session-kill: could not read state for session: %q\n' "$session_name" >&2
+        return 1
+    fi
+    case "$running" in
+        true)
+            if ! herdr session stop "$session_name"; then
+                printf 'herdr-session-kill: stop failed; leaving session state intact: %q\n' "$session_name" >&2
+                return 1
+            fi
+            if ! sessions_json=$(herdr session list --json); then
+                printf 'herdr-session-kill: could not verify that the session stopped\n' >&2
+                return 1
+            fi
+            if ! running=$(session_running "$sessions_json" "$session_name"); then
+                printf 'herdr-session-kill: could not verify session state: %q\n' "$session_name" >&2
+                return 1
+            fi
+            [[ "$running" == false ]] || {
+                printf 'herdr-session-kill: session is still running; leaving its state intact: %q\n' "$session_name" >&2
+                return 1
+            }
+            ;;
+        false)
+            ;;
+        *)
+            printf 'herdr-session-kill: unexpected running state for session: %q\n' "$session_name" >&2
+            return 1
+            ;;
+    esac
+
+    if ! herdr session delete "$session_name"; then
+        printf 'herdr-session-kill: delete failed; session is stopped but its saved state remains: %q\n' "$session_name" >&2
+        return 1
+    fi
+    if ! sessions_json=$(herdr session list --json); then
+        printf 'herdr-session-kill: could not verify session deletion\n' >&2
+        return 1
+    fi
+    if ! present=$(session_presence "$sessions_json" "$session_name"); then
+        printf 'herdr-session-kill: invalid session list after deletion\n' >&2
+        return 1
+    fi
+    if [[ "$present" != false ]]; then
+        printf 'herdr-session-kill: session still exists after deletion: %q\n' "$session_name" >&2
+        return 1
+    fi
+    printf 'Stopped and deleted Herdr session %q.\n' "$session_name"
+}
+
+write_kill_request() {
+    local session_name=$1 request_tmp="$kill_request_file.$$"
+    if ! jq -cn --arg name "$session_name" '{name: $name}' >"$request_tmp"; then
+        rm -f -- "$request_tmp"
+        return 1
+    fi
+    mv -f "$request_tmp" "$kill_request_file"
+}
+
+route_session_action() {
+    local session_name=$1 current_session active_pid
+    if [[ "${HERDR_ENV:-}" == 1 ]]; then
+        read -r active_pid <"$active_file" 2>/dev/null || {
+            printf 'herdr-session-kill: cannot safely identify the current Herdr session; launch it with herdr-project first\n' >&2
+            return 1
+        }
+        kill -0 "$active_pid" 2>/dev/null || {
+            printf 'herdr-session-kill: the herdr-project supervisor is no longer running\n' >&2
+            return 1
+        }
+        read -r current_session <"$session_file" 2>/dev/null || {
+            printf 'herdr-session-kill: cannot safely identify the current Herdr session\n' >&2
+            return 1
+        }
+        if [[ "$session_name" == "$current_session" ]]; then
+            write_kill_request "$session_name"
+            return
+        fi
+    fi
+    stop_and_delete_session "$session_name"
+}
+
+confirm_session_deletion() {
+    local session_name=$1 display_name confirmation
+    display_name=$(jq -nr --arg name "$session_name" '$name | @json') || return 1
+    if ! confirmation=$(printf 'cancel\tCancel\nconfirm\tStop and delete %s, closing its panes\n' \
+        "$display_name" | fzf --delimiter=$'\t' --with-nth=2 \
+        --prompt='confirm › ' --header='q: cancel' --bind='q:abort' \
+        --height=40% --layout=reverse --border=rounded); then
+        return 1
+    fi
+    [[ "${confirmation%%$'\t'*}" == confirm ]]
+}
+
+case "${1:-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    --yes)
+        [[ $# -eq 2 ]] || {
+            usage >&2
+            exit 2
+        }
+        session_name=$2
+        ;;
+    --confirm)
+        [[ $# -eq 2 ]] || {
+            usage >&2
+            exit 2
+        }
+        session_name=$2
+        command -v fzf >/dev/null 2>&1 || {
+            printf 'herdr-session-kill: fzf is required\n' >&2
+            exit 1
+        }
+        command -v jq >/dev/null 2>&1 || {
+            printf 'herdr-session-kill: jq is required\n' >&2
+            exit 1
+        }
+        [[ "$session_name" != default ]] || {
+            printf 'herdr-session-kill: refusing to delete the default session\n' >&2
+            exit 1
+        }
+        confirm_session_deletion "$session_name" || exit 0
+        ;;
+    "")
+        [[ $# -eq 0 ]] || {
+            usage >&2
+            exit 2
+        }
+        command -v fzf >/dev/null 2>&1 || {
+            printf 'herdr-session-kill: fzf is required\n' >&2
+            exit 1
+        }
+        command -v jq >/dev/null 2>&1 || {
+            printf 'herdr-session-kill: jq is required\n' >&2
+            exit 1
+        }
+        if [[ "${HERDR_ENV:-}" == 1 ]]; then
+            read -r active_pid <"$active_file" 2>/dev/null || {
+                printf 'herdr-session-kill: cannot safely identify the current Herdr session; launch it with herdr-project first\n' >&2
+                exit 1
+            }
+            kill -0 "$active_pid" 2>/dev/null || {
+                printf 'herdr-session-kill: the herdr-project supervisor is no longer running\n' >&2
+                exit 1
+            }
+            [[ -s "$session_file" ]] || {
+                printf 'herdr-session-kill: cannot safely identify the current Herdr session\n' >&2
+                exit 1
+            }
+        fi
+        sessions_json=$(herdr session list --json) || {
+            printf 'herdr-session-kill: could not list Herdr sessions\n' >&2
+            exit 1
+        }
+        session_rows=$(printf '%s\n' "$sessions_json" | "$script_dir/herdr-session-rows" --exclude-default) || {
+            printf 'herdr-session-kill: invalid session list from Herdr\n' >&2
+            exit 1
+        }
+        [[ -n "$session_rows" ]] || {
+            printf 'herdr-session-kill: no named Herdr sessions are available\n'
+            exit 0
+        }
+        if ! selected=$(printf '%s\n' "$session_rows" | fzf \
+            --ansi --delimiter=$'\t' --with-nth=2 \
+            --prompt='herdr › ' --header='q: close' --bind='q:abort' \
+            --height=70% --layout=reverse --border=rounded \
+            --preview="$script_dir/herdr-session-preview {3}" \
+            --preview-window='right,50%,border-left,wrap'); then
+            exit 0
+        fi
+        [[ -n "$selected" ]] || exit 0
+        session_token=${selected%%$'\t'*}
+        session_name=$(jq -nr --arg token "$session_token" '$token | @base64d') || {
+            printf 'herdr-session-kill: could not read the selected session name\n' >&2
+            exit 1
+        }
+        [[ "$session_name" != *$'\n'* && "$session_name" != *$'\r'* ]] || {
+            printf 'herdr-session-kill: session names containing line breaks are unsupported\n' >&2
+            exit 1
+        }
+        [[ -n "$session_name" ]] || {
+            printf 'herdr-session-kill: empty session names are unsupported\n' >&2
+            exit 1
+        }
+        confirm_session_deletion "$session_name" || exit 0
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac
+
+route_session_action "$session_name"

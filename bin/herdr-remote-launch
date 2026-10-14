@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+terminal_script="$HOME/.dotfiles/bin/herdr-remote-terminal"
+terminal_command=(/bin/zsh -lic "exec \"\$1\"" herdr-remote-terminal "$terminal_script")
+platform=$(uname -s)
+
+if [[ "$platform" == Darwin ]]; then
+    command -v open >/dev/null 2>&1 || {
+        printf 'herdr-remote-launch: open is required on macOS\n' >&2
+        exit 1
+    }
+    exec open -na Alacritty --args --command "${terminal_command[@]}"
+fi
+
+command -v alacritty >/dev/null 2>&1 || {
+    printf 'herdr-remote-launch: alacritty is required\n' >&2
+    exit 1
+}
+exec alacritty --command "${terminal_command[@]}"

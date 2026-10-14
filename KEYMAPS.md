@@ -158,13 +158,21 @@ Leader is `<Space>`. This page lists explicit custom mappings; plugin defaults a
 Sources:
 - `herdr/config.toml`
 - `bin/herdr-project`
+- `bin/herdr-session-select`
+- `bin/herdr-session-kill`
+- `bin/herdr-remote`
+- `bin/herdr-remote-launch`
+- `bin/herdr-remote-terminal`
 - `zshrc/config/50-functions.zsh`
 - `alacritty/alacritty.toml`
 
 | Key | Action |
 |---|---|
-| `Cmd+\\` (macOS) / `Super+\\` (Linux) in Alacritty | sends `Ctrl+\\`; Zsh opens the picker, Herdr uses its native popup |
-| `Ctrl+\\` in Zsh | open Herdr project picker; inside Herdr, the native popup handles it |
+| `Cmd+\\` (macOS) / `Super+\\` (Linux) in Alacritty | sends `Ctrl+\\`; Zsh opens the project picker, Herdr opens the session selector |
+| `Ctrl+\\` in Zsh | open the Herdr project picker |
+| `q` in the session selector | stop and delete the highlighted session after confirmation |
+| `Esc` in the session selector | close the picker without action |
+| `Cmd+Shift+R` (macOS) / `Super+Shift+R` (Linux) in Alacritty | open an SSH host picker and attach Herdr to the selected machine |
 | `Ctrl+b`, then `q` | detach Herdr and return to the shell |
 | `Cmd+1..9` / `Super+1..9` | switch directly to Herdr workspace 1..9 |
 | `Ctrl+b`, then `Shift+G` | switch or create a Worktrunk worktree |
@@ -179,18 +187,40 @@ with a lightweight preview; pass a project directory directly to any launcher
 to skip the picker. The project basename is sanitized into the multiplexer
 session name.
 
+In Alacritty, `Cmd+Shift+R` on macOS or `Super+Shift+R` on Linux opens a
+separate Alacritty window for the remote picker. By default, its `fzf` list
+contains literal SSH `Host` aliases from `~/.ssh/config` and omits targets
+configured with `User git`. Set `HERDR_SSH_CONFIG` to use another SSH config
+file. Discovery and the final SSH connection both use that override. Selecting
+a host runs `ssh -t <host> herdr` by default, starting Herdr on the remote
+machine in that terminal. The remote host must have Herdr installed and
+on `PATH`. Esc or Ctrl+C cancels only the new picker, leaving the current
+terminal or Herdr session untouched. Run `herdr-remote` directly from any
+interactive Unix terminal to use the same picker.
+
 Set `PROJECT_ROOTS` and `PROJECT_PATHS` as colon-separated overrides when
-needed. `herdr-project` opens a project outside Herdr and uses its native popup
-handoff when switching from inside Herdr. From a shell outside Herdr,
-`herdr-kill-all` terminates every session and deletes all named-session state;
-it prompts unless passed `--force`.
+needed. Outside Herdr, `herdr-project` opens a project and starts its named
+session. Inside Herdr, `Ctrl+\\` selects an existing session and switches to it
+through the launcher. The picker shows sessions with a saved project path,
+colors running-session paths green and stopped-session paths gray, and previews
+the project. Sessions without a project path are omitted. Press `q` to stop and
+delete the highlighted session after confirmation. Esc closes the picker without
+action.
+The deletion picker is also available with `herdr-project --session-kill`. It
+stops a running named session, verifies it stopped, then deletes its saved state
+after confirmation. The default session is excluded. Herdr 0.9.0 has no targeted
+force-stop option, so a server that does not respond to `session stop` is left
+intact. `herdr-kill-all` remains the separate all-session command and prompts
+unless passed `--force`.
 
 ---
 
 ## Alacritty
 
-Source:
+Sources:
 - `alacritty/alacritty.toml`
+- `bin/herdr-remote-launch`
+- `bin/herdr-remote-terminal`
 
 Other Alacritty workflow settings:
 - `live_config_reload = true`

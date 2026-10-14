@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+state_dir="${XDG_RUNTIME_DIR:-$HOME/.cache}/herdr-project"
+active_file="$state_dir/active"
+request_file="$state_dir/request"
+session_file="$state_dir/session"
+
+if [[ "${1:-}" == -h || "${1:-}" == --help ]]; then
+    printf 'Usage: herdr-session-select\n'
+    printf 'Select a saved Herdr session and switch the current client to it.\n'
+    printf 'Press q to stop and delete the highlighted session after confirmation.\n'
+    printf 'Press Esc to close the picker without action.\n'
+    exit 0
+fi
+[[ $# -eq 0 ]] || {
+    printf 'Usage: herdr-session-select\n' >&2
+    exit 2
+}
+
+if [[ "${HERDR_ENV:-}" != 1 ]]; then
+    printf 'herdr-session-select: run this from a Herdr session\n' >&2
+    exit 1
+fi
+
+read -r active_pid <"$active_file" 2>/dev/null || {
+    printf 'herdr-session-select: launch Herdr with herdr-project first\n' >&2
+    exit 1
+}
+kill -0 "$active_pid" 2>/dev/null || {
+    printf 'herdr-session-select: the herdr-project supervisor is no longer running\n' >&2
+    exit 1
+}
+read -r current_session <"$session_file" 2>/dev/null || {
+    printf 'herdr-session-select: cannot identify the current session\n' >&2
+    exit 1
+}
+
+command -v fzf >/dev/null 2>&1 || {
+    printf 'herdr-session-select: fzf is required\n' >&2
+    exit 1
+}
+command -v jq >/dev/null 2>&1 || {
+    printf 'herdr-session-select: jq is required\n' >&2
+    exit 1
+}
+
+sessions_json=$(herdr session list --json) || {
+    printf 'herdr-session-select: could not list Herdr sessions\n' >&2
+    exit 1
+}
+session_rows=$(printf '%s\n' "$sessions_json" | "$script_dir/herdr-session-rows") || {
+    printf 'herdr-session-select: invalid session list from Herdr\n' >&2
+    exit 1
+}
+[[ -n "$session_rows" ]] || {
+    printf 'herdr-session-select: no Herdr sessions are available\n'
+    exit 0
+}
+
+if ! selected=$(printf '%s\n' "$session_rows" | fzf \
+    --ansi --delimiter=$'\t' --with-nth=2 --expect=enter,q \
+    --prompt='herdr › ' --header='Enter: switch  q: close session  Esc: close picker' \
+    --height=70% --layout=reverse --border=rounded \
+    --preview="$script_dir/herdr-session-preview {3}" \
+    --preview-window='right,50%,border-left,wrap'); then
+    exit 0
+fi
+[[ -n "$selected" ]] || exit 0
+selection_key=${selected%%$'\n'*}
+selected_row=${selected#*$'\n'}
+[[ "$selected_row" != "$selected" ]] || exit 0
+session_token=${selected_row%%$'\t'*}
+session_name=$(jq -nr --arg token "$session_token" '$token | @base64d') || {
+    printf 'herdr-session-select: could not read the selected session name\n' >&2
+    exit 1
+}
+[[ "$session_name" != *$'\n'* && "$session_name" != *$'\r'* ]] || {
+    printf 'herdr-session-select: session names containing line breaks are unsupported\n' >&2
+    exit 1
+}
+[[ -n "$session_name" ]] || {
+    printf 'herdr-session-select: empty session names are unsupported\n' >&2
+    exit 1
+}
+if [[ "$selection_key" == q ]]; then
+    "$script_dir/herdr-session-kill" --confirm "$session_name"
+    exit $?
+fi
+[[ "$selection_key" == enter ]] || {
+    printf 'herdr-session-select: unexpected selection action: %s\n' "$selection_key" >&2
+    exit 1
+}
+[[ "$session_name" != "$current_session" ]] || exit 0
+
+request_tmp="$request_file.$$"
+if ! jq -cn --arg name "$session_name" '{name: $name}' >"$request_tmp"; then
+    rm -f -- "$request_tmp"
+    exit 1
+fi
+mv -f "$request_tmp" "$request_file"

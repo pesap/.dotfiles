@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -gt 1 ]]; then
+    printf 'Usage: herdr-remote [SSH_HOST]\n' >&2
+    exit 2
+fi
+
+command -v ssh >/dev/null 2>&1 || {
+    printf 'herdr-remote: ssh is required\n' >&2
+    exit 1
+}
+
+ssh_config_override="${HERDR_SSH_CONFIG:-}"
+ssh_config="${ssh_config_override:-$HOME/.ssh/config}"
+if [[ -n "$ssh_config_override" && ! -r "$ssh_config" ]]; then
+    printf 'herdr-remote: SSH config is not readable: %s\n' "$ssh_config" >&2
+    exit 1
+fi
+
+ssh_attach() {
+    local host=$1
+    if [[ -n "$ssh_config_override" ]]; then
+        exec ssh -t -F "$ssh_config" "$host" herdr
+    fi
+    exec ssh -t "$host" herdr
+}
+
+if [[ $# -eq 1 ]]; then
+    ssh_attach "$1"
+fi
+
+command -v fzf >/dev/null 2>&1 || {
+    printf 'herdr-remote: fzf is required\n' >&2
+    exit 1
+}
+
+[[ -r "$ssh_config" ]] || {
+    printf 'herdr-remote: SSH config is not readable: %s\n' "$ssh_config" >&2
+    exit 1
+}
+
+hosts=()
+while IFS= read -r host; do
+    [[ -n "$host" ]] || continue
+    if [[ -n "$ssh_config_override" ]]; then
+        ssh_output=$(ssh -G -F "$ssh_config" "$host" 2>/dev/null) || continue
+    else
+        ssh_output=$(ssh -G "$host" 2>/dev/null) || continue
+    fi
+    ssh_user=$(awk '$1 == "user" { print $2; exit }' <<<"$ssh_output")
+    # Git remotes use SSH too, but are not Herdr machines to connect to.
+    [[ "$ssh_user" != git ]] || continue
+    hosts+=("$host")
+done < <(
+    awk '
+        tolower($1) != "host" { next }
+        {
+            for (i = 2; i <= NF; i++) {
+                host = $i
+                if (host ~ /^#/) break
+                if (host !~ /^[[:alnum:]_.-]+$/ || seen[host]++) continue
+                print host
+            }
+        }
+    ' "$ssh_config"
+)
+
+((${#hosts[@]} > 0)) || {
+    printf 'herdr-remote: no remote SSH Host aliases found in %s\n' "$ssh_config" >&2
+    exit 1
+}
+
+selected=$(printf '%s\n' "${hosts[@]}" | fzf \
+    --prompt='herdr remote › ' \
+    --height=60% \
+    --layout=reverse \
+    --border=rounded) || {
+    status=$?
+    [[ $status -eq 130 ]] && exit 0
+    printf 'herdr-remote: fzf exited with status %s\n' "$status" >&2
+    exit "$status"
+}
+[[ -n "$selected" ]] || exit 0
+
+ssh_attach "$selected"

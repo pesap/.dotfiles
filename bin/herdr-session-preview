@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+    printf 'Usage: herdr-session-preview PROJECT_PATH_JSON\n' >&2
+    exit 2
+fi
+
+project_path=$(jq -nr --argjson path "$1" '$path | strings') || exit 1
+if [[ -z "$project_path" || ! -d "$project_path" ]]; then
+    printf 'Project path unavailable\n'
+    exit 0
+fi
+
+if [[ -f "$project_path/README.md" ]] && command -v bat >/dev/null 2>&1; then
+    bat --color=always --style=plain --line-range=:80 "$project_path/README.md" 2>/dev/null
+else
+    fd --max-depth 2 --hidden --exclude .git --type f . "$project_path" 2>/dev/null | head -40 || true
+fi

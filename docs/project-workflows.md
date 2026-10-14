@@ -12,11 +12,12 @@ first level under these roots:
 ```text
 ~/dev
 ~/work
+~/sandbox
 ~ (home-level project directories)
 ~/personal
-~/sandbox
 ```
 
+The `~/worktrees` directory is omitted because it stores generated worktrees.
 `~/.dotfiles` is included as an explicit project. Override the lists with
 `PROJECT_ROOTS` and `PROJECT_PATHS`, using colon-separated values.
 

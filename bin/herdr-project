@@ -1,14 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+script_path=${BASH_SOURCE[0]}
+while [[ -L "$script_path" ]]; do
+    link_dir=$(cd -- "$(dirname -- "$script_path")" && pwd -P)
+    link_target=$(readlink "$script_path")
+    if [[ "$link_target" == /* ]]; then
+        script_path=$link_target
+    else
+        script_path=$link_dir/$link_target
+    fi
+done
+script_dir=$(cd -- "$(dirname -- "$script_path")" && pwd -P)
+
+case "${1:-}" in
+    --select)
+        shift
+        exec "$script_dir/herdr-session-select" "$@"
+        ;;
+    --session-kill)
+        shift
+        exec "$script_dir/herdr-session-kill" "$@"
+        ;;
+esac
+
 picker="${HERDR_PROJECT_PICKER:-$script_dir/project-picker}"
 namer="${HERDR_PROJECT_NAME:-$script_dir/project-name}"
+session_killer="$script_dir/herdr-session-kill"
 
 state_dir="${XDG_RUNTIME_DIR:-$HOME/.cache}/herdr-project"
 request_file="$state_dir/request"
+kill_request_file="$state_dir/kill-request"
 active_file="$state_dir/active"
 client_file="$state_dir/client"
+session_file="$state_dir/session"
 mkdir -p "$state_dir"
 chmod 700 "$state_dir"
 
@@ -16,27 +41,16 @@ pick_project() {
     PROJECT_PICKER_PROMPT='herdr › ' "$picker"
 }
 
-if [[ "${1:-}" == --select ]]; then
-    read -r project_pid <"$active_file" 2>/dev/null || {
-        printf 'Launch Herdr with herdr-project first.\n' >&2
-        sleep 2
-        exit 1
-    }
-    kill -0 "$project_pid" 2>/dev/null || exit 1
-    selected=$(pick_project) || exit 0
-    [[ -n "$selected" ]] && printf '%s\n' "$selected" >"$request_file"
-    exit 0
-fi
-
 [[ "${HERDR_ENV:-}" != 1 ]] || {
     printf 'Use Ctrl+\\ to switch Herdr sessions without nesting.\n' >&2
     exit 1
 }
 
 printf '%s\n' "$$" >"$active_file"
-rm -f -- "$request_file"
-trap 'rm -f -- "$active_file" "$request_file" "$client_file"' EXIT
+rm -f -- "$request_file" "$kill_request_file"
+trap 'rm -f -- "$active_file" "$request_file" "$kill_request_file" "$client_file" "$session_file"' EXIT
 selected="${1:-}"
+session_override=''
 
 while true; do
     [[ -n "$selected" ]] || selected=$(pick_project) || exit 0
@@ -45,8 +59,14 @@ while true; do
         exit 1
     }
 
-    session_name=$("$namer" "$selected")
-    rm -f -- "$request_file" "$client_file"
+    if [[ -n "$session_override" ]]; then
+        session_name=$session_override
+        session_override=''
+    else
+        session_name=$("$namer" "$selected")
+    fi
+    printf '%s\n' "$session_name" >"$session_file"
+    rm -f -- "$request_file" "$kill_request_file" "$client_file"
 
     watch_request() {
         local client_pid=''
@@ -55,7 +75,7 @@ while true; do
         done
         read -r client_pid <"$client_file"
         while kill -0 "$client_pid" 2>/dev/null; do
-            if [[ -s "$request_file" ]]; then
+            if [[ -s "$request_file" || -s "$kill_request_file" ]]; then
                 kill -INT "$client_pid" 2>/dev/null || true
                 return
             fi
@@ -75,6 +95,35 @@ while true; do
     wait "$watcher_pid" 2>/dev/null || true
     rm -f -- "$client_file"
 
-    [[ -s "$request_file" ]] || exit "$status"
-    read -r selected <"$request_file"
+    if [[ -s "$kill_request_file" ]]; then
+        kill_request=$(<"$kill_request_file")
+        rm -f -- "$kill_request_file"
+        session_to_kill=$(jq -er '.name | strings' <<<"$kill_request") || {
+            printf 'herdr-project: invalid session stop request\n' >&2
+            exit 1
+        }
+        [[ "$session_to_kill" == "$session_name" ]] || {
+            printf 'herdr-project: refusing to stop a session other than the current project session\n' >&2
+            exit 1
+        }
+        "$session_killer" --yes "$session_to_kill" || exit $?
+        exit 0
+    fi
+
+    if [[ -s "$request_file" ]]; then
+        attach_request=$(<"$request_file")
+        rm -f -- "$request_file"
+        session_override=$(jq -er '.name | strings' <<<"$attach_request") || {
+            printf 'herdr-project: invalid session attach request\n' >&2
+            exit 1
+        }
+        [[ -n "$session_override" ]] || {
+            printf 'herdr-project: empty session attach request\n' >&2
+            exit 1
+        }
+        [[ "$session_override" != "$session_name" ]] || exit "$status"
+        continue
+    fi
+
+    exit "$status"
 done

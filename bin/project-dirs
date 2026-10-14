@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-roots_value="${PROJECT_ROOTS-${HERDR_PROJECT_ROOTS:-$HOME/dev:$HOME/work:$HOME:$HOME/personal:$HOME/sandbox}}"
+roots_value="${PROJECT_ROOTS-${HERDR_PROJECT_ROOTS:-$HOME/dev:$HOME/work:$HOME/sandbox:$HOME:$HOME/personal}}"
 paths_value="${PROJECT_PATHS-$HOME/.dotfiles}"
 
 IFS=: read -r -a roots <<< "$roots_value"
@@ -17,8 +17,15 @@ command -v fd >/dev/null 2>&1 || {
         [[ -d "$path" ]] && printf '%s\n' "$path"
     done
 
+    search_roots=()
     for root in "${roots[@]}"; do
-        [[ -d "$root" ]] || continue
-        fd --type d --min-depth 1 --max-depth 1 --exclude .bare . "$root" 2>/dev/null
+        if [[ -d "$root" ]]; then
+            search_roots+=("$root")
+        fi
     done
-} | awk '!seen[$0]++'
+    if ((${#search_roots[@]} > 0)); then
+        fd --type d --min-depth 1 --max-depth 1 --exclude .bare . \
+            "${search_roots[@]}" 2>/dev/null
+    fi
+} | awk -v excluded="${HOME%/}/worktrees" \
+    '$0 != excluded && $0 != excluded "/" && !seen[$0]++'

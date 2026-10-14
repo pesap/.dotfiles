@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+if "$script_dir/herdr-remote" "$@"; then
+    exit 0
+else
+    status=$?
+fi
+
+printf '\nHerdr remote attach failed. Press Enter to close this window.'
+read -r _ || :
+exit "$status"

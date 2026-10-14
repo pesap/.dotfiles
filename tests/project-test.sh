@@ -34,11 +34,20 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 mkdir -p "$test_dir/home/dev/alpha" "$test_dir/home/work/beta" \
+    "$test_dir/home/sandbox/gamma" "$test_dir/home/worktrees" \
     "$test_dir/home/.dotfiles" "$test_dir/home/runtime" "$test_dir/fake-bin"
 
 cat >"$test_dir/fake-bin/fd" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "$HOME/dev/alpha" "$HOME/work/beta" "$HOME/dev/alpha"
+set -euo pipefail
+for argument in "$@"; do
+    case "$argument" in
+        "$HOME/dev") printf '%s\n' "$HOME/dev/alpha/" ;;
+        "$HOME/work") printf '%s\n' "$HOME/work/beta/" ;;
+        "$HOME/sandbox") printf '%s\n' "$HOME/sandbox/gamma/" ;;
+        "$HOME") printf '%s\n' "$HOME/dev/" "$HOME/work/" "$HOME/sandbox/" "$HOME/worktrees/" ;;
+    esac
+done
 EOF
 cat >"$test_dir/fake-bin/fzf" <<'EOF'
 #!/usr/bin/env bash
@@ -59,8 +68,22 @@ paths=$(HOME="$test_dir/home" PATH="$test_dir/fake-bin:$PATH" \
 
 [[ "$(printf '%s\n' "$paths" | grep -c '^')" == 3 ]]
 grep -Fxq "$test_dir/home/.dotfiles" <<<"$paths"
-grep -Fxq "$test_dir/home/dev/alpha" <<<"$paths"
-grep -Fxq "$test_dir/home/work/beta" <<<"$paths"
+grep -Fxq "$test_dir/home/dev/alpha/" <<<"$paths"
+grep -Fxq "$test_dir/home/work/beta/" <<<"$paths"
+
+default_paths=$(env -u PROJECT_ROOTS -u HERDR_PROJECT_ROOTS \
+    HOME="$test_dir/home" PATH="$test_dir/fake-bin:$PATH" \
+    PROJECT_PATHS="$test_dir/home/.dotfiles" "$repo_root/bin/project-dirs")
+grep -Fxq "$test_dir/home/dev/" <<<"$default_paths"
+grep -Fxq "$test_dir/home/work/" <<<"$default_paths"
+grep -Fxq "$test_dir/home/sandbox/" <<<"$default_paths"
+grep -Fxq "$test_dir/home/dev/alpha/" <<<"$default_paths"
+grep -Fxq "$test_dir/home/work/beta/" <<<"$default_paths"
+grep -Fxq "$test_dir/home/sandbox/gamma/" <<<"$default_paths"
+if grep -Fxq "$test_dir/home/worktrees/" <<<"$default_paths"; then
+    printf 'project-dirs: included the worktrees storage directory\n' >&2
+    exit 1
+fi
 
 selected=$(HOME="$test_dir/home" "$repo_root/bin/project-picker" "$test_dir/home/.dotfiles")
 [[ "$selected" == "$test_dir/home/.dotfiles" ]]

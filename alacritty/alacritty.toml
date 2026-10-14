@@ -85,8 +85,11 @@ osc52 = "OnlyCopy"              # remote shells can write to clipboard, not read
 
 [keyboard]
 bindings = [
+    # Open an independent Alacritty so canceling the remote picker cannot exit a local TUI.
+    { key = "R", mods = "Super|Shift", command = { program = "/bin/sh", args = ["-c", "exec \"$HOME/.dotfiles/bin/herdr-remote-launch\""] } },
+
     # Cmd+\\ on macOS / Super+\\ on Linux becomes Ctrl+\\. Outside Herdr,
-    # zsh launches herdr-project; inside Herdr, its native popup handles it.
+    # zsh launches herdr-project; inside Herdr, its native popup selects a session.
     { key = "Backslash", mods = "Super", chars = "\u001c" },
 
     # ── Font size (live) ─────────────────────────────────────────────────────
