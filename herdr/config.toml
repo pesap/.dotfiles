@@ -48,6 +48,9 @@ type = "plugin_action"
 command = "worktrunk.merge"
 description = "merge Worktrunk worktree"
 
+[worktrees]
+directory = "~/worktrees"
+
 [ui]
 agent_panel_sort = "spaces"
 
