@@ -1,174 +1,111 @@
-#!/usr/bin/env python3
-"""Build fzf rows for saved Herdr sessions and project directories."""
+#!/usr/bin/env bash
+set -euo pipefail
 
-from __future__ import annotations
+script_path=${BASH_SOURCE[0]}
+while [[ -L "$script_path" ]]; do
+    link_dir=$(cd -- "$(dirname -- "$script_path")" && pwd -P)
+    link_target=$(readlink "$script_path")
+    if [[ "$link_target" == /* ]]; then
+        script_path=$link_target
+    else
+        script_path=$link_dir/$link_target
+    fi
+done
+script_dir=$(cd -- "$(dirname -- "$script_path")" && pwd -P)
+# shellcheck source=bin/project-paths.sh
+source "$script_dir/project-paths.sh"
 
-import argparse
-import base64
-import json
-import os
-import subprocess
-import sys
-from pathlib import Path
-from typing import Optional, Sequence
+exclude_default=false
+include_projects=false
+for argument in "$@"; do
+    case "$argument" in
+    --exclude-default) exclude_default=true ;;
+    --include-projects) include_projects=true ;;
+    *)
+        printf 'Usage: herdr-session-rows [--exclude-default] [--include-projects]\n' >&2
+        exit 2
+        ;;
+    esac
+done
 
-Row = tuple[str, str, str, str]
+session_refs=$(jq -ces --argjson exclude_default "$exclude_default" '
+    if length != 1 or (.[0].sessions | type) != "array" then
+        error("invalid session list")
+    else .[0].sessions end
+    | map(select(type == "object"))
+    | map(select((.name | type) == "string" and (.session_dir | type) == "string"))
+    | map(select(.name != "" and ((.name | test("[\\r\\n]")) | not)))
+    | if $exclude_default then map(select(.name != "default")) else . end
+') || {
+    printf 'herdr-session-rows: invalid Herdr session list\n' >&2
+    exit 1
+}
 
+use_color=false
+if [[ -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+    use_color=true
+fi
 
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="herdr-session-rows")
-    parser.add_argument("--exclude-default", action="store_true")
-    parser.add_argument("--include-projects", action="store_true")
-    return parser.parse_args(argv)
+# Batch metadata parsing as well as row formatting. JSON process counts do not
+# grow with the number of projects or saved sessions.
+read_session_paths() {
+    local name running session_dir metadata
+    while IFS= read -r -d '' name &&
+        IFS= read -r -d '' running &&
+        IFS= read -r -d '' session_dir; do
+        [[ -r "$session_dir/session.json" ]] || continue
+        metadata=$(<"$session_dir/session.json")
+        printf '%s\0%s\0%s\0' "$name" "$running" "$metadata"
+    done < <(jq -j '.[] | .name, "\u0000",
+        (if (.running | type) == "boolean" then (.running | tostring) else "" end),
+        "\u0000", .session_dir, "\u0000"' <<<"$session_refs") |
+        jq -Rjs '
+            split("\u0000") | .[:-1]
+            | range(0; length; 3) as $i | .[$i:$i+3]
+            | .[0] as $name | .[1] as $running
+            | (try (.[2] | fromjson) catch null) | select(type == "object")
+            | select((.active | type) == "number" and (.workspaces | type) == "array")
+            | select(.active >= 0 and .active == (.active | floor) and .active < (.workspaces | length))
+            | .workspaces[.active] | select(type == "object")
+            | .identity_cwd | select(type == "string") | select(startswith("/"))
+            | $name, "\u0000", $running, "\u0000", ., "\u0000"
+        '
+}
 
+# Keep the session's active path for preview and base path for display.
+{
+    while IFS= read -r -d '' name &&
+        IFS= read -r -d '' running &&
+        IFS= read -r -d '' session_path; do
+        if [[ -d "$session_path" ]]; then
+            project_resolve_path "$session_path" || continue
+        else
+            project_path=$session_path
+        fi
+        printf 'session\0%s\0%s\0%s\0%s\0' "$name" "$running" "$session_path" "$project_path"
+    done < <(read_session_paths)
 
-def normalized_path(path: str) -> str:
-    if path == "/":
-        return path
-    return path.rstrip("/")
-
-
-def display_path(path: str) -> str:
-    return path.replace("\t", " ").replace("\r", " ").replace("\n", " ")
-
-
-def json_string(value: str) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-
-
-def session_row(
-    session: object, *, exclude_default: bool, use_color: bool
-) -> Optional[tuple[Row, str]]:
-    if not isinstance(session, dict):
-        return None
-
-    name = session.get("name")
-    session_dir = session.get("session_dir")
-    if (
-        not isinstance(name, str)
-        or not name
-        or "\r" in name
-        or "\n" in name
-        or (exclude_default and name == "default")
-        or not isinstance(session_dir, str)
-        or not session_dir
-    ):
-        return None
-
-    try:
-        metadata = json.loads((Path(session_dir) / "session.json").read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return None
-    if not isinstance(metadata, dict):
-        return None
-
-    active = metadata.get("active")
-    workspaces = metadata.get("workspaces")
-    if (
-        isinstance(active, bool)
-        or not isinstance(active, int)
-        or not isinstance(workspaces, list)
-        or not 0 <= active < len(workspaces)
-    ):
-        return None
-
-    workspace = workspaces[active]
-    path = workspace.get("identity_cwd") if isinstance(workspace, dict) else None
-    if not isinstance(path, str) or not path.startswith("/"):
-        return None
-
-    running = session.get("running")
-    visible_path = display_path(path)
-    if use_color and isinstance(running, bool):
-        color = "32" if running else "90"
-        visible_path = f"\x1b[{color}m{visible_path}\x1b[0m"
-
-    token = base64.b64encode(name.encode("utf-8")).decode("ascii")
-    row: Row = (token, visible_path, json_string(path), "session")
-    return row, json_string(normalized_path(path))
-
-
-def session_rows(
-    sessions: list[object], *, exclude_default: bool, use_color: bool
-) -> tuple[list[Row], set[str]]:
-    rows: list[Row] = []
-    session_paths: set[str] = set()
-    for session in sessions:
-        result = session_row(session, exclude_default=exclude_default, use_color=use_color)
-        if result is None:
-            continue
-        row, path_key = result
-        rows.append(row)
-        session_paths.add(path_key)
-    return rows, session_paths
-
-
-def project_rows(
-    script_dir: Path, session_paths: set[str], cwd: str
-) -> Optional[list[Row]]:
-    try:
-        result = subprocess.run(
-            [str(script_dir / "project-dirs")],
-            check=False,
-            stdout=subprocess.PIPE,
-            text=True,
-        )
-    except OSError as error:
-        print(f"herdr-session-rows: could not list project directories: {error}", file=sys.stderr)
-        return None
-
-    if result.returncode != 0:
-        print("herdr-session-rows: could not list project directories", file=sys.stderr)
-        return None
-
-    rows: list[Row] = []
-    for raw_path in result.stdout.splitlines():
-        if not raw_path:
-            continue
-        path = raw_path if os.path.isabs(raw_path) else os.path.join(cwd, raw_path)
-        path = normalized_path(path)
-        if not Path(path).is_dir():
-            continue
-
-        path_json = json_string(path)
-        if path_json in session_paths:
-            continue
-
-        token = base64.b64encode(path.encode("utf-8")).decode("ascii")
-        rows.append((token, display_path(path), path_json, "project"))
-    return rows
-
-
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    args = parse_args(argv)
-    try:
-        payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, UnicodeError):
-        print("herdr-session-rows: invalid Herdr session list", file=sys.stderr)
-        return 1
-
-    if not isinstance(payload, dict) or not isinstance(payload.get("sessions"), list):
-        print("herdr-session-rows: invalid Herdr session list", file=sys.stderr)
-        return 1
-
-    use_color = not os.environ.get("NO_COLOR") and os.environ.get("TERM") != "dumb"
-    rows, session_paths = session_rows(
-        payload["sessions"], exclude_default=args.exclude_default, use_color=use_color
-    )
-    if args.include_projects:
-        extra_rows = project_rows(Path(__file__).resolve().parent, session_paths, os.getcwd())
-        if extra_rows is None:
-            return 1
-        rows.extend(extra_rows)
-
-    rows.sort(key=lambda row: row[2])
-    try:
-        for row in rows:
-            sys.stdout.write("\t".join(row) + "\n")
-    except BrokenPipeError:
-        return 0
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    if [[ "$include_projects" == true ]]; then
+        project_paths=$(project_discover_paths "${PROJECT_PATHS_FILE:-$script_dir/../project_paths}") || exit 1
+        while IFS= read -r path; do
+            [[ -n "$path" ]] || continue
+            printf 'project\0%s\0\0%s\0%s\0' "$path" "$path" "$path"
+        done <<<"$project_paths"
+    fi
+} | jq -Rrs --argjson use_color "$use_color" --argjson include_projects "$include_projects" '
+    split("\u0000") | .[:-1]
+    | [range(0; length; 5) as $i | .[$i:$i+5]
+        | {kind: .[0], id: .[1], running: .[2], path: .[3], project: .[4]}]
+    | (reduce (.[] | select(.kind == "project")) as $p ({}; .[$p.project] = length)) as $allowed
+    | map(select(($include_projects | not) or $allowed[.project] != null))
+    | (reduce (.[] | select(.kind == "session")) as $s ({}; .[$s.project] = true)) as $saved
+    | map(select(.kind == "session" or ($saved[.project] | not)))
+    | sort_by((if $include_projects then $allowed[.project] else .project end), .kind, .id)[]
+    | (.project | gsub("[\t\r\n]"; " ")) as $display
+    | (if $use_color and .kind == "session" and .running == "true" then
+          "\u001b[32m" + $display + "\u001b[0m"
+       elif $use_color and .kind == "session" and .running == "false" then
+          "\u001b[90m" + $display + "\u001b[0m"
+       else $display end) as $display
+    | [(.id | @base64), $display, (.path | tojson), .kind] | join("\t")
+'

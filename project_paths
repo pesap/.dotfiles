@@ -1,0 +1,9 @@
+# One absolute or ~/ path per line. Spaces are literal, not shell syntax.
+# Exact paths pin a folder. A final /* includes immediate child folders.
+# This is the picker allowlist. Zoxide only ranks these folders.
+# Missing folders are skipped. No other visited folders are added.
+~/.dotfiles
+~/dev/*
+~/work/*
+~/sandbox/*
+~/personal/*

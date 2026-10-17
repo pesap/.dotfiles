@@ -6,20 +6,48 @@ The project workflow has one small shared interface:
 project-picker [DIRECTORY]  -> selected directory
 ```
 
-`project-picker` uses `project-dirs` for discovery. The provider searches the
-first level under these roots:
+`project-picker` and the Herdr session picker share discovery. Edit
+[`project_paths`](../project_paths) in this checkout to choose predefined folders.
+The default list is:
 
 ```text
-~/dev
-~/work
-~/sandbox
-~ (home-level project directories)
-~/personal
+~/.dotfiles
+~/dev/*
+~/work/*
+~/sandbox/*
+~/personal/*
 ```
 
-The `~/worktrees` directory is omitted because it stores generated worktrees.
-`~/.dotfiles` is included as an explicit project. Override the lists with
-`PROJECT_ROOTS` and `PROJECT_PATHS`, using colon-separated values.
+An exact path pins that folder. A final `/*` includes only immediate child
+folders, not a recursive scan. Use absolute paths or `~/` paths. Spaces are
+literal, so do not quote paths. Blank lines and lines starting with `#` are
+ignored. Missing folders and resolved project paths containing line breaks are
+skipped. The file is data, not an executable shell configuration. Set `PROJECT_PATHS_FILE` to use another list.
+
+`project_paths` is the strict picker allowlist. Zoxide only orders those
+projects by its ranking, including visits to their subfolders. It never adds
+folders, even Git repositories outside the list. Unvisited entries retain file
+order. An explicitly pinned folder remains available even if it is hidden or
+is not a Git repository.
+
+Entries are deduplicated by physical project path. Git subdirectories and
+linked worktrees resolve to their primary checkout. For a bare repository, the
+first non-bare checkout is used. There is no implicit home-directory scan.
+
+Linked-worktree mappings are cached between picker openings. The allowlist,
+folder discovery, zoxide ranking, and saved-session state are still read fresh.
+A cache hit older than 10 seconds starts a detached background refresh. Mappings
+older than five minutes are no longer used. A changed `.git` link or missing
+primary directory invalidates a mapping immediately. Cold lookups query Git.
+
+The cache contains checkout paths, Git-link contents, primary paths, and lookup
+timestamps, not candidate lists or running-state flags. It is stored at
+`$XDG_CACHE_HOME/project-picker/worktrees.json` when that override is set.
+Otherwise the location is `~/Library/Caches/project-picker/worktrees.json` on
+macOS or `~/.cache/project-picker/worktrees.json` on Linux. Writes use atomic
+replacement, with private directory and file permissions. Cache errors do not
+prevent discovery. Set `PROJECT_PICKER_CACHE=0` to bypass persistent cache
+reads, writes, and background refresh.
 
 Herdr is the only project sessionizer. It consumes the shared selected
 directory:
@@ -33,14 +61,53 @@ selection and opens the project in a Herdr workspace.
 
 Inside Herdr, `Ctrl+\\` opens a combined session and project picker. Enter
 switches to a saved session or starts a named session for a project without one.
-The project entries use the shared roots and discovery rules. Saved sessions
-without a project path remain omitted. The combined picker requires `python3`,
-`jq`, `fd`, and `fzf`.
+Project entries and saved sessions must match the `project_paths` allowlist.
+A session displays its base project path while its preview uses the active
+workspace directory. A saved session suppresses the duplicate project entry
+and keeps that project's zoxide ordering. The separate session manager,
+`herdr-project --session-kill`, still lists unconfigured sessions for cleanup.
+Sessions without a project path remain omitted.
+
+The pickers use Bash, Git, zoxide, jq, and fzf. Previews run only for the
+highlighted entry, using bat for `README.md` or fd for a short file listing.
+Project discovery does not run either preview tool. The combined picker starts
+fzf concurrently with candidate generation. Path normalization uses Bash
+built-ins without per-folder subprocesses and restores the caller's directory
+state. JSON parsing and formatting are batched rather than spawning jq for each
+project or session.
 
 Herdr needs a small amount of additional handoff logic because nested Herdr
 clients are not supported. Its project launcher uses the native Herdr popup to
 ask the outer launcher to switch sessions cleanly. Other sessionizers are not
 part of this configuration.
+
+## Validate picker startup
+
+From the checkout root, with the configured tools installed, run this
+non-interactive test. It creates isolated folders under `/var/tmp`, runs no live
+Herdr session actions, and cleans up only its validated test directory:
+
+```sh
+bash tests/project-test.sh
+```
+
+Success prints `project tests: ok`. The startup regression case loads 300
+folders and 40 saved sessions through the row builder and real fzf filter. It
+fails if loading takes one second or longer, or if JSON process counts grow
+with the candidate count. This measures candidate loading, not terminal drawing
+or Herdr popup animation. Filesystem and machine load affect elapsed time.
+
+From the same checkout root with Bash, Git, and jq installed, run the cache
+lifecycle test. It uses isolated cache directories and a controlled clock under
+`/var/tmp`, with no live session actions or changes to your normal cache:
+
+```sh
+bash tests/project-cache-test.sh
+```
+
+Success prints `project cache tests: ok`. This checks warm hits, changed Git
+links, expiry, nonblocking refresh, fresh session status, cache errors, private
+permissions, and concurrent atomic writes.
 
 ## Worktrunk and Herdr
 

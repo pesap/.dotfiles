@@ -46,33 +46,47 @@ command -v jq >/dev/null 2>&1 || {
     printf 'herdr-session-select: jq is required\n' >&2
     exit 1
 }
-command -v python3 >/dev/null 2>&1 || {
-    printf 'herdr-session-select: python3 is required\n' >&2
-    exit 1
-}
 
 sessions_json=$(herdr session list --json) || {
     printf 'herdr-session-select: could not list Herdr sessions\n' >&2
     exit 1
 }
-session_rows=$(printf '%s\n' "$sessions_json" | "$script_dir/herdr-session-rows" --include-projects) || {
-    printf 'herdr-session-select: invalid session list from Herdr\n' >&2
-    exit 1
-}
-[[ -n "$session_rows" ]] || {
-    printf 'herdr-session-select: no projects or saved sessions are available\n'
+# Start fzf while entries are prepared, rather than waiting on a captured list.
+selection_status=0
+# shellcheck disable=SC2016 # fzf evaluates its item count after loading completes.
+selected=$(
+    if printf '%s\n' "$sessions_json" | "$script_dir/herdr-session-rows" --include-projects |
+        fzf --ansi --delimiter=$'\t' --with-nth=2 --expect=enter,q \
+            --prompt='herdr › ' --header='Enter: open/switch  q: close session  Esc: close picker' \
+            --height=70% --layout=reverse --border=rounded \
+            --bind='load:transform:if [ "$FZF_TOTAL_COUNT" -eq 0 ]; then printf accept; fi' \
+            --preview="$script_dir/herdr-session-preview {3}" \
+            --preview-window='right,50%,border-left,wrap'; then
+        exit 0
+    else
+        pipeline_statuses=("${PIPESTATUS[@]}")
+    fi
+    # A closed picker can cause SIGPIPE. Other producer errors take priority.
+    for producer_status in "${pipeline_statuses[0]}" "${pipeline_statuses[1]}"; do
+        if [[ "$producer_status" != 0 && "$producer_status" != 141 ]]; then
+            exit 2
+        fi
+    done
+    exit "${pipeline_statuses[2]}"
+) || selection_status=$?
+case "$selection_status" in
+    0) ;;
+    1) selected='' ;;
+    130) exit 0 ;;
+    *)
+        printf 'herdr-session-select: could not load picker entries\n' >&2
+        exit "$selection_status"
+        ;;
+esac
+[[ -n "$selected" ]] || {
+    printf 'herdr-session-select: no matching projects or saved sessions\n'
     exit 0
 }
-
-if ! selected=$(printf '%s\n' "$session_rows" | fzf \
-    --ansi --delimiter=$'\t' --with-nth=2 --expect=enter,q \
-    --prompt='herdr › ' --header='Enter: open/switch  q: close session  Esc: close picker' \
-    --height=70% --layout=reverse --border=rounded \
-    --preview="$script_dir/herdr-session-preview {3}" \
-    --preview-window='right,50%,border-left,wrap'); then
-    exit 0
-fi
-[[ -n "$selected" ]] || exit 0
 selection_key=${selected%%$'\n'*}
 selected_row=${selected#*$'\n'}
 [[ "$selected_row" != "$selected" ]] || exit 0

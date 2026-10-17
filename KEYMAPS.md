@@ -182,11 +182,12 @@ Sources:
 | `Ctrl+b`, then `Shift+D` | remove a Worktrunk worktree |
 | `Ctrl+b`, then `Shift+M` | merge a Worktrunk worktree |
 
-`project-picker` discovers first-level projects under the shared project roots
-with `fd`, and includes `~/.dotfiles` as an explicit project. It uses `fzf`
-with a lightweight preview; pass a project directory directly to any launcher
-to skip the picker. The project basename is sanitized into the multiplexer
-session name.
+Both project pickers read [`project_paths`](project_paths). An exact path pins a
+folder, and a final `/*` includes immediate child folders. This list is the
+strict allowlist. Zoxide ranks these projects but never adds folders.
+Discovery deduplicates paths and maps linked worktrees to their base checkout. The picker uses `fzf` with an on-demand bat or fd preview. Pass a
+project directory directly to the launcher to skip selection. The project
+basename is sanitized into the Herdr session name.
 
 In Alacritty, `Cmd+Shift+R` on macOS or `Super+Shift+R` on Linux opens a
 separate Alacritty window for the remote picker. By default, its `fzf` list
@@ -199,17 +200,20 @@ on `PATH`. Esc or Ctrl+C cancels only the new picker, leaving the current
 terminal or Herdr session untouched. Run `herdr-remote` directly from any
 interactive Unix terminal to use the same picker.
 
-Set `PROJECT_ROOTS` and `PROJECT_PATHS` as colon-separated overrides when
-needed. Outside Herdr, `herdr-project` opens a project and starts its named
-session. Inside Herdr, `Ctrl+\\` opens a combined session and project selector.
+Edit `project_paths` to change predefined locations, or set `PROJECT_PATHS_FILE`
+to use another list. Outside Herdr, `herdr-project` opens a project and starts
+its named session. Inside Herdr, `Ctrl+\\` opens a combined session and project
+selector.
 Enter switches to a saved session or starts a named session for a project with
 no saved session. The picker shows saved sessions with a project path, colors
 running-session paths green and stopped-session paths gray, and previews the
-project. Project directories use the shared project roots. Sessions without a
-project path are omitted. Press `q` to stop and delete a highlighted saved
-session after confirmation. Esc closes the picker without action.
-The deletion picker is also available with `herdr-project --session-kill`. It
-stops a running named session, verifies it stopped, then deletes its saved state
+active workspace. Projects and saved sessions must match `project_paths`, and
+a saved session suppresses its duplicate project entry. Sessions without a
+project path are omitted. Press `q` to stop and delete a highlighted saved session after
+confirmation. Esc closes the picker without action.
+The deletion picker is also available with `herdr-project --session-kill` and
+includes sessions outside the allowlist for cleanup. It stops a running named
+session, verifies it stopped, then deletes its saved state
 after confirmation. The default session is excluded. Herdr 0.9.0 has no targeted
 force-stop option, so a server that does not respond to `session stop` is left
 intact. `herdr-kill-all` remains the separate all-session command and prompts

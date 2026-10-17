@@ -1,31 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-roots_value="${PROJECT_ROOTS-${HERDR_PROJECT_ROOTS:-$HOME/dev:$HOME/work:$HOME/sandbox:$HOME:$HOME/personal}}"
-paths_value="${PROJECT_PATHS-$HOME/.dotfiles}"
-
-IFS=: read -r -a roots <<< "$roots_value"
-IFS=: read -r -a paths <<< "$paths_value"
-
-command -v fd >/dev/null 2>&1 || {
-    printf 'project-dirs: fd is required\n' >&2
-    exit 1
-}
-
-{
-    for path in "${paths[@]}"; do
-        [[ -d "$path" ]] && printf '%s\n' "$path"
-    done
-
-    search_roots=()
-    for root in "${roots[@]}"; do
-        if [[ -d "$root" ]]; then
-            search_roots+=("$root")
-        fi
-    done
-    if ((${#search_roots[@]} > 0)); then
-        fd --type d --min-depth 1 --max-depth 1 --exclude .bare . \
-            "${search_roots[@]}" 2>/dev/null
+script_path=${BASH_SOURCE[0]}
+while [[ -L "$script_path" ]]; do
+    link_dir=$(cd -- "$(dirname -- "$script_path")" && pwd -P)
+    link_target=$(readlink "$script_path")
+    if [[ "$link_target" == /* ]]; then
+        script_path=$link_target
+    else
+        script_path=$link_dir/$link_target
     fi
-} | awk -v excluded="${HOME%/}/worktrees" \
-    '$0 != excluded && $0 != excluded "/" && !seen[$0]++'
+done
+script_dir=$(cd -- "$(dirname -- "$script_path")" && pwd -P)
+# shellcheck source=bin/project-paths.sh
+source "$script_dir/project-paths.sh"
+
+project_discover_paths "${PROJECT_PATHS_FILE:-$script_dir/../project_paths}"
