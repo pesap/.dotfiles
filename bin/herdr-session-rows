@@ -1,77 +1,174 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Build fzf rows for saved Herdr sessions and project directories."""
 
-exclude_default=false
-case "${1:-}" in
-    "")
-        ;;
-    --exclude-default)
-        [[ $# -eq 1 ]] || {
-            printf 'Usage: herdr-session-rows [--exclude-default]\n' >&2
-            exit 2
-        }
-        exclude_default=true
-        ;;
-    *)
-        printf 'Usage: herdr-session-rows [--exclude-default]\n' >&2
-        exit 2
-        ;;
-esac
+from __future__ import annotations
 
-session_refs=$(jq -c --argjson exclude_default "$exclude_default" '
-    if (.sessions | type) != "array" then error("invalid session list") else .sessions end
-    | map(select((.name | type) == "string"))
-    | map(select(.name != "" and ((.name | test("[\\r\\n]")) | not)))
-    | if $exclude_default then map(select(.name != "default")) else . end
-    | sort_by(.name)
-    | map({
-        token: (.name | @base64),
-        running: (if (.running | type) == "boolean" then (.running | tostring) else "" end),
-        session_dir: (if (.session_dir | type) == "string" then .session_dir else "" end)
-    })
-') || {
-    printf 'herdr-session-rows: invalid Herdr session list\n' >&2
-    exit 1
-}
+import argparse
+import base64
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import Optional, Sequence
 
-session_project_fields() {
-    local session_file=$1 display_path project_path_json
-    exec 3< <(jq -j '
-        (.workspaces[.active].identity_cwd // "") as $raw_path
-        | (if ($raw_path | type) == "string" then $raw_path else "" end) as $path
-        | select($path | startswith("/"))
-        | ($path | gsub("[\\t\\r\\n]"; " ")), "\u0000", ($path | @json), "\u0000"
-    ' "$session_file" 2>/dev/null) || return 1
-    if ! IFS= read -r -d '' display_path <&3 || \
-        ! IFS= read -r -d '' project_path_json <&3; then
-        exec 3<&-
+Row = tuple[str, str, str, str]
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="herdr-session-rows")
+    parser.add_argument("--exclude-default", action="store_true")
+    parser.add_argument("--include-projects", action="store_true")
+    return parser.parse_args(argv)
+
+
+def normalized_path(path: str) -> str:
+    if path == "/":
+        return path
+    return path.rstrip("/")
+
+
+def display_path(path: str) -> str:
+    return path.replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def json_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def session_row(
+    session: object, *, exclude_default: bool, use_color: bool
+) -> Optional[tuple[Row, str]]:
+    if not isinstance(session, dict):
+        return None
+
+    name = session.get("name")
+    session_dir = session.get("session_dir")
+    if (
+        not isinstance(name, str)
+        or not name
+        or "\r" in name
+        or "\n" in name
+        or (exclude_default and name == "default")
+        or not isinstance(session_dir, str)
+        or not session_dir
+    ):
+        return None
+
+    try:
+        metadata = json.loads((Path(session_dir) / "session.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(metadata, dict):
+        return None
+
+    active = metadata.get("active")
+    workspaces = metadata.get("workspaces")
+    if (
+        isinstance(active, bool)
+        or not isinstance(active, int)
+        or not isinstance(workspaces, list)
+        or not 0 <= active < len(workspaces)
+    ):
+        return None
+
+    workspace = workspaces[active]
+    path = workspace.get("identity_cwd") if isinstance(workspace, dict) else None
+    if not isinstance(path, str) or not path.startswith("/"):
+        return None
+
+    running = session.get("running")
+    visible_path = display_path(path)
+    if use_color and isinstance(running, bool):
+        color = "32" if running else "90"
+        visible_path = f"\x1b[{color}m{visible_path}\x1b[0m"
+
+    token = base64.b64encode(name.encode("utf-8")).decode("ascii")
+    row: Row = (token, visible_path, json_string(path), "session")
+    return row, json_string(normalized_path(path))
+
+
+def session_rows(
+    sessions: list[object], *, exclude_default: bool, use_color: bool
+) -> tuple[list[Row], set[str]]:
+    rows: list[Row] = []
+    session_paths: set[str] = set()
+    for session in sessions:
+        result = session_row(session, exclude_default=exclude_default, use_color=use_color)
+        if result is None:
+            continue
+        row, path_key = result
+        rows.append(row)
+        session_paths.add(path_key)
+    return rows, session_paths
+
+
+def project_rows(
+    script_dir: Path, session_paths: set[str], cwd: str
+) -> Optional[list[Row]]:
+    try:
+        result = subprocess.run(
+            [str(script_dir / "project-dirs")],
+            check=False,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as error:
+        print(f"herdr-session-rows: could not list project directories: {error}", file=sys.stderr)
+        return None
+
+    if result.returncode != 0:
+        print("herdr-session-rows: could not list project directories", file=sys.stderr)
+        return None
+
+    rows: list[Row] = []
+    for raw_path in result.stdout.splitlines():
+        if not raw_path:
+            continue
+        path = raw_path if os.path.isabs(raw_path) else os.path.join(cwd, raw_path)
+        path = normalized_path(path)
+        if not Path(path).is_dir():
+            continue
+
+        path_json = json_string(path)
+        if path_json in session_paths:
+            continue
+
+        token = base64.b64encode(path.encode("utf-8")).decode("ascii")
+        rows.append((token, display_path(path), path_json, "project"))
+    return rows
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, UnicodeError):
+        print("herdr-session-rows: invalid Herdr session list", file=sys.stderr)
         return 1
-    fi
-    exec 3<&-
-    printf '%s\t%s\n' "$display_path" "$project_path_json"
-}
 
-rows=''
-while IFS= read -r -d '' name_token && \
-    IFS= read -r -d '' running_state && \
-    IFS= read -r -d '' session_dir; do
-    [[ -n "$name_token" && -n "$session_dir" && -r "$session_dir/session.json" ]] || continue
-    metadata=$(session_project_fields "$session_dir/session.json") || continue
-    IFS=$'\t' read -r display_path project_path_json <<<"$metadata"
-    [[ -n "$display_path" ]] || continue
+    if not isinstance(payload, dict) or not isinstance(payload.get("sessions"), list):
+        print("herdr-session-rows: invalid Herdr session list", file=sys.stderr)
+        return 1
 
-    if [[ -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
-        case "$running_state" in
-            true) display_path=$'\033[32m'"$display_path"$'\033[0m' ;;
-            false) display_path=$'\033[90m'"$display_path"$'\033[0m' ;;
-        esac
-    fi
-    rows+="$name_token"$'\t'"$display_path"$'\t'"$project_path_json"$'\n'
-done < <(jq -j '
-    .[]
-    | .token, "\u0000", .running, "\u0000", .session_dir, "\u0000"
-' <<<"$session_refs")
+    use_color = not os.environ.get("NO_COLOR") and os.environ.get("TERM") != "dumb"
+    rows, session_paths = session_rows(
+        payload["sessions"], exclude_default=args.exclude_default, use_color=use_color
+    )
+    if args.include_projects:
+        extra_rows = project_rows(Path(__file__).resolve().parent, session_paths, os.getcwd())
+        if extra_rows is None:
+            return 1
+        rows.extend(extra_rows)
 
-if [[ -n "$rows" ]]; then
-    printf '%s' "$rows" | sort -t $'\t' -k3,3
-fi
+    rows.sort(key=lambda row: row[2])
+    try:
+        for row in rows:
+            sys.stdout.write("\t".join(row) + "\n")
+    except BrokenPipeError:
+        return 0
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -203,6 +203,10 @@ case "${1:-}" in
             printf 'herdr-session-kill: jq is required\n' >&2
             exit 1
         }
+        command -v python3 >/dev/null 2>&1 || {
+            printf 'herdr-session-kill: python3 is required\n' >&2
+            exit 1
+        }
         if [[ "${HERDR_ENV:-}" == 1 ]]; then
             read -r active_pid <"$active_file" 2>/dev/null || {
                 printf 'herdr-session-kill: cannot safely identify the current Herdr session; launch it with herdr-project first\n' >&2

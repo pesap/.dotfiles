@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+python3_path=$(python3 -c 'import sys; print(sys.executable)')
 test_dir=$(mktemp -d /var/tmp/dotfiles-test.herdr-session.XXXXXX)
 test_dir=$(cd -- "$test_dir" && pwd -P)
 
@@ -79,13 +80,28 @@ while IFS= read -r candidate; do
 done
 exit 1
 EOF
+cat >"$test_dir/bin/python3" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$python3_path" "\$@"
+EOF
+cat >"$test_dir/bin/fd" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+for argument in "$@"; do
+    case "$argument" in
+        "$HOME/work") printf '%s\n' "$HOME/work/naerm-toolbox/" ;;
+    esac
+done
+EOF
 cat >"$test_dir/bin/herdr" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >>"${HERDR_TEST_LOG:?}"
 if [[ "${1:-}" == --session ]]; then
     trap - INT
-    exec python3 - "${HERDR_TEST_CLIENT_LOG:?}" "${2:?}" <<'PY'
+    exec python3 - "${HERDR_TEST_CLIENT_LOG:?}" "${2:?}" "${HERDR_TEST_CWD_LOG:?}" <<'PY'
+import os
 import signal
 import sys
 import time
@@ -94,6 +110,8 @@ signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
 signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 with open(sys.argv[1], "a", encoding="utf-8") as client_log:
     client_log.write(f"client {sys.argv[2]}\n")
+with open(sys.argv[3], "a", encoding="utf-8") as cwd_log:
+    cwd_log.write(f"{sys.argv[2]}\t{os.getcwd()}\n")
 while True:
     time.sleep(0.05)
 PY
@@ -124,7 +142,7 @@ case "${1:-} ${2:-}" in
         ;;
 esac
 EOF
-chmod +x "$test_dir/bin/fzf" "$test_dir/bin/herdr"
+chmod +x "$test_dir/bin/fd" "$test_dir/bin/fzf" "$test_dir/bin/herdr" "$test_dir/bin/python3"
 
 export HOME="$test_dir/home"
 export XDG_RUNTIME_DIR="$test_dir/runtime"
@@ -132,7 +150,12 @@ export PATH="$test_dir/bin:$PATH"
 export HERDR_TEST_STATE="$test_dir/sessions.json"
 export HERDR_TEST_LOG="$test_dir/herdr.log"
 export HERDR_TEST_CLIENT_LOG="$test_dir/herdr-client.log"
+export HERDR_TEST_CWD_LOG="$test_dir/herdr-cwd.log"
 export HERDR_TEST_FZF_QUEUE="$test_dir/fzf.queue"
+export PROJECT_ROOTS="$HOME/work"
+export PROJECT_PATHS="$HOME/.dotfiles"
+mkdir -p -- "$HOME/.dotfiles" "$HOME/work/naerm-toolbox"
+new_project_dir="$HOME/work/naerm-toolbox"
 unset HERDR_ENV
 project_preview_dir="$test_dir/project preview"
 session_metadata_dir="$test_dir/session-data/path-session"
@@ -188,10 +211,15 @@ stopped_token=$(jq -nr --arg name stopped-session '$name | @base64')
 missing_path_token=$(jq -nr --arg name no-path '$name | @base64')
 project_path_json=$(jq -cn --arg path "$project_preview_dir" '$path')
 stopped_path_json=$(jq -cn --arg path "$stopped_project_dir" '$path')
-expected_live_row="$session_token"$'\t'"$project_preview_dir"$'\t'"$project_path_json"
-expected_stopped_row="$stopped_token"$'\t'"$stopped_project_dir"$'\t'"$stopped_path_json"
+expected_live_row="$session_token"$'\t'"$project_preview_dir"$'\t'"$project_path_json"$'\t'session
+expected_stopped_row="$stopped_token"$'\t'"$stopped_project_dir"$'\t'"$stopped_path_json"$'\t'session
 grep -Fxq -- "$expected_live_row" <<<"$session_rows"
 grep -Fxq -- "$expected_stopped_row" <<<"$session_rows"
+project_token=$(jq -nr --arg path "$new_project_dir" '$path | @base64')
+new_project_path_json=$(jq -cn --arg path "$new_project_dir" '$path')
+project_rows=$(printf '%s\n' "$session_fixture" | NO_COLOR=1 \
+    "$repo_root/bin/herdr-session-rows" --include-projects)
+grep -Fxq -- "$project_token"$'\t'"$new_project_dir"$'\t'"$new_project_path_json"$'\t'project <<<"$project_rows"
 if grep -Fq "$missing_path_token" <<<"$session_rows"; then
     printf 'herdr-session-rows: included a session without a project path\n' >&2
     exit 1
@@ -266,7 +294,16 @@ printf '%s\n' "$(printf broken | base64 | tr -d '\n')" >"$HERDR_TEST_FZF_QUEUE"
 printf '%s\n' "$$" >"$XDG_RUNTIME_DIR/herdr-project/active"
 printf '%s\n' current >"$XDG_RUNTIME_DIR/herdr-project/session"
 HERDR_ENV=1 "$test_dir/bin/herdr-project" --select
-jq -e '.name == "broken"' "$XDG_RUNTIME_DIR/herdr-project/request" >/dev/null
+jq -e '.kind == "session" and .name == "broken"' \
+    "$XDG_RUNTIME_DIR/herdr-project/request" >/dev/null
+rm -f -- "$XDG_RUNTIME_DIR/herdr-project/request"
+
+# A project with no saved session is offered and submits its path to the launcher.
+printf '%s\n' "$project_token" >"$HERDR_TEST_FZF_QUEUE"
+HERDR_ENV=1 "$repo_root/bin/herdr-session-select"
+jq -e --arg path "$new_project_dir" \
+    '.kind == "project" and .path == $path' \
+    "$XDG_RUNTIME_DIR/herdr-project/request" >/dev/null
 rm -f -- "$XDG_RUNTIME_DIR/herdr-project/request"
 printf '%s\n' "$(printf current | base64 | tr -d '\n')" >"$HERDR_TEST_FZF_QUEUE"
 HERDR_ENV=1 "$repo_root/bin/herdr-session-select"
@@ -375,6 +412,48 @@ for _ in {1..100}; do
 done
 [[ "$(<"$launcher_runtime/herdr-project/session")" == other ]]
 grep -Fxq 'client other' "$HERDR_TEST_CLIENT_LOG"
+read -r client_pid <"$launcher_runtime/herdr-project/client"
+kill -INT "$client_pid"
+for _ in {1..100}; do
+    [[ ! -e "$launcher_runtime/herdr-project/active" ]] && break
+    sleep 0.05
+done
+[[ ! -e "$launcher_runtime/herdr-project/active" ]]
+if wait "$launcher_pid"; then
+    status=0
+else
+    status=$?
+fi
+launcher_pid=''
+[[ "$status" == 130 ]]
+
+# Selecting a project without a saved session starts its named session in that directory.
+launcher_runtime="$test_dir/runtime-open-project"
+mkdir -p -- "$launcher_runtime"
+: >"$HERDR_TEST_CLIENT_LOG"
+: >"$HERDR_TEST_CWD_LOG"
+XDG_RUNTIME_DIR="$launcher_runtime" "$test_dir/bin/herdr-project" \
+    "$HOME/dev/current" >"$test_dir/launcher-open-project.log" 2>&1 &
+launcher_pid=$!
+for _ in {1..100}; do
+    [[ -s "$launcher_runtime/herdr-project/client" ]] && \
+        grep -Fxq 'client current' "$HERDR_TEST_CLIENT_LOG" && break
+    sleep 0.05
+done
+[[ -s "$launcher_runtime/herdr-project/client" ]]
+grep -Fxq 'client current' "$HERDR_TEST_CLIENT_LOG"
+printf '%s\n' "$project_token" >"$HERDR_TEST_FZF_QUEUE"
+HERDR_ENV=1 XDG_RUNTIME_DIR="$launcher_runtime" \
+    "$repo_root/bin/herdr-session-select"
+for _ in {1..100}; do
+    [[ -s "$launcher_runtime/herdr-project/session" ]] && \
+        [[ "$(<"$launcher_runtime/herdr-project/session")" == naerm-toolbox ]] && \
+        grep -Fxq $'naerm-toolbox\t'"$new_project_dir" "$HERDR_TEST_CWD_LOG" && break
+    sleep 0.05
+done
+[[ "$(<"$launcher_runtime/herdr-project/session")" == naerm-toolbox ]]
+grep -Fxq 'client naerm-toolbox' "$HERDR_TEST_CLIENT_LOG"
+grep -Fxq $'naerm-toolbox\t'"$new_project_dir" "$HERDR_TEST_CWD_LOG"
 read -r client_pid <"$launcher_runtime/herdr-project/client"
 kill -INT "$client_pid"
 for _ in {1..100}; do

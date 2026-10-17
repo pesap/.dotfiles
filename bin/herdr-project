@@ -113,15 +113,41 @@ while true; do
     if [[ -s "$request_file" ]]; then
         attach_request=$(<"$request_file")
         rm -f -- "$request_file"
-        session_override=$(jq -er '.name | strings' <<<"$attach_request") || {
+        # Attach requests are tagged as session or project.
+        request_kind=$(jq -er '.kind | strings' <<<"$attach_request") || {
             printf 'herdr-project: invalid session attach request\n' >&2
             exit 1
         }
-        [[ -n "$session_override" ]] || {
-            printf 'herdr-project: empty session attach request\n' >&2
-            exit 1
-        }
-        [[ "$session_override" != "$session_name" ]] || exit "$status"
+        case "$request_kind" in
+            session)
+                session_override=$(jq -er '.name | strings' <<<"$attach_request") || {
+                    printf 'herdr-project: invalid session attach request\n' >&2
+                    exit 1
+                }
+                [[ -n "$session_override" && "$session_override" != *$'\n'* && \
+                    "$session_override" != *$'\r'* ]] || {
+                    printf 'herdr-project: invalid session name in attach request\n' >&2
+                    exit 1
+                }
+                [[ "$session_override" != "$session_name" ]] || exit "$status"
+                ;;
+            project)
+                selected=$(jq -er '.path | strings' <<<"$attach_request") || {
+                    printf 'herdr-project: invalid project open request\n' >&2
+                    exit 1
+                }
+                [[ "$selected" == /* && "$selected" != *$'\n'* && \
+                    "$selected" != *$'\r'* && -d "$selected" ]] || {
+                    printf 'herdr-project: selected project is no longer available\n' >&2
+                    exit 1
+                }
+                session_override=''
+                ;;
+            *)
+                printf 'herdr-project: unsupported attach request kind: %s\n' "$request_kind" >&2
+                exit 1
+                ;;
+        esac
         continue
     fi
 

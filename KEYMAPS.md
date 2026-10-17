@@ -170,6 +170,7 @@ Sources:
 |---|---|
 | `Cmd+\\` (macOS) / `Super+\\` (Linux) in Alacritty | sends `Ctrl+\\`; Zsh opens the project picker, Herdr opens the session selector |
 | `Ctrl+\\` in Zsh | open the Herdr project picker |
+| `Enter` in the Herdr session selector | switch to a saved session or start a project with no saved session |
 | `q` in the session selector | stop and delete the highlighted session after confirmation |
 | `Esc` in the session selector | close the picker without action |
 | `Cmd+Shift+R` (macOS) / `Super+Shift+R` (Linux) in Alacritty | open an SSH host picker and attach Herdr to the selected machine |
@@ -200,12 +201,13 @@ interactive Unix terminal to use the same picker.
 
 Set `PROJECT_ROOTS` and `PROJECT_PATHS` as colon-separated overrides when
 needed. Outside Herdr, `herdr-project` opens a project and starts its named
-session. Inside Herdr, `Ctrl+\\` selects an existing session and switches to it
-through the launcher. The picker shows sessions with a saved project path,
-colors running-session paths green and stopped-session paths gray, and previews
-the project. Sessions without a project path are omitted. Press `q` to stop and
-delete the highlighted session after confirmation. Esc closes the picker without
-action.
+session. Inside Herdr, `Ctrl+\\` opens a combined session and project selector.
+Enter switches to a saved session or starts a named session for a project with
+no saved session. The picker shows saved sessions with a project path, colors
+running-session paths green and stopped-session paths gray, and previews the
+project. Project directories use the shared project roots. Sessions without a
+project path are omitted. Press `q` to stop and delete a highlighted saved
+session after confirmation. Esc closes the picker without action.
 The deletion picker is also available with `herdr-project --session-kill`. It
 stops a running named session, verifies it stopped, then deletes its saved state
 after confirmation. The default session is excluded. Herdr 0.9.0 has no targeted

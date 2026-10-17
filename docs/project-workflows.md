@@ -31,6 +31,12 @@ herdr-project [DIRECTORY]
 Without an argument it opens the shared picker. With an argument it skips
 selection and opens the project in a Herdr workspace.
 
+Inside Herdr, `Ctrl+\\` opens a combined session and project picker. Enter
+switches to a saved session or starts a named session for a project without one.
+The project entries use the shared roots and discovery rules. Saved sessions
+without a project path remain omitted. The combined picker requires `python3`,
+`jq`, `fd`, and `fzf`.
+
 Herdr needs a small amount of additional handoff logic because nested Herdr
 clients are not supported. Its project launcher uses the native Herdr popup to
 ask the outer launcher to switch sessions cleanly. Other sessionizers are not
