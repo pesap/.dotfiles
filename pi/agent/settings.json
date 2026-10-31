@@ -10,7 +10,8 @@
     "git:github.com/crustyhacker/pi-thinking-steps",
     "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.6",
     "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
-    "git:github.com/pesap/khala"
+    "git:github.com/pesap/khala",
+    "npm:@gpac/pi-litellm"
   ],
   "quietStartup": true,
   "showCacheMissNotices": true,
@@ -20,7 +21,7 @@
   },
   "theme": "rose-pine-moon",
   "transport": "auto",
-  "lastChangelogVersion": "1.0.0",
+  "lastChangelogVersion": "1.4.0",
   "tuiMode": "fullscreen",
   "defaultProvider": "openai-codex",
   "modelThinkingLevels": {

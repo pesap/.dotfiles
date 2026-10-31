@@ -28,13 +28,12 @@ yabai -m config auto_balance off
 yabai -m config window_topmost off
 
 # App placement
-# Keep each frequently used app in its familiar space.
+# Default to space 4, including Microsoft apps. Rules below reserve spaces 1-3.
+yabai -m rule --add app=".*" space=4
 yabai -m rule --add app="^Ghostty$" space=1
-yabai -m rule --add app="^Alacritty$" space=1
-yabai -m rule --add app="^Safari$" space=1
-yabai -m rule --add app="^Finder$" space=2
-yabai -m rule --add app="^Microsoft Teams$" space=3
-yabai -m rule --add app="^Microsoft Outlook$" space=4
+yabai -m rule --add app="^alacritty$" space=1
+yabai -m rule --add app="^Safari$" space=2
+yabai -m rule --add app="^Finder$" space=3
 
 # Disable management for system apps
 yabai -m rule --add app="^System Preferences$" manage=off
@@ -42,5 +41,8 @@ yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Calculator$" manage=off
 yabai -m rule --add app="^Finder$" title="(Copy|Info|Preferences)" manage=off
 yabai -m rule --add app="^Archive Utility$" manage=off
+
+# Keep existing windows consistent with all configured rules.
+yabai -m rule --apply
 
 echo "yabai configuration loaded."

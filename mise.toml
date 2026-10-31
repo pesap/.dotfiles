@@ -31,7 +31,8 @@ shfmt = "3"
 gh = "2"
 node = "26"
 npm = "12"
-pi = "1.0.0"
+"npm:pyright" = "1"
+pi = "1.4.0"
 ruff = "0.16"
 "github:vicinaehq/vicinae" = { version = "0.28", asset_pattern = "vicinae-linux-x86_64-v{version}.tar.gz", os = ["linux"] }
 "cargo:stylua" = "2"
@@ -40,6 +41,9 @@ just = "1"
 rust = "1"
 rust-analyzer = "2026-09-07"
 ollama = "0.34"
+pandoc = "3.11"
+aws = { version = "2.36.45", symlink_bins = true }
+"aqua:aws/session-manager-plugin" = "1.2.835.0"
 
 [shell_alias]
 miseup = 'mise -C "$HOME/.dotfiles" upgrade --bump'

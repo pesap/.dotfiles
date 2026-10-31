@@ -56,7 +56,9 @@ Modern Neovim configuration using native LSP (0.12+) and lazy.nvim.
 | `<leader>gD` | Git diff (Fugitive) |
 | `<leader>rp` | Review panel toggle |
 | `<leader>rf` | PR review file picker |
-| `gd` / `<leader>gd` | Go to definition (native LSP) |
+| `gd` | Go to local declaration (Vim built-in) |
+| `<leader>gd` | Go to definition (native LSP) |
+| `grr` | Find references (native LSP) |
 | `K` | Hover docs |
 | `gra` | Code action |
 | `grn` | Rename |
@@ -71,7 +73,7 @@ mise -C . install --locked
 
 The enabled servers are selected in `lua/prefs.lua`:
 - Lua (`lua-language-server`)
-- Python (Ruff)
+- Python (Pyright for navigation, Ruff for linting and formatting)
 - Julia (`LanguageServer.jl`)
 - Rust (`rust-analyzer`)
 
@@ -82,7 +84,7 @@ to Julia's default environment once; this changes Julia state under `$HOME/.juli
 mise -C . exec -- julia --startup-file=no -e 'using Pkg; Pkg.add("LanguageServer")'
 ```
 
-`lsp/bash.lua` and `lsp/pyright.lua` are present but are not enabled.
+`lsp/bash.lua` is present but is not enabled.
 
 ## Formatters (conform.nvim)
 
