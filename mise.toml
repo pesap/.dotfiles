@@ -32,7 +32,7 @@ gh = "2"
 node = "26"
 npm = "12"
 "npm:pyright" = "1"
-pi = "1.4.0"
+pi = "1.5.2"
 ruff = "0.16"
 "github:vicinaehq/vicinae" = { version = "0.28", asset_pattern = "vicinae-linux-x86_64-v{version}.tar.gz", os = ["linux"] }
 "cargo:stylua" = "2"

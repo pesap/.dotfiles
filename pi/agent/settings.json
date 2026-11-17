@@ -1,15 +1,11 @@
 {
   "collapseChangelog": true,
   "followUpMode": "all",
-  "hideThinkingBlock": true,
   "images": {
     "blockImages": false
   },
   "packages": [
-    "npm:pi-web-access@0.32.0",
     "git:github.com/crustyhacker/pi-thinking-steps",
-    "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.6",
-    "git:github.com/algal/pi-openai-server-compaction@c6d593087709e9481223dc6c6c2269b371b5e055",
     "git:github.com/pesap/khala",
     "npm:@gpac/pi-litellm"
   ],
@@ -21,12 +17,16 @@
   },
   "theme": "rose-pine-moon",
   "transport": "auto",
-  "lastChangelogVersion": "1.4.0",
+  "lastChangelogVersion": "1.5.2",
   "tuiMode": "fullscreen",
   "defaultProvider": "openai-codex",
   "modelThinkingLevels": {
     "openai-codex/gpt-6-luna": "max",
+    "openai-codex/gpt-6.1-terra": "max",
     "openai-codex/gpt-6.1-sol": "xhigh"
   },
-  "defaultModel": "gpt-6-luna"
+  "defaultModel": "gpt-6.1-terra",
+  "extensionChangelogVersions": {
+    "{\"source\":\"git:github.com/crustyhacker/pi-thinking-steps\",\"scope\":\"user\"}": "1.3.0"
+  }
 }
